@@ -1798,7 +1798,7 @@ function markSaved(){
   saveInd.textContent='\u2713 Saved';saveInd.className='save-ind saved';
   setTimeout(function(){if(!hasUnsavedChanges&&lastSaveTime){
     var diff=Math.floor((Date.now()-lastSaveTime.getTime())/60000);
-    saveInd.textContent=diff<1?'\u2713 Saved':'Saved '+diff+' min ago'';
+    saveInd.textContent=diff<1?'\u2713 Saved':'Saved '+diff+' min ago';
     saveInd.className='save-ind saved';
   }},5000);
 }
