@@ -1291,8 +1291,8 @@ function updStats(){
   for(var k in d){nc++;for(var o in d[k].outputs){cc+=(d[k].outputs[o].connections||[]).length}}
   document.getElementById('st-n').textContent=nc;
   document.getElementById('st-c').textContent=cc;
-  var sbn=document.getElementById('sb-nodes');if(sbn)sbn.textContent=nc+' nodes';
-  var sbc=document.getElementById('sb-conns');if(sbc)sbc.textContent=cc+' connections';
+  var sbn=document.getElementById('sb-nodes');if(sbn)sbn.textContent=nc+(isHe?' \u05D0\u05DC\u05DE\u05E0\u05D8\u05D9\u05DD':' nodes');
+  var sbc=document.getElementById('sb-conns');if(sbc)sbc.textContent=cc+(isHe?' \u05D7\u05D9\u05D1\u05D5\u05E8\u05D9\u05DD':' connections');
   updEmpty();
 }
 function updEmpty(){
@@ -1309,7 +1309,7 @@ function addNodeActions(id){
   if(!el||el.querySelector('.node-actions'))return;
   var acts=document.createElement('div');
   acts.className='node-actions';
-  acts.innerHTML='<button class="na-btn na-dup" title="Duplicate" onclick="event.stopPropagation();duplicateNode('+id+')"><i class="ti ti-copy"></i></button><button class="na-btn na-del" title="Delete" onclick="event.stopPropagation();deselectConn();editor.removeNodeId(\'node-'+id+'\');selectedNodeId=null;hideNodeProps();markDirty()"><i class="ti ti-trash"></i></button>';
+  acts.innerHTML='<button class="na-btn na-dup" title="'+(isHe?'\u05E9\u05DB\u05E4\u05D5\u05DC':'Duplicate')+'" onclick="event.stopPropagation();duplicateNode('+id+')"><i class="ti ti-copy"></i></button><button class="na-btn na-del" title="'+(isHe?'\u05DE\u05D7\u05E7':'Delete')+'" onclick="event.stopPropagation();deselectConn();editor.removeNodeId(\'node-'+id+'\');selectedNodeId=null;hideNodeProps();markDirty()"><i class="ti ti-trash"></i></button>';
   el.appendChild(acts);
 }
 // Add actions to existing nodes on load
@@ -1361,13 +1361,13 @@ function nHtml(t){
     remove_label:'<div><div class="nh nh-tl"><i class="ti ti-tag-off"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.remove_label_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.label_label+'</label><select df-label_name class="lsel"><option value="">'+L.select+'</option></select></div><div class="node-preview"></div>'+olbNext+'</div>',
     set_attribute:'<div><div class="nh nh-at"><i class="ti ti-pencil"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.set_attr_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.attr_label+'</label><select df-attr_key class="casel"><option value="">'+L.select+'</option></select><label>'+L.value_label+'</label><input type="text" df-attr_value placeholder="..."></div><div class="node-preview"></div>'+olbNext+'</div>',
     close:'<div><div class="nh nh-rd"><i class="ti ti-circle-check"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.close_title+'</span></div></div><div class="node-preview"><div class="pv-info"><i class="ti ti-circle-check" style="font-size:12px"></i> '+L.close_resolved+'</div></div></div>',
-    webhook:'<div><div class="nh nh-wb"><i class="ti ti-webhook"></i><div class="nh-text"><span class="nh-cat">'+L.integration_cat+'</span><span class="nh-title">Webhook</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>URL</label><input type="text" df-url placeholder="https://..." style="direction:ltr"><label>Method</label><select df-method><option value="POST">POST</option><option value="GET">GET</option></select><label>Headers (JSON)</label><textarea df-headers placeholder=\'{"Authorization":"Bearer ..."}\' rows="2" style="direction:ltr"></textarea></div><div class="node-preview"></div>'+olbNext+'</div>',
+    webhook:'<div><div class="nh nh-wb"><i class="ti ti-webhook"></i><div class="nh-text"><span class="nh-cat">'+L.integration_cat+'</span><span class="nh-title">Webhook</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>URL</label><input type="text" df-url placeholder="https://..." style="direction:ltr"><label>'+(isHe?'\u05DE\u05EA\u05D5\u05D3\u05D4':'Method')+'</label><select df-method><option value="POST">POST</option><option value="GET">GET</option></select><label>'+(isHe?'\u05DB\u05D5\u05EA\u05E8\u05D5\u05EA (JSON)':'Headers (JSON)')+'</label><textarea df-headers placeholder=\'{"Authorization":"Bearer ..."}\' rows="2" style="direction:ltr"></textarea></div><div class="node-preview"></div>'+olbNext+'</div>',
     note:'<div><div class="nh nh-nt"><i class="ti ti-note"></i><div class="nh-text"><span class="nh-cat">'+L.note_cat+'</span><span class="nh-title">'+L.note_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><textarea df-text placeholder="'+L.internal_note_ph+'" rows="2"></textarea></div><div class="node-preview"></div></div>',
     set_priority:'<div><div class="nh nh-sp"><i class="ti ti-flag"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.priority_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.priority_label+'</label><select df-priority><option value="">'+L.select+'</option><option value="0">'+L.low+'</option><option value="1">'+L.medium+'</option><option value="2">'+L.high+'</option><option value="3">'+L.urgent+'</option></select></div><div class="node-preview"></div>'+olbNext+'</div>',
     set_status:'<div><div class="nh nh-ss"><i class="ti ti-toggle-right"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.status_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.status_label+'</label><select df-status><option value="">'+L.select+'</option><option value="open">'+L.open+'</option><option value="resolved">'+L.resolved+'</option><option value="pending">'+L.pending+'</option></select></div><div class="node-preview"></div>'+olbNext+'</div>',
     transfer_inbox:'<div><div class="nh nh-ti"><i class="ti ti-transfer"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.transfer_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.inbox_label+'</label><select df-inbox_id class="ibsel"><option value="">'+L.select+'</option></select></div><div class="node-preview"></div>'+olbNext+'</div>',
-    wait_reply:'<div><div class="nh nh-wr"><i class="ti ti-message-question"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">'+L.wait_reply_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.save_var+'</label><input type="text" df-variable placeholder="reply_text" style="direction:ltr"><label>'+L.timeout_sec+'</label><input type="number" df-timeout_seconds value="300" min="10" max="86400"><label>'+L.timeout_msg+'</label><textarea df-timeout_message placeholder="'+L.no_reply+'" rows="2"></textarea></div><div class="node-preview"></div><div class="olb"><div><i class="ti ti-message-check" style="font-size:10px;color:#16A34A"></i> '+L.reply_received+' <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><i class="ti ti-clock-x" style="font-size:10px;color:#DC2626"></i> Timeout <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
-    api_action:'<div><div class="nh nh-api"><i class="ti ti-cloud-computing"></i><div class="nh-text"><span class="nh-cat">'+L.integration_cat+'</span><span class="nh-title">API Action</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>Method</label><select df-method><option value="GET">GET</option><option value="POST">POST</option><option value="PUT">PUT</option><option value="PATCH">PATCH</option><option value="DELETE">DELETE</option></select><label>URL</label><input type="text" df-url placeholder="https://api.example.com/..." style="direction:ltr"><label>Headers (JSON)</label><textarea df-headers placeholder=\'{"Authorization":"Bearer ..."}\' rows="2" style="direction:ltr"></textarea><label>Body (JSON)</label><textarea df-body placeholder=\'{"key":"value"}\' rows="2" style="direction:ltr"></textarea><label>'+L.save_response+'</label><input type="text" df-save_response placeholder="api_result" style="direction:ltr"></div><div class="node-preview"></div><div class="olb"><div><i class="ti ti-check" style="font-size:10px;color:#16A34A"></i> '+L.success+' <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><i class="ti ti-x" style="font-size:10px;color:#DC2626"></i> '+L.error+' <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
+    wait_reply:'<div><div class="nh nh-wr"><i class="ti ti-message-question"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">'+L.wait_reply_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.save_var+'</label><input type="text" df-variable placeholder="reply_text" style="direction:ltr"><label>'+L.timeout_sec+'</label><input type="number" df-timeout_seconds value="300" min="10" max="86400"><label>'+L.timeout_msg+'</label><textarea df-timeout_message placeholder="'+L.no_reply+'" rows="2"></textarea></div><div class="node-preview"></div><div class="olb"><div><i class="ti ti-message-check" style="font-size:10px;color:#16A34A"></i> '+L.reply_received+' <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><i class="ti ti-clock-x" style="font-size:10px;color:#DC2626"></i> '+(isHe?'Timeout':' Timeout')+' <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
+    api_action:'<div><div class="nh nh-api"><i class="ti ti-cloud-computing"></i><div class="nh-text"><span class="nh-cat">'+L.integration_cat+'</span><span class="nh-title">API Action</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+(isHe?'\u05DE\u05EA\u05D5\u05D3\u05D4':'Method')+'</label><select df-method><option value="GET">GET</option><option value="POST">POST</option><option value="PUT">PUT</option><option value="PATCH">PATCH</option><option value="DELETE">DELETE</option></select><label>URL</label><input type="text" df-url placeholder="https://api.example.com/..." style="direction:ltr"><label>'+(isHe?'\u05DB\u05D5\u05EA\u05E8\u05D5\u05EA (JSON)':'Headers (JSON)')+'</label><textarea df-headers placeholder=\'{"Authorization":"Bearer ..."}\' rows="2" style="direction:ltr"></textarea><label>'+(isHe?'\u05D2\u05D5\u05E3 (JSON)':'Body (JSON)')+'</label><textarea df-body placeholder=\'{"key":"value"}\' rows="2" style="direction:ltr"></textarea><label>'+L.save_response+'</label><input type="text" df-save_response placeholder="api_result" style="direction:ltr"></div><div class="node-preview"></div><div class="olb"><div><i class="ti ti-check" style="font-size:10px;color:#16A34A"></i> '+L.success+' <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><i class="ti ti-x" style="font-size:10px;color:#DC2626"></i> '+L.error+' <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
     ab_split:'<div><div class="nh nh-ab"><i class="ti ti-arrows-split-2"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">A/B Split</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.test_name+'</label><input type="text" df-name placeholder="'+L.test_ph+'"><label>'+L.split_pct+'</label><input type="number" df-split_a value="50" min="1" max="99"></div><div class="node-preview"></div><div class="olb"><div><span style="font-weight:600;color:#6366f1">A</span> <span class="olb-pct">50%</span> <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><span style="font-weight:600;color:#a855f7">B</span> <span class="olb-pct">50%</span> <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
     goto_step:'<div><div class="nh nh-go"><i class="ti ti-arrow-back-up"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">'+L.goto_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.target_node+'</label><select df-target_node class="goto-sel"><option value="">'+L.select_node+'</option></select></div><div class="node-preview"></div></div>'
   };
@@ -1637,9 +1637,9 @@ function upgradeLoadedNodes(){
 // When check_type dropdown changes inside a condition node, swap the value field
 function getInlineOpts(ct){
   switch(ct){
-    case 'contact_type':return [['0','Visitor'],['1','Lead'],['2','Customer']];
-    case 'conversation_status':return [['open','Open'],['resolved','Resolved'],['pending','Pending'],['snoozed','Snoozed']];
-    case 'conversation_priority':return [['0','Low'],['1','Medium'],['2','High'],['3','Urgent']];
+    case 'contact_type':return [['0',isHe?'\u05DE\u05D1\u05E7\u05E8':'Visitor'],['1',isHe?'\u05DC\u05D9\u05D3':'Lead'],['2',isHe?'\u05DC\u05E7\u05D5\u05D7':'Customer']];
+    case 'conversation_status':return [['open',isHe?L.open:'Open'],['resolved',isHe?L.resolved:'Resolved'],['pending',isHe?L.pending:'Pending'],['snoozed',isHe?'\u05D1\u05D4\u05E9\u05D4\u05D9\u05D4':'Snoozed']];
+    case 'conversation_priority':return [['0',isHe?L.low:'Low'],['1',isHe?L.medium:'Medium'],['2',isHe?L.high:'High'],['3',isHe?L.urgent:'Urgent']];
     case 'has_label':return labels.map(function(l){return [l.title,l.title]});
     case 'label_exists':return labels.map(function(l){return [l.title,l.title]});
     default:return null;
@@ -1766,10 +1766,10 @@ function addNodeAt(type, clientX, clientY){
 
 // ===== SELECTS =====
 function popSelects(){
-  fillAll('.asel',agents,'id','name','None');
-  fillAll('.tsel',teams,'id','name','None');
-  fillAll('.lsel',labels,'title','title','Select...');
-  fillAll('.ibsel',inboxes,'id','name','Select...');
+  fillAll('.asel',agents,'id','name',isHe?L.none:'None');
+  fillAll('.tsel',teams,'id','name',isHe?L.none:'None');
+  fillAll('.lsel',labels,'title','title',isHe?L.select:'Select...');
+  fillAll('.ibsel',inboxes,'id','name',isHe?L.select:'Select...');
   fillAllCA('.casel',customAttrs);
   fillGotoSelects();
 }
@@ -1781,13 +1781,13 @@ function fillGotoSelects(){
   for(var nid in d){
     var nd=d[nid];
     if(nd.name==='goto_step')continue;
-    var m={trigger:'Trigger',message:'Message',buttons:'Buttons',menu:'Menu',condition:'Condition',delay:'Delay',image:'Image',video:'Video',assign:'Assign',add_label:'Label+',remove_label:'Label-',set_attribute:'Attribute',webhook:'Webhook',close:'Close',note:'Note',set_priority:'Priority',set_status:'Status',transfer_inbox:'Transfer',wait_reply:'Wait Reply',api_action:'API',ab_split:'A/B'};
+    var m=isHe?{trigger:'\u05D8\u05E8\u05D9\u05D2\u05E8',message:'\u05D4\u05D5\u05D3\u05E2\u05D4',buttons:'\u05DB\u05E4\u05EA\u05D5\u05E8\u05D9\u05DD',menu:'\u05EA\u05E4\u05E8\u05D9\u05D8',condition:'\u05EA\u05E0\u05D0\u05D9',delay:'\u05D4\u05DE\u05EA\u05E0\u05D4',image:'\u05EA\u05DE\u05D5\u05E0\u05D4',video:'\u05D5\u05D9\u05D3\u05D0\u05D5',assign:'\u05D4\u05E7\u05E6\u05D4',add_label:'\u05EA\u05D2\u05D9\u05EA+',remove_label:'\u05EA\u05D2\u05D9\u05EA-',set_attribute:'\u05DE\u05D0\u05E4\u05D9\u05D9\u05DF',webhook:'Webhook',close:'\u05E1\u05D2\u05D5\u05E8',note:'\u05D4\u05E2\u05E8\u05D4',set_priority:'\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA',set_status:'\u05E1\u05D8\u05D8\u05D5\u05E1',transfer_inbox:'\u05D4\u05E2\u05D1\u05E8\u05D4',wait_reply:'\u05D4\u05DE\u05EA\u05E0\u05D4 \u05DC\u05EA\u05E9\u05D5\u05D1\u05D4',api_action:'API',ab_split:'A/B'}:{trigger:'Trigger',message:'Message',buttons:'Buttons',menu:'Menu',condition:'Condition',delay:'Delay',image:'Image',video:'Video',assign:'Assign',add_label:'Label+',remove_label:'Label-',set_attribute:'Attribute',webhook:'Webhook',close:'Close',note:'Note',set_priority:'Priority',set_status:'Status',transfer_inbox:'Transfer',wait_reply:'Wait Reply',api_action:'API',ab_split:'A/B'};
     nodes.push({id:nid,label:'#'+nid+' '+(m[nd.name]||nd.name)});
   }
   for(var i=0;i<sels.length;i++){
     var s=sels[i],cv=s.value;
     while(s.options.length>0)s.remove(0);
-    var ph=document.createElement('option');ph.value='';ph.textContent='Select node...';s.appendChild(ph);
+    var ph=document.createElement('option');ph.value='';ph.textContent=isHe?'\u05D1\u05D7\u05E8 \u05E6\u05D5\u05DE\u05EA...':'Select node...';s.appendChild(ph);
     for(var j=0;j<nodes.length;j++){
       var o=document.createElement('option');o.value=nodes[j].id;o.textContent=nodes[j].label;
       if(cv===nodes[j].id)o.selected=true;
@@ -1800,16 +1800,16 @@ function fillAllCA(cls,items){
   for(var i=0;i<sels.length;i++){
     var s=sels[i],cv=s.value;
     while(s.options.length>0)s.remove(0);
-    var d=document.createElement('option');d.value='';d.textContent='Select...';s.appendChild(d);
+    var d=document.createElement('option');d.value='';d.textContent=isHe?L.select:'Select...';s.appendChild(d);
     var contactAttrs=items.filter(function(a){return a.model===0||a.model==='contact_attribute'});
     var convAttrs=items.filter(function(a){return a.model===1||a.model==='conversation_attribute'});
     if(contactAttrs.length){
-      var og=document.createElement('optgroup');og.label='Contact';
+      var og=document.createElement('optgroup');og.label=isHe?'\u05D0\u05D9\u05E9 \u05E7\u05E9\u05E8':'Contact';
       for(var j=0;j<contactAttrs.length;j++){var o=document.createElement('option');o.value=contactAttrs[j].key;o.textContent=contactAttrs[j].name;if(cv===contactAttrs[j].key)o.selected=true;og.appendChild(o)}
       s.appendChild(og);
     }
     if(convAttrs.length){
-      var og=document.createElement('optgroup');og.label='Conversation';
+      var og=document.createElement('optgroup');og.label=isHe?'\u05E9\u05D9\u05D7\u05D4':'Conversation';
       for(var j=0;j<convAttrs.length;j++){var o=document.createElement('option');o.value=convAttrs[j].key;o.textContent=convAttrs[j].name;if(cv===convAttrs[j].key)o.selected=true;og.appendChild(o)}
       s.appendChild(og);
     }
@@ -1909,8 +1909,8 @@ document.getElementById('savebtn').addEventListener('click',function(){
   var btn=this;
   if(saving)return;
   var name=document.getElementById('bname').value.trim();
-  if(!name){toast('Enter a bot name','err');return}
-  saving=true;btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="font-size:16px;animation:spin .7s linear infinite"></i> Saving...';
+  if(!name){toast(isHe?'\u05D4\u05D6\u05DF \u05E9\u05DD \u05DC\u05D1\u05D5\u05D8':'Enter a bot name','err');return}
+  saving=true;btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="font-size:16px;animation:spin .7s linear infinite"></i> '+(isHe?'\u05E9\u05D5\u05DE\u05E8...':'Saving...');
   var cbs=document.querySelectorAll('#inbox-list input:checked'),ids=[];
   for(var i=0;i<cbs.length;i++)ids.push(parseInt(cbs[i].value));
   var data={
@@ -1926,12 +1926,12 @@ document.getElementById('savebtn').addEventListener('click',function(){
     .then(function(s){
       botData=s;
       if(!BOT_ID){BOT_ID=s.id;history.replaceState(null,'','/bot-builder/'+s.id+'/edit')}
-      document.getElementById('st-s').textContent=s.active?'Active':'Disabled';
-      document.getElementById('st-u').textContent='Just now';
-      toast('Bot saved successfully!','ok');markSaved();
+      document.getElementById('st-s').textContent=s.active?(isHe?'\u05E4\u05E2\u05D9\u05DC':'Active'):(isHe?'\u05DE\u05D5\u05E9\u05D1\u05EA':'Disabled');
+      document.getElementById('st-u').textContent=isHe?'\u05D4\u05E8\u05D2\u05E2':'Just now';
+      toast(isHe?'\u05D4\u05D1\u05D5\u05D8 \u05E0\u05E9\u05DE\u05E8 \u05D1\u05D4\u05E6\u05DC\u05D7\u05D4!':'Bot saved successfully!','ok');markSaved();
       if(BOT_ID)try{localStorage.removeItem('bot-draft-'+BOT_ID)}catch(ex){}
-    }).catch(function(err){toast(err&&err.name==='AbortError'?'Save failed — timeout':'Error saving','err')})
-    .finally(function(){saving=false;btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> Save'});
+    }).catch(function(err){toast(err&&err.name==='AbortError'?(isHe?'\u05D4\u05E9\u05DE\u05D9\u05E8\u05D4 \u05E0\u05DB\u05E9\u05DC\u05D4 \u2014 timeout':'Save failed \u2014 timeout'):(isHe?'\u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05E9\u05DE\u05D9\u05E8\u05D4':'Error saving'),'err')})
+    .finally(function(){saving=false;btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> '+(isHe?'\u05E9\u05DE\u05D5\u05E8':'Save')});
 });
 
 // ===== LOAD =====
@@ -1942,7 +1942,7 @@ function loadBot(id){
       if(!d)return;botData=d;
       document.getElementById('bname').value=d.name||'';
       document.getElementById('bdesc').value=d.description||'';
-      document.getElementById('st-s').textContent=d.active?'Active':'Disabled';
+      document.getElementById('st-s').textContent=d.active?(isHe?'\u05E4\u05E2\u05D9\u05DC':'Active'):(isHe?'\u05DE\u05D5\u05E9\u05D1\u05EA':'Disabled');
       try{var t=new Date(d.updated_at);document.getElementById('st-u').textContent=t.toLocaleDateString('he-IL')+' '+t.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}catch(e){}
       // Check for unsaved draft
       var useDraft=false;
@@ -1977,15 +1977,15 @@ function toast(m,t){
 var hasUnsavedChanges = false;
 var saveInd = document.getElementById('save-ind');
 function markDirty(){
-  if(!hasUnsavedChanges){hasUnsavedChanges=true;saveInd.textContent='Unsaved changes';saveInd.className='save-ind dirty'}
+  if(!hasUnsavedChanges){hasUnsavedChanges=true;saveInd.textContent=isHe?'\u05E9\u05D9\u05E0\u05D5\u05D9\u05D9\u05DD \u05DC\u05D0 \u05E0\u05E9\u05DE\u05E8\u05D5':'Unsaved changes';saveInd.className='save-ind dirty'}
 }
 var lastSaveTime=null;
 function markSaved(){
   hasUnsavedChanges=false;lastSaveTime=new Date();
-  saveInd.textContent='\u2713 Saved';saveInd.className='save-ind saved';
+  saveInd.textContent=isHe?'\u2713 \u05E0\u05E9\u05DE\u05E8':'\u2713 Saved';saveInd.className='save-ind saved';
   setTimeout(function(){if(!hasUnsavedChanges&&lastSaveTime){
     var diff=Math.floor((Date.now()-lastSaveTime.getTime())/60000);
-    saveInd.textContent=diff<1?'\u2713 Saved':'Saved '+diff+' min ago';
+    saveInd.textContent=diff<1?(isHe?'\u2713 \u05E0\u05E9\u05DE\u05E8':'\u2713 Saved'):(isHe?'\u05E0\u05E9\u05DE\u05E8 \u05DC\u05E4\u05E0\u05D9 '+diff+' \u05D3\u05E7\u05F3':'Saved '+diff+' min ago');
     saveInd.className='save-ind saved';
   }},5000);
 }
@@ -2275,74 +2275,74 @@ document.getElementById('node-search').addEventListener('input',function(){
 
 // ===== PROPERTIES PANEL =====
 var propsMeta={
-  trigger:{icon:'<i class="ti ti-target"></i>',color:'#ff6b35',title:'Incoming Message',fields:[
-    {key:'trigger_type',label:'Trigger type',type:'select',opts:[['keyword','Keyword'],['any','Any message'],['first','New conversation']]},
-    {key:'keyword',label:'Keyword',type:'text',ph:'Enter keyword...'}
+  trigger:{icon:'<i class="ti ti-target"></i>',color:'#ff6b35',title:isHe?L.incoming_msg:'Incoming Message',fields:[
+    {key:'trigger_type',label:isHe?L.trigger_type:'Trigger type',type:'select',opts:[['keyword',isHe?L.keyword:'Keyword'],['any',isHe?L.any_msg:'Any message'],['first',isHe?L.new_conv:'New conversation']]},
+    {key:'keyword',label:isHe?L.keyword:'Keyword',type:'text',ph:isHe?L.enter_keyword:'Enter keyword...'}
   ]},
-  message:{icon:'<i class="ti ti-message"></i>',color:'#4a9eff',title:'Send Message',fields:[
-    {key:'message',label:'Message content',type:'textarea',ph:'Type a message...'}
+  message:{icon:'<i class="ti ti-message"></i>',color:'#4a9eff',title:isHe?L.send_msg:'Send Message',fields:[
+    {key:'message',label:isHe?L.content:'Message content',type:'textarea',ph:isHe?L.type_msg:'Type a message...'}
   ]},
-  image:{icon:'<i class="ti ti-photo"></i>',color:'#2ecc71',title:'Send Image',fields:[
-    {key:'image_url',label:'Image URL',type:'text',ph:'https://...',dir:'ltr'},
-    {key:'caption',label:'Caption',type:'text',ph:'Optional...'}
+  image:{icon:'<i class="ti ti-photo"></i>',color:'#2ecc71',title:isHe?L.send_img:'Send Image',fields:[
+    {key:'image_url',label:isHe?L.img_url:'Image URL',type:'text',ph:'https://...',dir:'ltr'},
+    {key:'caption',label:isHe?L.caption:'Caption',type:'text',ph:isHe?L.optional:'Optional...'}
   ]},
-  video:{icon:'<i class="ti ti-video"></i>',color:'#6c5ce7',title:'Send Video',fields:[
-    {key:'video_url',label:'Video URL',type:'text',ph:'https://...',dir:'ltr'},
-    {key:'caption',label:'Caption',type:'text',ph:'Optional...'}
+  video:{icon:'<i class="ti ti-video"></i>',color:'#6c5ce7',title:isHe?L.send_vid:'Send Video',fields:[
+    {key:'video_url',label:isHe?L.vid_url:'Video URL',type:'text',ph:'https://...',dir:'ltr'},
+    {key:'caption',label:isHe?L.caption:'Caption',type:'text',ph:isHe?L.optional:'Optional...'}
   ]},
-  buttons:{icon:'<i class="ti ti-click"></i>',color:'#00b894',title:'Buttons',fields:[
-    {key:'body',label:'Message text',type:'textarea',ph:'Type a message...'},
-    {key:'btn1',label:'Button 1',type:'text',ph:'Button 1'},
-    {key:'btn2',label:'Button 2',type:'text',ph:'Button 2'},
-    {key:'btn3',label:'Button 3',type:'text',ph:'Button 3'}
+  buttons:{icon:'<i class="ti ti-click"></i>',color:'#00b894',title:isHe?L.buttons_title:'Buttons',fields:[
+    {key:'body',label:isHe?L.msg_text:'Message text',type:'textarea',ph:isHe?L.type_msg:'Type a message...'},
+    {key:'btn1',label:isHe?L.btn1:'Button 1',type:'text',ph:isHe?L.btn1:'Button 1'},
+    {key:'btn2',label:isHe?L.btn2:'Button 2',type:'text',ph:isHe?L.btn2:'Button 2'},
+    {key:'btn3',label:isHe?L.btn3:'Button 3',type:'text',ph:isHe?L.btn3:'Button 3'}
   ]},
-  menu:{icon:'<i class="ti ti-list"></i>',color:'#9b59b6',title:'Menu',fields:[
-    {key:'title',label:'Title',type:'text',ph:'Choose an option:'},
-    {key:'opt1',label:'Option 1',type:'text',ph:'1. ...'},
-    {key:'opt2',label:'Option 2',type:'text',ph:'2. ...'},
-    {key:'opt3',label:'Option 3',type:'text',ph:'3. ...'},
-    {key:'opt4',label:'Option 4',type:'text',ph:'4. ...'},
-    {key:'opt5',label:'Option 5',type:'text',ph:'5. ...'},
-    {key:'opt6',label:'Option 6',type:'text',ph:'6. ...'}
+  menu:{icon:'<i class="ti ti-list"></i>',color:'#9b59b6',title:isHe?L.menu_title:'Menu',fields:[
+    {key:'title',label:isHe?L.title_label:'Title',type:'text',ph:isHe?L.choose_option:'Choose an option:'},
+    {key:'opt1',label:isHe?L.opt+' 1':'Option 1',type:'text',ph:'1. ...'},
+    {key:'opt2',label:isHe?L.opt+' 2':'Option 2',type:'text',ph:'2. ...'},
+    {key:'opt3',label:isHe?L.opt+' 3':'Option 3',type:'text',ph:'3. ...'},
+    {key:'opt4',label:isHe?L.opt+' 4':'Option 4',type:'text',ph:'4. ...'},
+    {key:'opt5',label:isHe?L.opt+' 5':'Option 5',type:'text',ph:'5. ...'},
+    {key:'opt6',label:isHe?L.opt+' 6':'Option 6',type:'text',ph:'6. ...'}
   ]},
-  condition:{icon:'<i class="ti ti-git-branch"></i>',color:'#f1c40f',title:'Condition',fields:[
-    {key:'check_type',label:'Check type',type:'select',opts:[['contains','Contains'],['equals','Equals'],['regex','Regex'],['label_exists','Label exists'],['contact_type','Contact type'],['conversation_status','Conv. status'],['conversation_priority','Conv. priority'],['has_label','Conv. label'],['custom_attribute','Custom attribute'],['contact_field','Contact field']]},
-    {key:'check_value',label:'Value',type:'cond_value',ph:'...'}
+  condition:{icon:'<i class="ti ti-git-branch"></i>',color:'#f1c40f',title:isHe?L.condition_title:'Condition',fields:[
+    {key:'check_type',label:isHe?L.check_label:'Check type',type:'select',opts:[['contains',isHe?L.contains:'Contains'],['equals',isHe?L.equals:'Equals'],['regex','Regex'],['label_exists',isHe?L.label_exists:'Label exists'],['contact_type',isHe?L.contact_type:'Contact type'],['conversation_status',isHe?L.conv_status:'Conv. status'],['conversation_priority',isHe?L.conv_priority:'Conv. priority'],['has_label',isHe?L.conv_label:'Conv. label'],['custom_attribute',isHe?L.custom_attr:'Custom attribute'],['contact_field',isHe?L.contact_field:'Contact field']]},
+    {key:'check_value',label:isHe?L.value_label:'Value',type:'cond_value',ph:'...'}
   ]},
-  delay:{icon:'<i class="ti ti-clock-pause"></i>',color:'#8e44ad',title:'Delay',fields:[
-    {key:'seconds',label:'Seconds',type:'number',ph:'5'}
+  delay:{icon:'<i class="ti ti-clock-pause"></i>',color:'#8e44ad',title:isHe?L.delay_title:'Delay',fields:[
+    {key:'seconds',label:isHe?L.seconds:'Seconds',type:'number',ph:'5'}
   ]},
-  assign:{icon:'<i class="ti ti-user"></i>',color:'#27ae60',title:'Assign to Agent',fields:[
-    {key:'agent_id',label:'Agent',type:'agent_select'},
-    {key:'team_id',label:'Team',type:'team_select'}
+  assign:{icon:'<i class="ti ti-user"></i>',color:'#27ae60',title:isHe?L.assign_title:'Assign to Agent',fields:[
+    {key:'agent_id',label:isHe?L.agent:'Agent',type:'agent_select'},
+    {key:'team_id',label:isHe?L.team:'Team',type:'team_select'}
   ]},
-  add_label:{icon:'<i class="ti ti-tag"></i>',color:'#00b894',title:'Add Label',fields:[
-    {key:'label_name',label:'Label',type:'label_select'}
+  add_label:{icon:'<i class="ti ti-tag"></i>',color:'#00b894',title:isHe?L.add_label_title:'Add Label',fields:[
+    {key:'label_name',label:isHe?L.label_label:'Label',type:'label_select'}
   ]},
-  remove_label:{icon:'<i class="ti ti-tag-off"></i>',color:'#00b894',title:'Remove Label',fields:[
-    {key:'label_name',label:'Label',type:'label_select'}
+  remove_label:{icon:'<i class="ti ti-tag-off"></i>',color:'#00b894',title:isHe?L.remove_label_title:'Remove Label',fields:[
+    {key:'label_name',label:isHe?L.label_label:'Label',type:'label_select'}
   ]},
-  set_attribute:{icon:'<i class="ti ti-pencil"></i>',color:'#e67e22',title:'Set Attribute',fields:[
-    {key:'attr_key',label:'Attribute',type:'custom_attr_select'},
-    {key:'attr_value',label:'Value',type:'text',ph:'...'}
+  set_attribute:{icon:'<i class="ti ti-pencil"></i>',color:'#e67e22',title:isHe?L.set_attr_title:'Set Attribute',fields:[
+    {key:'attr_key',label:isHe?L.attr_label:'Attribute',type:'custom_attr_select'},
+    {key:'attr_value',label:isHe?L.value_label:'Value',type:'text',ph:'...'}
   ]},
-  close:{icon:'<i class="ti ti-circle-check"></i>',color:'#e74c3c',title:'Close Conversation',fields:[]},
+  close:{icon:'<i class="ti ti-circle-check"></i>',color:'#e74c3c',title:isHe?L.close_title:'Close Conversation',fields:[]},
   webhook:{icon:'<i class="ti ti-webhook"></i>',color:'#3498db',title:'Webhook',fields:[
     {key:'url',label:'URL',type:'text',ph:'https://...',dir:'ltr'},
-    {key:'method',label:'Method',type:'select',opts:[['POST','POST'],['GET','GET']]},
-    {key:'headers',label:'Headers (JSON)',type:'textarea',ph:'{"Authorization":"Bearer ..."}',dir:'ltr'}
+    {key:'method',label:isHe?'\u05DE\u05EA\u05D5\u05D3\u05D4':'Method',type:'select',opts:[['POST','POST'],['GET','GET']]},
+    {key:'headers',label:isHe?'\u05DB\u05D5\u05EA\u05E8\u05D5\u05EA (JSON)':'Headers (JSON)',type:'textarea',ph:'{"Authorization":"Bearer ..."}',dir:'ltr'}
   ]},
-  note:{icon:'<i class="ti ti-note"></i>',color:'#95a5a6',title:'Note',fields:[
-    {key:'text',label:'Internal note',type:'textarea',ph:'...'}
+  note:{icon:'<i class="ti ti-note"></i>',color:'#95a5a6',title:isHe?L.note_title:'Note',fields:[
+    {key:'text',label:isHe?'\u05D4\u05E2\u05E8\u05D4 \u05E4\u05E0\u05D9\u05DE\u05D9\u05EA':'Internal note',type:'textarea',ph:'...'}
   ]},
-  set_priority:{icon:'<i class="ti ti-flag"></i>',color:'#f1c40f',title:'Conv. priority',fields:[
-    {key:'priority',label:'Priority',type:'select',opts:[['','Select...'],['0','Low'],['1','Medium'],['2','High'],['3','Urgent']]}
+  set_priority:{icon:'<i class="ti ti-flag"></i>',color:'#f1c40f',title:isHe?L.priority_title:'Conv. priority',fields:[
+    {key:'priority',label:isHe?L.priority_label:'Priority',type:'select',opts:[['',isHe?L.select:'Select...'],['0',isHe?L.low:'Low'],['1',isHe?L.medium:'Medium'],['2',isHe?L.high:'High'],['3',isHe?L.urgent:'Urgent']]}
   ]},
-  set_status:{icon:'<i class="ti ti-toggle-right"></i>',color:'#6366F1',title:'Conv. status',fields:[
-    {key:'status',label:'Status',type:'select',opts:[['','Select...'],['open','Open'],['resolved','Resolved'],['pending','Pending']]}
+  set_status:{icon:'<i class="ti ti-toggle-right"></i>',color:'#6366F1',title:isHe?L.status_title:'Conv. status',fields:[
+    {key:'status',label:isHe?L.status_label:'Status',type:'select',opts:[['',isHe?L.select:'Select...'],['open',isHe?L.open:'Open'],['resolved',isHe?L.resolved:'Resolved'],['pending',isHe?L.pending:'Pending']]}
   ]},
-  transfer_inbox:{icon:'<i class="ti ti-transfer"></i>',color:'#9b59b6',title:'Transfer Inbox',fields:[
-    {key:'inbox_id',label:'Inbox',type:'inbox_select'}
+  transfer_inbox:{icon:'<i class="ti ti-transfer"></i>',color:'#9b59b6',title:isHe?L.transfer_title:'Transfer Inbox',fields:[
+    {key:'inbox_id',label:isHe?L.inbox_label:'Inbox',type:'inbox_select'}
   ]}
 };
 
@@ -2399,7 +2399,7 @@ function showNodeProps(id){
     }
     h+='</div>';
   }
-  h+='<button class="props-del" onclick="deleteSelected()"><i class="ti ti-trash" style="font-size:14px;vertical-align:middle"></i> Delete node</button>';
+  h+='<button class="props-del" onclick="deleteSelected()"><i class="ti ti-trash" style="font-size:14px;vertical-align:middle"></i> '+(isHe?'\u05DE\u05D7\u05E7 \u05D0\u05DC\u05DE\u05E0\u05D8':'Delete node')+'</button>';
   pp.innerHTML=h;
   pp.classList.add('active');
   // Bind real-time sync
@@ -2433,47 +2433,48 @@ function showNodeProps(id){
 }
 function buildCondValueField(ct,val,attrKey){
   var h='';
+  var _sel=isHe?L.select:'Select...';
   switch(ct){
     case 'contact_type':
-      h+='<select data-pkey="check_value"><option value="">Select...</option>';
-      h+='<option value="0"'+(val==='0'?' selected':'')+'>Visitor</option>';
-      h+='<option value="1"'+(val==='1'?' selected':'')+'>Lead</option>';
-      h+='<option value="2"'+(val==='2'?' selected':'')+'>Customer</option>';
+      h+='<select data-pkey="check_value"><option value="">'+_sel+'</option>';
+      h+='<option value="0"'+(val==='0'?' selected':'')+'>'+(isHe?'\u05DE\u05D1\u05E7\u05E8':'Visitor')+'</option>';
+      h+='<option value="1"'+(val==='1'?' selected':'')+'>'+(isHe?'\u05DC\u05D9\u05D3':'Lead')+'</option>';
+      h+='<option value="2"'+(val==='2'?' selected':'')+'>'+(isHe?'\u05DC\u05E7\u05D5\u05D7':'Customer')+'</option>';
       h+='</select>';break;
     case 'conversation_status':
-      h+='<select data-pkey="check_value"><option value="">Select...</option>';
-      h+='<option value="open"'+(val==='open'?' selected':'')+'>Open</option>';
-      h+='<option value="resolved"'+(val==='resolved'?' selected':'')+'>Resolved</option>';
-      h+='<option value="pending"'+(val==='pending'?' selected':'')+'>Pending</option>';
-      h+='<option value="snoozed"'+(val==='snoozed'?' selected':'')+'>Snoozed</option>';
+      h+='<select data-pkey="check_value"><option value="">'+_sel+'</option>';
+      h+='<option value="open"'+(val==='open'?' selected':'')+'>'+(isHe?L.open:'Open')+'</option>';
+      h+='<option value="resolved"'+(val==='resolved'?' selected':'')+'>'+(isHe?L.resolved:'Resolved')+'</option>';
+      h+='<option value="pending"'+(val==='pending'?' selected':'')+'>'+(isHe?L.pending:'Pending')+'</option>';
+      h+='<option value="snoozed"'+(val==='snoozed'?' selected':'')+'>'+(isHe?'\u05D1\u05D4\u05E9\u05D4\u05D9\u05D4':'Snoozed')+'</option>';
       h+='</select>';break;
     case 'conversation_priority':
-      h+='<select data-pkey="check_value"><option value="">Select...</option>';
-      h+='<option value="0"'+(val==='0'?' selected':'')+'>Low</option>';
-      h+='<option value="1"'+(val==='1'?' selected':'')+'>Medium</option>';
-      h+='<option value="2"'+(val==='2'?' selected':'')+'>High</option>';
-      h+='<option value="3"'+(val==='3'?' selected':'')+'>Urgent</option>';
+      h+='<select data-pkey="check_value"><option value="">'+_sel+'</option>';
+      h+='<option value="0"'+(val==='0'?' selected':'')+'>'+(isHe?L.low:'Low')+'</option>';
+      h+='<option value="1"'+(val==='1'?' selected':'')+'>'+(isHe?L.medium:'Medium')+'</option>';
+      h+='<option value="2"'+(val==='2'?' selected':'')+'>'+(isHe?L.high:'High')+'</option>';
+      h+='<option value="3"'+(val==='3'?' selected':'')+'>'+(isHe?L.urgent:'Urgent')+'</option>';
       h+='</select>';break;
     case 'has_label':
-      h+='<select data-pkey="check_value"><option value="">Select label...</option>';
+      h+='<select data-pkey="check_value"><option value="">'+(isHe?'\u05D1\u05D7\u05E8 \u05EA\u05D2\u05D9\u05EA...':'Select label...')+'</option>';
       for(var j=0;j<labels.length;j++){h+='<option value="'+escHtml(labels[j].title)+'"'+(val===labels[j].title?' selected':'')+'>'+escHtml(labels[j].title)+'</option>'}
       h+='</select>';break;
     case 'custom_attribute':
-      h+='<div class="cond-sub"><label>Attribute</label><select data-pkey="attr_key"><option value="">select an attribute...</option>';
+      h+='<div class="cond-sub"><label>'+(isHe?L.attr_label:'Attribute')+'</label><select data-pkey="attr_key"><option value="">'+(isHe?'\u05D1\u05D7\u05E8 \u05DE\u05D0\u05E4\u05D9\u05D9\u05DF...':'select an attribute...')+'</option>';
       if(typeof customAttrs!=='undefined'){
         var contactAttrs=customAttrs.filter(function(a){return a.model===0||a.model==='contact_attribute'});
         var convAttrs=customAttrs.filter(function(a){return a.model===1||a.model==='conversation_attribute'});
-        if(contactAttrs.length){h+='<optgroup label="Contact">';for(var j=0;j<contactAttrs.length;j++){h+='<option value="'+escHtml(contactAttrs[j].key)+'"'+(attrKey===contactAttrs[j].key?' selected':'')+'>'+escHtml(contactAttrs[j].name)+'</option>'}h+='</optgroup>'}
-        if(convAttrs.length){h+='<optgroup label="Conversation">';for(var j=0;j<convAttrs.length;j++){h+='<option value="'+escHtml(convAttrs[j].key)+'"'+(attrKey===convAttrs[j].key?' selected':'')+'>'+escHtml(convAttrs[j].name)+'</option>'}h+='</optgroup>'}
+        if(contactAttrs.length){h+='<optgroup label="'+(isHe?'\u05D0\u05D9\u05E9 \u05E7\u05E9\u05E8':'Contact')+'">';for(var j=0;j<contactAttrs.length;j++){h+='<option value="'+escHtml(contactAttrs[j].key)+'"'+(attrKey===contactAttrs[j].key?' selected':'')+'>'+escHtml(contactAttrs[j].name)+'</option>'}h+='</optgroup>'}
+        if(convAttrs.length){h+='<optgroup label="'+(isHe?'\u05E9\u05D9\u05D7\u05D4':'Conversation')+'">';for(var j=0;j<convAttrs.length;j++){h+='<option value="'+escHtml(convAttrs[j].key)+'"'+(attrKey===convAttrs[j].key?' selected':'')+'>'+escHtml(convAttrs[j].name)+'</option>'}h+='</optgroup>'}
       }
       h+='</select></div>';
-      h+='<div class="cond-sub"><label>Value</label><input type="text" data-pkey="check_value" value="'+escHtml(val)+'" placeholder="..."></div>';
+      h+='<div class="cond-sub"><label>'+(isHe?L.value_label:'Value')+'</label><input type="text" data-pkey="check_value" value="'+escHtml(val)+'" placeholder="..."></div>';
       break;
     case 'contact_field':
-      h+='<div class="cond-sub"><label>Field</label><select data-pkey="attr_key"><option value="">Select field...</option>';
+      h+='<div class="cond-sub"><label>'+(isHe?'\u05E9\u05D3\u05D4':'Field')+'</label><select data-pkey="attr_key"><option value="">'+(isHe?'\u05D1\u05D7\u05E8 \u05E9\u05D3\u05D4...':'Select field...')+'</option>';
       if(typeof contactFields!=='undefined'){for(var j=0;j<contactFields.length;j++){h+='<option value="'+escHtml(contactFields[j].key)+'"'+(attrKey===contactFields[j].key?' selected':'')+'>'+escHtml(contactFields[j].label)+'</option>'}}
       h+='</select></div>';
-      h+='<div class="cond-sub"><label>Value</label><input type="text" data-pkey="check_value" value="'+escHtml(val)+'" placeholder="..."></div>';
+      h+='<div class="cond-sub"><label>'+(isHe?L.value_label:'Value')+'</label><input type="text" data-pkey="check_value" value="'+escHtml(val)+'" placeholder="..."></div>';
       break;
     default:
       h+='<input type="text" data-pkey="check_value" value="'+escHtml(val)+'" placeholder="...">';
@@ -2786,11 +2787,11 @@ function validateFlow(){
   var prev=document.querySelectorAll('.node-error');
   for(var p=0;p<prev.length;p++)prev[p].classList.remove('node-error');
 
-  if(!keys.length){issues.push({msg:'No nodes \u2014 drag a trigger from the palette',id:null});showIssues(issues);return}
+  if(!keys.length){issues.push({msg:isHe?'\u05D0\u05D9\u05DF \u05D0\u05DC\u05DE\u05E0\u05D8\u05D9\u05DD \u2014 \u05D2\u05E8\u05D5\u05E8 \u05D8\u05E8\u05D9\u05D2\u05E8 \u05DE\u05D4\u05E4\u05DC\u05D8\u05D4':'No nodes \u2014 drag a trigger from the palette',id:null});showIssues(issues);return}
   // Check for trigger
   var hasTrigger=false;
   for(var i=0;i<keys.length;i++){if(d[keys[i]].name==='trigger')hasTrigger=true}
-  if(!hasTrigger)issues.push({msg:'Missing trigger \u2014 drag "Incoming Message" from the palette',id:null});
+  if(!hasTrigger)issues.push({msg:isHe?'\u05D7\u05E1\u05E8 \u05D8\u05E8\u05D9\u05D2\u05E8 \u2014 \u05D2\u05E8\u05D5\u05E8 "\u05D4\u05D5\u05D3\u05E2\u05D4 \u05E0\u05DB\u05E0\u05E1\u05EA" \u05DE\u05D4\u05E4\u05DC\u05D8\u05D4':'Missing trigger \u2014 drag "Incoming Message" from the palette',id:null});
   // Check each node
   var hasIncoming={};
   for(var i=0;i<keys.length;i++){
@@ -2801,33 +2802,34 @@ function validateFlow(){
     var n=d[keys[i]];var nid=keys[i];
     // Orphan check (not trigger/note, no incoming)
     if(n.name!=='trigger'&&n.name!=='note'&&!hasIncoming[nid]){
-      issues.push({msg:nodeName(n.name)+' #'+nid+' disconnected \u2014 connect to a previous node',id:nid});
+      issues.push({msg:nodeName(n.name)+' #'+nid+(isHe?' \u05DE\u05E0\u05D5\u05EA\u05E7 \u2014 \u05D7\u05D1\u05E8 \u05DC\u05D0\u05DC\u05DE\u05E0\u05D8 \u05E7\u05D5\u05D3\u05DD':' disconnected \u2014 connect to a previous node'),id:nid});
     }
     // Empty required fields
-    if(n.name==='message'&&!n.data.message){issues.push({msg:'Empty message #'+nid+' \u2014 add text',id:nid})}
-    if(n.name==='trigger'&&n.data.trigger_type==='keyword'&&!n.data.keyword){issues.push({msg:'Empty keyword #'+nid+' \u2014 enter a trigger keyword',id:nid})}
-    if(n.name==='menu'&&!n.data.opt1){issues.push({msg:'Menu #'+nid+' no options \u2014 add at least one',id:nid})}
-    if(n.name==='webhook'&&!n.data.url){issues.push({msg:'Webhook #'+nid+' no URL \u2014 enter a URL',id:nid})}
-    if(n.name==='set_priority'&&!n.data.priority&&n.data.priority!=='0'){issues.push({msg:'Priority #'+nid+' not selected \u2014 select a level',id:nid})}
-    if(n.name==='set_status'&&!n.data.status){issues.push({msg:'Status #'+nid+' not selected \u2014 select a value',id:nid})}
-    if(n.name==='transfer_inbox'&&!n.data.inbox_id){issues.push({msg:'Transfer #'+nid+' no inbox \u2014 select a target',id:nid})}
-    if(n.name==='buttons'&&!n.data.btn1){issues.push({msg:'Buttons #'+nid+' \u2014 add a first button',id:nid})}
-    if(n.name==='image'&&!n.data.image_url){issues.push({msg:'Image #'+nid+' no URL \u2014 add a link',id:nid})}
-    if(n.name==='video'&&!n.data.video_url){issues.push({msg:'Video #'+nid+' no URL \u2014 add a link',id:nid})}
-    if(n.name==='assign'&&!n.data.agent_id&&!n.data.team_id){issues.push({msg:'Assign #'+nid+' \u2014 select an agent or team',id:nid})}
-    if(n.name==='set_attribute'&&!n.data.attr_key){issues.push({msg:'Attribute #'+nid+' no name \u2014 select an attribute',id:nid})}
+    if(n.name==='message'&&!n.data.message){issues.push({msg:(isHe?'\u05D4\u05D5\u05D3\u05E2\u05D4 \u05E8\u05D9\u05E7\u05D4':'Empty message')+' #'+nid+(isHe?' \u2014 \u05D4\u05D5\u05E1\u05E3 \u05D8\u05E7\u05E1\u05D8':' \u2014 add text'),id:nid})}
+    if(n.name==='trigger'&&n.data.trigger_type==='keyword'&&!n.data.keyword){issues.push({msg:(isHe?'\u05DE\u05D9\u05DC\u05EA \u05DE\u05E4\u05EA\u05D7 \u05E8\u05D9\u05E7\u05D4':'Empty keyword')+' #'+nid+(isHe?' \u2014 \u05D4\u05D6\u05DF \u05DE\u05D9\u05DC\u05EA \u05DE\u05E4\u05EA\u05D7':' \u2014 enter a trigger keyword'),id:nid})}
+    if(n.name==='menu'&&!n.data.opt1){issues.push({msg:(isHe?'\u05EA\u05E4\u05E8\u05D9\u05D8':'Menu')+' #'+nid+(isHe?' \u05DC\u05DC\u05D0 \u05D0\u05E4\u05E9\u05E8\u05D5\u05D9\u05D5\u05EA \u2014 \u05D4\u05D5\u05E1\u05E3 \u05DC\u05E4\u05D7\u05D5\u05EA \u05D0\u05D7\u05EA':' no options \u2014 add at least one'),id:nid})}
+    if(n.name==='webhook'&&!n.data.url){issues.push({msg:'Webhook #'+nid+(isHe?' \u05DC\u05DC\u05D0 URL \u2014 \u05D4\u05D6\u05DF \u05DB\u05EA\u05D5\u05D1\u05EA':' no URL \u2014 enter a URL'),id:nid})}
+    if(n.name==='set_priority'&&!n.data.priority&&n.data.priority!=='0'){issues.push({msg:(isHe?'\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA':'Priority')+' #'+nid+(isHe?' \u05DC\u05D0 \u05E0\u05D1\u05D7\u05E8\u05D4 \u2014 \u05D1\u05D7\u05E8 \u05E8\u05DE\u05D4':' not selected \u2014 select a level'),id:nid})}
+    if(n.name==='set_status'&&!n.data.status){issues.push({msg:(isHe?'\u05E1\u05D8\u05D8\u05D5\u05E1':'Status')+' #'+nid+(isHe?' \u05DC\u05D0 \u05E0\u05D1\u05D7\u05E8 \u2014 \u05D1\u05D7\u05E8 \u05E2\u05E8\u05DA':' not selected \u2014 select a value'),id:nid})}
+    if(n.name==='transfer_inbox'&&!n.data.inbox_id){issues.push({msg:(isHe?'\u05D4\u05E2\u05D1\u05E8\u05D4':'Transfer')+' #'+nid+(isHe?' \u05DC\u05DC\u05D0 \u05EA\u05D9\u05D1\u05D4 \u2014 \u05D1\u05D7\u05E8 \u05D9\u05E2\u05D3':' no inbox \u2014 select a target'),id:nid})}
+    if(n.name==='buttons'&&!n.data.btn1){issues.push({msg:(isHe?'\u05DB\u05E4\u05EA\u05D5\u05E8\u05D9\u05DD':'Buttons')+' #'+nid+(isHe?' \u2014 \u05D4\u05D5\u05E1\u05E3 \u05DB\u05E4\u05EA\u05D5\u05E8 \u05E8\u05D0\u05E9\u05D5\u05DF':' \u2014 add a first button'),id:nid})}
+    if(n.name==='image'&&!n.data.image_url){issues.push({msg:(isHe?'\u05EA\u05DE\u05D5\u05E0\u05D4':'Image')+' #'+nid+(isHe?' \u05DC\u05DC\u05D0 URL \u2014 \u05D4\u05D5\u05E1\u05E3 \u05E7\u05D9\u05E9\u05D5\u05E8':' no URL \u2014 add a link'),id:nid})}
+    if(n.name==='video'&&!n.data.video_url){issues.push({msg:(isHe?'\u05D5\u05D9\u05D3\u05D0\u05D5':'Video')+' #'+nid+(isHe?' \u05DC\u05DC\u05D0 URL \u2014 \u05D4\u05D5\u05E1\u05E3 \u05E7\u05D9\u05E9\u05D5\u05E8':' no URL \u2014 add a link'),id:nid})}
+    if(n.name==='assign'&&!n.data.agent_id&&!n.data.team_id){issues.push({msg:(isHe?'\u05D4\u05E7\u05E6\u05D4':'Assign')+' #'+nid+(isHe?' \u2014 \u05D1\u05D7\u05E8 \u05E0\u05E6\u05D9\u05D2 \u05D0\u05D5 \u05E6\u05D5\u05D5\u05EA':' \u2014 select an agent or team'),id:nid})}
+    if(n.name==='set_attribute'&&!n.data.attr_key){issues.push({msg:(isHe?'\u05DE\u05D0\u05E4\u05D9\u05D9\u05DF':'Attribute')+' #'+nid+(isHe?' \u05DC\u05DC\u05D0 \u05E9\u05DD \u2014 \u05D1\u05D7\u05E8 \u05DE\u05D0\u05E4\u05D9\u05D9\u05DF':' no name \u2014 select an attribute'),id:nid})}
     // No outputs connected (except close/note)
     if(n.name!=='close'&&n.name!=='note'){
       var totalConn=0;
       for(var o in n.outputs){totalConn+=(n.outputs[o].connections||[]).length}
-      if(totalConn===0&&n.name!=='trigger'){issues.push({msg:nodeName(n.name)+' #'+nid+' no connection \u2014 connect to a target',id:nid})}
+      if(totalConn===0&&n.name!=='trigger'){issues.push({msg:nodeName(n.name)+' #'+nid+(isHe?' \u05DC\u05DC\u05D0 \u05D7\u05D9\u05D1\u05D5\u05E8 \u2014 \u05D7\u05D1\u05E8 \u05DC\u05D9\u05E2\u05D3':' no connection \u2014 connect to a target'),id:nid})}
     }
   }
   showIssues(issues);
-  if(!issues.length)toast('Flow is valid!','ok');
+  if(!issues.length)toast(isHe?'\u05D4\u05D6\u05E8\u05D9\u05DE\u05D4 \u05EA\u05E7\u05D9\u05E0\u05D4!':'Flow is valid!','ok');
 }
 
 function nodeName(t){
+  if(isHe){var m={trigger:'\u05D8\u05E8\u05D9\u05D2\u05E8',message:'\u05D4\u05D5\u05D3\u05E2\u05D4',image:'\u05EA\u05DE\u05D5\u05E0\u05D4',video:'\u05D5\u05D9\u05D3\u05D0\u05D5',buttons:'\u05DB\u05E4\u05EA\u05D5\u05E8\u05D9\u05DD',menu:'\u05EA\u05E4\u05E8\u05D9\u05D8',condition:'\u05EA\u05E0\u05D0\u05D9',delay:'\u05D4\u05DE\u05EA\u05E0\u05D4',assign:'\u05D4\u05E7\u05E6\u05D4',add_label:'\u05EA\u05D2\u05D9\u05EA+',remove_label:'\u05EA\u05D2\u05D9\u05EA-',set_attribute:'\u05DE\u05D0\u05E4\u05D9\u05D9\u05DF',close:'\u05E1\u05D2\u05D5\u05E8',webhook:'Webhook',note:'\u05D4\u05E2\u05E8\u05D4',set_priority:'\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA',set_status:'\u05E1\u05D8\u05D8\u05D5\u05E1',transfer_inbox:'\u05D4\u05E2\u05D1\u05E8\u05D4'};return m[t]||t}
   var m={trigger:'Trigger',message:'Message',image:'Image',video:'Video',buttons:'Buttons',menu:'Menu',condition:'Condition',delay:'Delay',assign:'Assign',add_label:'Label+',remove_label:'Label-',set_attribute:'Attribute',close:'Close',webhook:'Webhook',note:'Note',set_priority:'Priority',set_status:'Status',transfer_inbox:'Transfer'};
   return m[t]||t;
 }
@@ -2982,7 +2984,7 @@ function toggleSnap(){
   snapEnabled=!snapEnabled;
   var el=document.getElementById('snap-toggle');
   el.classList.toggle('active',snapEnabled);
-  var sb=document.getElementById('sb-snap');if(sb)sb.textContent='Snap: '+(snapEnabled?'On':'Off');
+  var sb=document.getElementById('sb-snap');if(sb)sb.textContent=isHe?('\u05D4\u05E6\u05DE\u05D3: '+(snapEnabled?'\u05DE\u05D5\u05E4\u05E2\u05DC':'\u05DB\u05D1\u05D5\u05D9')):('Snap: '+(snapEnabled?'On':'Off'));
 }
 // Single merged nodeMoved handler: snap → dirty → undo → minimap
 editor.on('nodeMoved',function(id){
@@ -3068,6 +3070,161 @@ loadMeta().then(function(){
   try{if(localStorage.getItem('bb-cfg-open'))openCfg()}catch(ex){}
 });
 setTimeout(queueMM,800);
+
+// ===== i18n: translate static HTML elements for Hebrew =====
+(function(){
+  if(!isHe) return;
+  // Set RTL on document
+  document.documentElement.setAttribute('dir','rtl');
+  document.documentElement.setAttribute('lang','he');
+
+  // --- Page title ---
+  document.title='\u05E2\u05D5\u05E8\u05DA \u05D1\u05D5\u05D8 | Chatwoot';
+
+  // --- Top hint bar ---
+  var hint=document.querySelector('.hint');
+  if(hint) hint.textContent='\u05D2\u05E8\u05D5\u05E8 \u05D0\u05DC\u05DE\u05E0\u05D8\u05D9\u05DD \u05DC\u05E7\u05E0\u05D1\u05E1 \u2022 \u05DC\u05D7\u05D9\u05E6\u05D4 \u05DB\u05E4\u05D5\u05DC\u05D4 = \u05E2\u05E8\u05D9\u05DB\u05D4 \u2022 \u05D2\u05DC\u05DC = \u05D6\u05D5\u05DD \u2022 \u05D7\u05D1\u05E8 \u05E4\u05D5\u05E8\u05D8\u05D9\u05DD';
+
+  // --- Canvas empty hint ---
+  var ceH3=document.querySelector('#canvas-empty h3');
+  if(ceH3) ceH3.textContent='\u05D1\u05E0\u05D4 \u05D1\u05D5\u05D8 \u05D1-3 \u05E6\u05E2\u05D3\u05D9\u05DD';
+  var steps=document.querySelectorAll('#canvas-empty .empty-steps div');
+  if(steps.length>=3){
+    steps[0].innerHTML='\u2460 \u05D4\u05EA\u05D7\u05DC \u05E2\u05DD <strong>\u05D8\u05E8\u05D9\u05D2\u05E8</strong> (\u05D4\u05D5\u05D3\u05E2\u05D4 \u05E0\u05DB\u05E0\u05E1\u05EA)';
+    steps[1].innerHTML='\u2461 \u05D4\u05D5\u05E1\u05E3 <strong>\u05E4\u05E2\u05D5\u05DC\u05D5\u05EA</strong> (\u05D4\u05D5\u05D3\u05E2\u05D4, \u05DB\u05E4\u05EA\u05D5\u05E8\u05D9\u05DD, \u05EA\u05E4\u05E8\u05D9\u05D8...)';
+    steps[2].innerHTML='\u2462 \u05D7\u05D1\u05E8 \u05D0\u05DC\u05DE\u05E0\u05D8\u05D9\u05DD \u05DC\u05D9\u05E6\u05D9\u05E8\u05EA \u05D6\u05E8\u05D9\u05DE\u05D4';
+  }
+  // Keyboard shortcuts in empty canvas
+  var ceP=document.querySelector('#canvas-empty p');
+  if(ceP) ceP.innerHTML='<kbd>Ctrl</kbd>+<kbd>Z</kbd> \u05D1\u05D8\u05DC \u2022 <kbd>Ctrl</kbd>+<kbd>S</kbd> \u05E9\u05DE\u05D5\u05E8 \u2022 <kbd>Del</kbd> \u05DE\u05D7\u05E7';
+
+  // --- Loading text ---
+  var ldSpan=document.querySelector('#canvas-loading span');
+  if(ldSpan) ldSpan.textContent='\u05D8\u05D5\u05E2\u05DF...';
+
+  // --- Bot name placeholder ---
+  var bname=document.getElementById('bname');
+  if(bname) bname.placeholder='\u05DC\u05D7\u05E5 \u05DC\u05E2\u05E8\u05D9\u05DB\u05EA \u05E9\u05DD \u05D4\u05D1\u05D5\u05D8...';
+
+  // --- Save button ---
+  var savebtn=document.getElementById('savebtn');
+  if(savebtn) savebtn.innerHTML='<i class="ti ti-device-floppy"></i> \u05E9\u05DE\u05D5\u05E8';
+
+  // --- Snap button ---
+  var snapLabel=document.getElementById('snap-label');
+  if(snapLabel) snapLabel.textContent='\u05D4\u05E6\u05DE\u05D3';
+
+  // --- Status bar ---
+  var sbNodes=document.getElementById('sb-nodes');
+  if(sbNodes) sbNodes.textContent='0 \u05D0\u05DC\u05DE\u05E0\u05D8\u05D9\u05DD';
+  var sbConns=document.getElementById('sb-conns');
+  if(sbConns) sbConns.textContent='0 \u05D7\u05D9\u05D1\u05D5\u05E8\u05D9\u05DD';
+  var sbSnap=document.getElementById('sb-snap');
+  if(sbSnap) sbSnap.textContent='\u05D4\u05E6\u05DE\u05D3: \u05DE\u05D5\u05E4\u05E2\u05DC';
+
+  // --- Search nodes placeholder ---
+  var nsearch=document.getElementById('node-search');
+  if(nsearch) nsearch.placeholder='\u05D7\u05E4\u05E9 \u05D0\u05DC\u05DE\u05E0\u05D8\u05D9\u05DD...';
+
+  // --- No nodes found ---
+  var noRes=document.getElementById('nodes-no-results');
+  if(noRes){var t=noRes.childNodes;for(var i=0;i<t.length;i++){if(t[i].nodeType===3&&t[i].textContent.trim()==='No nodes found'){t[i].textContent='\u05DC\u05D0 \u05E0\u05DE\u05E6\u05D0\u05D5 \u05D0\u05DC\u05DE\u05E0\u05D8\u05D9\u05DD'}}}
+
+  // --- Sidebar section headers ---
+  var secTs=document.querySelectorAll('.sec-t .dn-label');
+  var secMap={'Triggers':'\u05D8\u05E8\u05D9\u05D2\u05E8\u05D9\u05DD','Messages':'\u05D4\u05D5\u05D3\u05E2\u05D5\u05EA','Logic':'\u05DC\u05D5\u05D2\u05D9\u05E7\u05D4','Actions':'\u05E4\u05E2\u05D5\u05DC\u05D5\u05EA','Integrations':'\u05D0\u05D9\u05E0\u05D8\u05D2\u05E8\u05E6\u05D9\u05D5\u05EA'};
+  for(var i=0;i<secTs.length;i++){var txt=secTs[i].textContent.trim();if(secMap[txt])secTs[i].textContent=secMap[txt]}
+
+  // --- Sidebar node palette labels + titles ---
+  var dnMap={
+    'Incoming Message':L.incoming_msg, 'Send Message':L.send_msg, 'Send Image':L.send_img,
+    'Send Video':L.send_vid, 'Buttons':L.buttons_title, 'Menu':L.menu_title,
+    'Condition':L.condition_title, 'Delay':L.delay_title, 'Internal Note':L.note_title,
+    'Wait for Reply':L.wait_reply_title, 'A/B Split':'A/B Split',
+    'Go to Step':L.goto_title, 'Assign to Agent':L.assign_title,
+    'Add Label':L.add_label_title, 'Remove Label':L.remove_label_title,
+    'Set Attribute':L.set_attr_title, 'Set Priority':L.priority_title,
+    'Set Status':L.status_title, 'Transfer Inbox':L.transfer_title,
+    'Close Conversation':L.close_title, 'Webhook':'Webhook', 'API Action':'API Action'
+  };
+  var dns=document.querySelectorAll('.side-nodes .dn');
+  for(var i=0;i<dns.length;i++){
+    var lbl=dns[i].querySelector('.dn-label');
+    if(lbl){var t=lbl.textContent.trim();if(dnMap[t])lbl.textContent=dnMap[t]}
+    var tt=dns[i].getAttribute('title');
+    if(tt&&dnMap[tt])dns[i].setAttribute('title',dnMap[tt]);
+  }
+
+  // --- Toolbar tooltips ---
+  var ttMap={
+    'Undo (Ctrl+Z)':'\u05D1\u05D8\u05DC (Ctrl+Z)',
+    'Redo (Ctrl+Shift+Z)':'\u05D1\u05D8\u05DC \u05D1\u05D9\u05D8\u05D5\u05DC (Ctrl+Shift+Z)',
+    'Bot Settings':'\u05D4\u05D2\u05D3\u05E8\u05D5\u05EA \u05D1\u05D5\u05D8',
+    'Auto-align':'\u05E1\u05D9\u05D3\u05D5\u05E8 \u05D0\u05D5\u05D8\u05D5\u05DE\u05D8\u05D9',
+    'Validate Flow':'\u05D1\u05D3\u05D9\u05E7\u05EA \u05D6\u05E8\u05D9\u05DE\u05D4',
+    'Export Flow (JSON)':'\u05D9\u05D9\u05E6\u05D5\u05D0 \u05D6\u05E8\u05D9\u05DE\u05D4 (JSON)',
+    'Import Flow (JSON)':'\u05D9\u05D9\u05D1\u05D5\u05D0 \u05D6\u05E8\u05D9\u05DE\u05D4 (JSON)',
+    'Expand/Collapse palette':'\u05D4\u05E8\u05D7\u05D1/\u05E6\u05DE\u05E6\u05DD \u05E4\u05DC\u05D8\u05D4',
+    'Fit to screen':'\u05D4\u05EA\u05D0\u05DE\u05D4 \u05DC\u05DE\u05E1\u05DA',
+    'Reset':'\u05D0\u05D9\u05E4\u05D5\u05E1',
+    'Snap to grid':'\u05D4\u05E6\u05DE\u05D3 \u05DC\u05E8\u05E9\u05EA',
+    'Back to list':'\u05D7\u05D6\u05E8\u05D4 \u05DC\u05E8\u05E9\u05D9\u05DE\u05D4',
+    'Duplicate':'\u05E9\u05DB\u05E4\u05D5\u05DC',
+    'Delete':'\u05DE\u05D7\u05E7'
+  };
+  var titled=document.querySelectorAll('[title]');
+  for(var i=0;i<titled.length;i++){var t=titled[i].getAttribute('title');if(ttMap[t])titled[i].setAttribute('title',ttMap[t])}
+
+  // --- Nav tooltips ---
+  var navMap={'Bot Builder':'\u05D1\u05D5\u05E0\u05D4 \u05D1\u05D5\u05D8\u05D9\u05DD','Campaign Report':'\u05D3\u05D5\u05D7 \u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD','Chatwoot':'Chatwoot'};
+  var navLinks=document.querySelectorAll('.app-nav a');
+  for(var i=0;i<navLinks.length;i++){var t=navLinks[i].getAttribute('title');if(navMap[t])navLinks[i].setAttribute('title',navMap[t])}
+
+  // --- Context menu ---
+  var ctxItems=document.querySelectorAll('.ctx-item');
+  var ctxMap={'Duplicate':'\u05E9\u05DB\u05E4\u05D5\u05DC','Copy':'\u05D4\u05E2\u05EA\u05E7','Paste':'\u05D4\u05D3\u05D1\u05E7','Delete':'\u05DE\u05D7\u05E7'};
+  for(var i=0;i<ctxItems.length;i++){
+    var nodes=ctxItems[i].childNodes;
+    for(var j=0;j<nodes.length;j++){
+      if(nodes[j].nodeType===3){var txt=nodes[j].textContent.trim();if(ctxMap[txt])nodes[j].textContent=' '+ctxMap[txt]}
+    }
+  }
+
+  // --- Settings sidebar ---
+  var sideCfg=document.getElementById('side-cfg');
+  if(sideCfg){
+    sideCfg.setAttribute('aria-label','\u05D4\u05D2\u05D3\u05E8\u05D5\u05EA \u05D1\u05D5\u05D8');
+    // Close button
+    var closeBtn=sideCfg.querySelector('.side-cfg-close');
+    if(closeBtn) closeBtn.innerHTML='<i class="ti ti-chevron-right" style="font-size:14px"></i> \u05E1\u05D2\u05D5\u05E8 <kbd>Esc</kbd>';
+    // Bot Settings heading
+    var cfgH3s=sideCfg.querySelectorAll('h3');
+    for(var i=0;i<cfgH3s.length;i++){
+      var t=cfgH3s[i].textContent.trim();
+      if(t.indexOf('Bot Settings')!==-1) cfgH3s[i].innerHTML='<i class="ti ti-settings" style="font-size:16px;vertical-align:middle"></i> \u05D4\u05D2\u05D3\u05E8\u05D5\u05EA \u05D1\u05D5\u05D8';
+      if(t.indexOf('Info')!==-1) cfgH3s[i].innerHTML='<i class="ti ti-chart-bar" style="font-size:16px;vertical-align:middle"></i> \u05DE\u05D9\u05D3\u05E2';
+      if(t.indexOf('Tips')!==-1) cfgH3s[i].innerHTML='<i class="ti ti-bulb" style="font-size:16px;vertical-align:middle"></i> \u05D8\u05D9\u05E4\u05D9\u05DD';
+      if(t.indexOf('Issues')!==-1) cfgH3s[i].innerHTML='<i class="ti ti-alert-triangle" style="font-size:16px;vertical-align:middle"></i> \u05D1\u05E2\u05D9\u05D5\u05EA';
+    }
+    // Labels in settings
+    var labels=sideCfg.querySelectorAll('label');
+    var labMap={'Description':'\u05EA\u05D9\u05D0\u05D5\u05E8','Inboxes':'\u05EA\u05D9\u05D1\u05D5\u05EA \u05D3\u05D5\u05D0\u05E8'};
+    for(var i=0;i<labels.length;i++){var t=labels[i].textContent.trim();if(labMap[t])labels[i].textContent=labMap[t]}
+    // Description placeholder
+    var bdesc=document.getElementById('bdesc');
+    if(bdesc) bdesc.placeholder='\u05EA\u05D9\u05D0\u05D5\u05E8 \u05E7\u05E6\u05E8...';
+    // Info rows
+    var srs=sideCfg.querySelectorAll('.sr .lab');
+    var srMap={'Status':'\u05E1\u05D8\u05D8\u05D5\u05E1','Nodes':'\u05D0\u05DC\u05DE\u05E0\u05D8\u05D9\u05DD','Connections':'\u05D7\u05D9\u05D1\u05D5\u05E8\u05D9\u05DD','Last updated':'\u05E2\u05D3\u05DB\u05D5\u05DF \u05D0\u05D7\u05E8\u05D5\u05DF'};
+    for(var i=0;i<srs.length;i++){var t=srs[i].textContent.trim();if(srMap[t])srs[i].textContent=srMap[t]}
+    // Status value
+    var stS=document.getElementById('st-s');
+    if(stS){var sv=stS.textContent.trim();if(sv==='New')stS.textContent='\u05D7\u05D3\u05E9'}
+    // Tips content
+    var tipsDiv=document.querySelector('#tips-panel div[style]');
+    if(tipsDiv) tipsDiv.innerHTML='<i class="ti ti-drag-drop" style="font-size:13px"></i> \u05D2\u05E8\u05D5\u05E8 \u05D0\u05DC\u05DE\u05E0\u05D8 \u05DC\u05E7\u05E0\u05D1\u05E1<br><i class="ti ti-mouse" style="font-size:13px"></i> \u05DC\u05D7\u05D9\u05E6\u05D4 \u05DB\u05E4\u05D5\u05DC\u05D4 = \u05E2\u05E8\u05D9\u05DB\u05D4<br><i class="ti ti-device-floppy" style="font-size:13px"></i> Ctrl+S = \u05E9\u05DE\u05D9\u05E8\u05D4<br><i class="ti ti-backspace" style="font-size:13px"></i> Delete = \u05DE\u05D7\u05D9\u05E7\u05EA \u05D0\u05DC\u05DE\u05E0\u05D8<br><i class="ti ti-arrow-back-up" style="font-size:13px"></i> Ctrl+Z = \u05D1\u05D9\u05D8\u05D5\u05DC<br><i class="ti ti-menu-2" style="font-size:13px"></i> \u05DC\u05D7\u05D9\u05E6\u05D4 \u05D9\u05DE\u05E0\u05D9\u05EA = \u05EA\u05E4\u05E8\u05D9\u05D8';
+  }
+})();
 </script>
 </body></html>
     ENDHTML
