@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campaign Report | WhatsApp</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" rel="stylesheet">
+  <style>
+    :root{
+      --bg-app:#F4F5F8;--bg-card:#FFFFFF;--bg-surface:#FAFBFC;--border-weak:#E8E9ED;--border-strong:#D4D6DC;
+      --text-1:#1C2024;--text-2:#60646C;--text-3:#80838D;--text-4:#8B8D98;
+      --accent:#6366F1;--accent-light:#818CF8;--accent-bg:rgba(99,102,241,.06);--accent-border:rgba(99,102,241,.15);
+      --card-shadow:0 1px 2px rgba(0,0,0,.04),0 2px 4px rgba(0,0,0,.03),0 4px 8px rgba(0,0,0,.02);
+      --card-hover-shadow:0 2px 4px rgba(0,0,0,.05),0 4px 8px rgba(0,0,0,.04),0 8px 16px rgba(0,0,0,.04),0 16px 32px rgba(0,0,0,.03);
+      --glass-bg:rgba(255,255,255,.6);--glass-border:rgba(255,255,255,.8);
+      --nav-bg:#FEFEFE;--nav-border:#E8E9ED;--nav-text:#80838D;
+      --table-bg:#FFFFFF;--table-border:#E8E9ED;--table-hover:rgba(99,102,241,.03);
+      --bar-bg:#E8E9ED;--input-bg:#FFFFFF;--input-border:#E8E9ED;
+      --glow-accent:rgba(99,102,241,.08);
+    }
+    body.dark{
+      --bg-app:#0F1014;--bg-card:#16171F;--bg-surface:#1C1E28;--border-weak:#1E1F2E;--border-strong:#2A2B3D;
+      --text-1:#EDEEF0;--text-2:#B0B4BA;--text-3:#777B84;--text-4:#555770;
+      --accent:#818CF8;--accent-light:#A5B4FC;--accent-bg:rgba(99,102,241,.08);--accent-border:rgba(99,102,241,.2);
+      --card-shadow:0 1px 2px rgba(0,0,0,.2),0 2px 4px rgba(0,0,0,.15),0 4px 8px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.03);
+      --card-hover-shadow:0 2px 4px rgba(0,0,0,.2),0 4px 8px rgba(0,0,0,.15),0 8px 16px rgba(0,0,0,.12),0 16px 32px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.05);
+      --glass-bg:rgba(22,23,31,.7);--glass-border:rgba(255,255,255,.06);
+      --nav-bg:#0C0D14;--nav-border:rgba(255,255,255,.04);--nav-text:#555770;
+      --table-bg:#16171F;--table-border:#1E1F2E;--table-hover:rgba(99,102,241,.04);
+      --bar-bg:#1E1F2E;--input-bg:#1C1E28;--input-border:rgba(255,255,255,.06);
+      --glow-accent:rgba(99,102,241,.12);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}::-webkit-scrollbar-thumb:hover{background:var(--text-3)}
+    body{font-family:'Inter',-apple-system,system-ui,sans-serif;background:var(--bg-app);color:var(--text-1);line-height:1.65;margin:0;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+
+    /* App shell */
+    .app-shell{display:flex;min-height:100vh}
+    .app-nav{width:56px;background:var(--nav-bg);border-right:1px solid var(--nav-border);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px;flex-shrink:0;position:sticky;top:0;height:100vh}
+    .app-nav a{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--nav-text);text-decoration:none;transition:background .15s,color .15s,box-shadow .2s;font-size:0;position:relative}
+    .app-nav a:hover{background:rgba(99,102,241,.04);color:var(--text-1)}
+    .app-nav a.active{color:var(--accent);background:var(--accent-bg);box-shadow:0 0 12px var(--glow-accent)}
+    .app-nav a.active::before{content:'';position:absolute;left:-1px;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:linear-gradient(180deg,#6366F1,#818CF8)}
+    .app-nav .nav-sp{flex:1}
+    .app-nav .ti{font-size:20px}
+
+    /* Layout */
+    .app-main{flex:1;overflow-y:auto;min-width:0}
+    .container{max-width:1200px;margin:0 auto;padding:32px 48px}
+
+    /* Page header */
+    .page-hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:28px}
+    .page-hdr h1{font-size:22px;font-weight:700;letter-spacing:-.03em;color:var(--text-1)}
+    .page-hdr .subtitle{color:var(--text-3);font-size:13px;margin-top:4px;letter-spacing:-.01em}
+    .page-hdr .refresh-btn{background:var(--glass-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-border);border-radius:10px;padding:8px 16px;color:var(--text-2);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s,color .15s,border-color .15s,box-shadow .2s;text-decoration:none;display:inline-flex;align-items:center;gap:6px;height:38px}
+    .page-hdr .refresh-btn:hover{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-border);box-shadow:0 0 12px var(--glow-accent);text-decoration:none}
+
+    /* Search */
+    .search-wrap{margin-bottom:20px;position:relative}
+    .search-wrap input{width:100%;max-width:360px;background:var(--input-bg);border:none;outline:1px solid var(--input-border);border-radius:10px;padding:9px 14px;padding-right:36px;color:var(--text-1);font-family:inherit;font-size:13px;direction:ltr;transition:outline-color .15s ease,box-shadow .2s ease}
+    .search-wrap input:focus{outline-color:var(--accent);box-shadow:0 0 0 3px var(--glow-accent)}
+    .search-wrap input:hover{outline-color:var(--border-strong)}
+    .search-wrap input::placeholder{color:var(--text-4)}
+
+    /* === STAT CARDS - Premium glass === */
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px}
+    .stat-card{background:var(--bg-card);border:1px solid var(--border-weak);border-radius:16px;padding:20px 22px;position:relative;overflow:hidden;transition:border-color .2s,box-shadow .3s,transform .2s;box-shadow:var(--card-shadow)}
+    .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0;background:var(--stat-accent,var(--accent));opacity:.6;transition:opacity .2s}
+    .stat-card:hover{border-color:var(--border-strong);box-shadow:var(--card-hover-shadow);transform:translateY(-2px)}
+    .stat-card:hover::before{opacity:1}
+    .stat-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:17px;transition:box-shadow .2s}
+    .stat-card:hover .stat-icon{box-shadow:0 0 12px var(--stat-glow,rgba(99,102,241,.2))}
+    .stat-number{font-size:30px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.03em;transition:color .2s}
+    .stat-label{font-size:10px;color:var(--text-4);margin-top:8px;font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+    .stat-pct{font-size:12px;color:var(--accent);margin-top:4px;font-weight:600;letter-spacing:-.01em}
+    .stat-bar{height:3px;background:var(--bar-bg);border-radius:2px;margin-top:10px;overflow:hidden}
+    .stat-bar-fill{height:100%;border-radius:2px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+
+    /* === SECTION TITLES === */
+    .section-title{font-size:10px;font-weight:700;margin-bottom:12px;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:8px}
+    .section-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border-weak),transparent)}
+
+    /* === TABLE - Premium === */
+    .table-wrapper{background:var(--table-bg);border:1px solid var(--border-weak);border-radius:16px;overflow:hidden;margin-bottom:28px;box-shadow:var(--card-shadow);transition:box-shadow .3s}
+    .table-scroll{max-height:600px;overflow-y:auto}
+    table{width:100%;border-collapse:collapse;border-spacing:0;font-size:13px}
+    thead{position:sticky;top:0;z-index:2;background:var(--table-bg)}
+    th{padding:14px 16px;text-align:left;font-weight:600;font-size:11px;color:var(--text-4);border-bottom:1px solid var(--border-weak);cursor:pointer;user-select:none;transition:color .15s;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
+    th:hover{color:var(--text-1)}
+    th .sort-arr{font-size:8px;margin-left:3px;opacity:.4}
+    th.sorted{color:var(--accent)}
+    th.sorted .sort-arr{opacity:1}
+    td{padding:14px 16px;border-bottom:1px solid var(--border-weak);font-size:13px;font-variant-numeric:tabular-nums}
+    tbody tr{transition:background .15s,transform .15s}
+    tbody tr:hover{background:var(--table-hover)}
+    tbody tr:last-child td{border-bottom:none}
+    tbody tr.clickable{cursor:pointer}
+    tbody tr.clickable:active{transform:scale(.998)}
+
+    /* Status badge */
+    .campaign-status{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:-.01em}
+    .campaign-status::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.6}
+    .cs-completed{background:rgba(46,204,113,.1);color:#2ecc71}
+    .cs-active{background:var(--accent-bg);color:var(--accent)}
+    .cs-scheduled{background:rgba(240,173,78,.1);color:#f0ad4e}
+
+    /* Links */
+    a{color:var(--accent);text-decoration:none;font-weight:500}
+    a:hover{text-decoration:underline;text-underline-offset:3px}
+
+    /* Empty state */
+    .empty-state{text-align:center;padding:60px 20px;color:var(--text-4)}
+    .empty-state .ti{font-size:32px;margin-bottom:8px;opacity:.3}
+    .empty-state p{font-size:13px;margin-top:6px}
+
+    /* === ANIMATE ON LOAD === */
+    @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    .stat-card,.table-wrapper{animation:fadeUp .4s ease-out both}
+    .stat-card:nth-child(1){animation-delay:.05s}.stat-card:nth-child(2){animation-delay:.1s}.stat-card:nth-child(3){animation-delay:.15s}.stat-card:nth-child(4){animation-delay:.2s}
+    .table-wrapper{animation-delay:.25s}
+
+    @media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr);gap:8px}th,td{padding:8px 10px;font-size:11px}.container{padding:16px}.app-nav{width:48px}.app-nav .ti{font-size:18px}}
+  </style>
+</head>
+<body>
+  <script>
+  // Theme detection: URL param > Chatwoot localStorage > system preference
+  (function(){
+    var urlTheme = new URLSearchParams(window.location.search).get('theme');
+    if (urlTheme === 'dark') document.body.classList.add('dark');
+    else if (urlTheme === 'light') document.body.classList.remove('dark');
+    else {
+      var s=null;try{var k=Object.keys(localStorage);for(var i=0;i<k.length;i++){if(k[i].indexOf("COLOR_SCHEME")!==-1){s=localStorage.getItem(k[i]);break}}}catch(e){}
+      if(s==="dark"||(s!=="light"&&window.matchMedia("(prefers-color-scheme:dark)").matches))document.body.classList.add("dark");
+    }
+  })();
+  </script>
+
+  <!-- Data injection point: server replaces __CAMPAIGNS__ and __LOCALE__ -->
+  <script>
+  var _campaigns = __CAMPAIGNS__;
+  var _locale = __LOCALE__;
+  </script>
+
+  <div class="app-shell">
+    <nav class="app-nav">
+      <a href="/bot-builder" title="Bot Builder"><i class="ti ti-robot"></i></a>
+      <a href="/campaign-report" class="active" title="Campaign Report"><i class="ti ti-chart-bar"></i></a>
+      <div class="nav-sp"></div>
+      <a href="/app" title="Chatwoot"><i class="ti ti-layout-dashboard"></i></a>
+    </nav>
+    <div class="app-main">
+      <div class="container">
+
+        <div class="page-hdr" style="direction:ltr">
+          <div>
+            <h1 id="page-title">Campaign Report</h1>
+            <div class="subtitle" id="page-subtitle">WhatsApp Campaign Performance Analytics</div>
+          </div>
+          <a href="/campaign-report" class="refresh-btn" id="refresh-btn"><i class="ti ti-refresh" style="font-size:15px"></i> <span>Refresh</span></a>
+        </div>
+
+        <div class="stats-grid" id="stats-grid"></div>
+
+        <div class="search-wrap">
+          <i class="ti ti-search" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:14px;color:#696E77;pointer-events:none"></i>
+          <input type="text" id="campaign-search" placeholder="Search campaigns..." oninput="filterCampaigns(this.value)" style="padding-right:34px">
+          <span id="search-count" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:11px;color:#696E77"></span>
+        </div>
+
+        <div class="section-title" id="section-title">All Campaigns</div>
+
+        <div class="table-wrapper">
+          <div class="table-scroll">
+            <table id="campaign-table">
+              <thead>
+                <tr id="thead-row"></tr>
+              </thead>
+              <tbody id="campaign-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    var isHe = _locale === 'he';
+    if(isHe){document.documentElement.setAttribute('dir','rtl');document.documentElement.setAttribute('lang','he')}
+
+    // i18n labels
+    var t = {
+      pageTitle:      isHe ? '\u05D3\u05D5\u05D7 \u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD' : 'Campaign Report',
+      pageSubtitle:   isHe ? '\u05E0\u05D9\u05EA\u05D5\u05D7 \u05D1\u05D9\u05E6\u05D5\u05E2\u05D9 \u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9 WhatsApp' : 'WhatsApp Campaign Performance Analytics',
+      refresh:        isHe ? '\u05E8\u05E2\u05E0\u05DF' : 'Refresh',
+      searchPH:       isHe ? '\u05D7\u05E4\u05E9 \u05E7\u05DE\u05E4\u05D9\u05D9\u05DF...' : 'Search campaigns...',
+      sectionAll:     isHe ? '\u05DB\u05DC \u05D4\u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD' : 'All Campaigns',
+      campaigns:      isHe ? '\u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD' : 'Campaigns',
+      sent:           isHe ? '\u05E0\u05E9\u05DC\u05D7\u05D5' : 'Sent',
+      delivered:      isHe ? '\u05E0\u05DE\u05E1\u05E8\u05D5' : 'Delivered',
+      read:           isHe ? '\u05E0\u05E7\u05E8\u05D0\u05D5' : 'Read',
+      failed:         isHe ? '\u05E0\u05DB\u05E9\u05DC\u05D5' : 'Failed',
+      colName:        isHe ? '\u05E9\u05DD \u05E7\u05DE\u05E4\u05D9\u05D9\u05DF' : 'Campaign Name',
+      colStatus:      isHe ? '\u05E1\u05D8\u05D8\u05D5\u05E1' : 'Status',
+      colDate:        isHe ? '\u05EA\u05D0\u05E8\u05D9\u05DA' : 'Date',
+      colAudience:    isHe ? '\u05E7\u05D4\u05DC' : 'Audience',
+      noCampaigns:    isHe ? '\u05DC\u05D0 \u05E0\u05DE\u05E6\u05D0\u05D5 \u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD' : 'No campaigns found',
+      statusCompleted:isHe ? '\u05D4\u05D5\u05E9\u05DC\u05DD' : 'Completed',
+      statusActive:   isHe ? '\u05E4\u05E2\u05D9\u05DC' : 'Active',
+      statusScheduled:isHe ? '\u05DE\u05EA\u05D5\u05D6\u05DE\u05DF' : 'Scheduled'
+    };
+
+    function statusText(s){
+      switch(s){case 'completed':return t.statusCompleted;case 'active':return t.statusActive;case 'scheduled':return t.statusScheduled;default:return s||''}
+    }
+    function esc(str){var d=document.createElement('div');d.textContent=str;return d.innerHTML}
+    function formatTime(iso){
+      if(!iso)return '-';
+      var d=new Date(iso);
+      if(isNaN(d.getTime()))return '-';
+      var dd=('0'+d.getDate()).slice(-2),mm=('0'+(d.getMonth()+1)).slice(-2),yy=d.getFullYear();
+      var hh=('0'+d.getHours()).slice(-2),mi=('0'+d.getMinutes()).slice(-2);
+      return dd+'/'+mm+'/'+yy+' '+hh+':'+mi;
+    }
+
+    // Apply i18n to static elements
+    document.getElementById('page-title').textContent = t.pageTitle;
+    document.getElementById('page-subtitle').textContent = t.pageSubtitle;
+    document.querySelector('#refresh-btn span').textContent = t.refresh;
+    document.getElementById('campaign-search').placeholder = t.searchPH;
+    document.getElementById('section-title').textContent = t.sectionAll;
+
+    // Calculate KPIs
+    var data = _campaigns || [];
+    var totalCampaigns = data.length;
+    var totalSent = 0, totalDelivered = 0, totalRead = 0;
+    for(var i=0;i<data.length;i++){
+      totalSent += (data[i].total_sent||0);
+      totalDelivered += (data[i].delivered||0);
+      totalRead += (data[i].read||0);
+    }
+
+    var deliveredBarW = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0;
+    var readBarW = totalSent > 0 ? Math.round((totalRead / totalSent) * 100) : 0;
+
+    // Build KPI cards via DOM
+    var grid = document.getElementById('stats-grid');
+    var cardsConfig = [
+      {accent:'#6366F1',glow:'rgba(99,102,241,.25)',iconBg:'rgba(99,102,241,.08)',iconColor:'#6366F1',iconBorder:'rgba(99,102,241,.12)',icon:'ti-speakerphone',numColor:'var(--accent)',num:totalCampaigns,label:t.campaigns,bar:null},
+      {accent:'#3B82F6',glow:'rgba(59,130,246,.25)',iconBg:'rgba(59,130,246,.08)',iconColor:'#60A5FA',iconBorder:'rgba(59,130,246,.12)',icon:'ti-send',numColor:'#60A5FA',num:totalSent,label:t.sent,bar:null},
+      {accent:'#14B8A6',glow:'rgba(20,184,166,.25)',iconBg:'rgba(20,184,166,.08)',iconColor:'#5EEAD4',iconBorder:'rgba(20,184,166,.12)',icon:'ti-checks',numColor:'#5EEAD4',num:totalDelivered,label:t.delivered,bar:totalSent>0?{w:deliveredBarW,grad:'linear-gradient(90deg,#14B8A6,#5EEAD4)'}:null},
+      {accent:'#8B5CF6',glow:'rgba(139,92,246,.25)',iconBg:'rgba(139,92,246,.08)',iconColor:'#C4B5FD',iconBorder:'rgba(139,92,246,.12)',icon:'ti-eye',numColor:'#C4B5FD',num:totalRead,label:t.read,bar:totalSent>0?{w:readBarW,grad:'linear-gradient(90deg,#8B5CF6,#C4B5FD)'}:null}
+    ];
+    for(var ci=0;ci<cardsConfig.length;ci++){
+      var cfg=cardsConfig[ci];
+      var card=document.createElement('div');card.className='stat-card';
+      card.style.cssText='--stat-accent:'+cfg.accent+';--stat-glow:'+cfg.glow;
+      var iconDiv=document.createElement('div');iconDiv.className='stat-icon';
+      iconDiv.style.cssText='background:'+cfg.iconBg+';color:'+cfg.iconColor+';border:1px solid '+cfg.iconBorder;
+      var iconI=document.createElement('i');iconI.className='ti '+cfg.icon;iconDiv.appendChild(iconI);card.appendChild(iconDiv);
+      var numDiv=document.createElement('div');numDiv.className='stat-number';numDiv.style.color=cfg.numColor;numDiv.textContent=cfg.num;card.appendChild(numDiv);
+      var lblDiv=document.createElement('div');lblDiv.className='stat-label';lblDiv.textContent=cfg.label;card.appendChild(lblDiv);
+      if(cfg.bar){
+        var barDiv=document.createElement('div');barDiv.className='stat-bar';
+        var fillDiv=document.createElement('div');fillDiv.className='stat-bar-fill';fillDiv.style.cssText='width:'+cfg.bar.w+'%;background:'+cfg.bar.grad;
+        barDiv.appendChild(fillDiv);card.appendChild(barDiv);
+      }
+      grid.appendChild(card);
+    }
+
+    // Build table header via DOM
+    var cols = [
+      {label: t.colName, col:0, sort:'str'},
+      {label: t.colStatus, col:null, sort:null},
+      {label: t.colDate, col:2, sort:'num'},
+      {label: t.colAudience, col:null, sort:null},
+      {label: t.sent, col:4, sort:'num'},
+      {label: t.delivered, col:5, sort:'num'},
+      {label: t.read, col:6, sort:'num'},
+      {label: t.failed, col:7, sort:'num'}
+    ];
+    var theadRow = document.getElementById('thead-row');
+    for(var i=0;i<cols.length;i++){
+      var c=cols[i];
+      var th=document.createElement('th');
+      th.textContent=c.label+' ';
+      if(c.col!==null){
+        th.setAttribute('data-col',c.col);
+        (function(colIdx,sortType){th.addEventListener('click',function(){sortTable(colIdx,sortType)})})(c.col,c.sort);
+        var arrSpan=document.createElement('span');arrSpan.className='sort-arr';th.appendChild(arrSpan);
+      }
+      theadRow.appendChild(th);
+    }
+
+    // Build table body via DOM
+    var tbody = document.getElementById('campaign-tbody');
+    if(data.length === 0){
+      var emptyTr=document.createElement('tr');
+      var emptyTd=document.createElement('td');emptyTd.setAttribute('colspan','8');
+      var emptyDiv=document.createElement('div');emptyDiv.className='empty-state';
+      var emptyP=document.createElement('p');emptyP.textContent=t.noCampaigns;
+      emptyDiv.appendChild(emptyP);emptyTd.appendChild(emptyDiv);emptyTr.appendChild(emptyTd);
+      tbody.appendChild(emptyTr);
+    } else {
+      for(var i=0;i<data.length;i++){
+        var c = data[i];
+        var pctD = c.total_sent > 0 ? Math.round((c.delivered / c.total_sent) * 100) : 0;
+        var pctR = c.total_sent > 0 ? Math.round((c.read / c.total_sent) * 100) : 0;
+        var searchData = (c.title||'') + ' ' + statusText(c.status) + ' ' + formatTime(c.scheduled_at);
+        var sortDate = c.scheduled_at ? new Date(c.scheduled_at).getTime() : 0;
+
+        var tr=document.createElement('tr');tr.className='clickable';
+        tr.setAttribute('data-search',searchData);
+        tr.setAttribute('data-sort-0',(c.title||'').toLowerCase());
+        tr.setAttribute('data-sort-2',sortDate||0);
+        tr.setAttribute('data-sort-4',c.total_sent||0);
+        tr.setAttribute('data-sort-5',c.delivered||0);
+        tr.setAttribute('data-sort-6',c.read||0);
+        tr.setAttribute('data-sort-7',c.failed||0);
+        (function(id){tr.addEventListener('click',function(){window.location='/campaign-report/'+id})})(c.id);
+
+        // Col 1: Name
+        var td1=document.createElement('td');
+        var strong=document.createElement('strong');strong.style.color='var(--text-1)';strong.textContent=c.title||'';
+        td1.appendChild(strong);tr.appendChild(td1);
+
+        // Col 2: Status
+        var td2=document.createElement('td');
+        var badge=document.createElement('span');badge.className='campaign-status cs-'+(c.status||'');badge.textContent=statusText(c.status);
+        td2.appendChild(badge);tr.appendChild(td2);
+
+        // Col 3: Date
+        var td3=document.createElement('td');td3.style.color='var(--text-3)';td3.textContent=formatTime(c.scheduled_at);tr.appendChild(td3);
+
+        // Col 4: Audience
+        var td4=document.createElement('td');td4.style.color='var(--text-3)';td4.textContent=c.audience_size||0;tr.appendChild(td4);
+
+        // Col 5: Sent
+        var td5=document.createElement('td');td5.textContent=c.total_sent||0;tr.appendChild(td5);
+
+        // Col 6: Delivered
+        var td6=document.createElement('td');
+        td6.appendChild(document.createTextNode((c.delivered||0)+' '));
+        var sm6=document.createElement('small');sm6.style.color='var(--text-4)';sm6.textContent='('+pctD+'%)';
+        td6.appendChild(sm6);tr.appendChild(td6);
+
+        // Col 7: Read
+        var td7=document.createElement('td');
+        td7.appendChild(document.createTextNode((c.read||0)+' '));
+        var sm7=document.createElement('small');sm7.style.color='var(--text-4)';sm7.textContent='('+pctR+'%)';
+        td7.appendChild(sm7);tr.appendChild(td7);
+
+        // Col 8: Failed
+        var td8=document.createElement('td');
+        var failSpan=document.createElement('span');
+        if((c.failed||0)>0){failSpan.style.cssText='color:#ff6b6b;font-weight:600';failSpan.textContent=c.failed}
+        else{failSpan.style.color='#2E2D32';failSpan.textContent='0'}
+        td8.appendChild(failSpan);tr.appendChild(td8);
+
+        tbody.appendChild(tr);
+      }
+    }
+  })();
+
+  // Search filter
+  function filterCampaigns(q){
+    q=q.trim().toLowerCase();
+    var rows=document.querySelectorAll('#campaign-tbody tr[data-search]');
+    var vis=0;
+    for(var i=0;i<rows.length;i++){
+      var s=(rows[i].getAttribute('data-search')||'').toLowerCase();
+      var show=!q||s.indexOf(q)!==-1;
+      rows[i].style.display=show?'':'none';
+      if(show)vis++;
+    }
+    var cnt=document.getElementById('search-count');
+    if(cnt)cnt.textContent=q?vis+' / '+rows.length:'';
+  }
+
+  // Column sorting
+  var sortState={col:null,asc:true};
+  function sortTable(col,type){
+    var tbody=document.getElementById('campaign-tbody');
+    var rows=Array.from(tbody.querySelectorAll('tr[data-search]'));
+    if(!rows.length)return;
+    if(sortState.col===col){sortState.asc=!sortState.asc}else{sortState.col=col;sortState.asc=true}
+    var ths=document.querySelectorAll('#campaign-table thead th');
+    for(var i=0;i<ths.length;i++){ths[i].classList.remove('sorted');var a=ths[i].querySelector('.sort-arr');if(a)a.textContent=''}
+    var th=document.querySelector('th[data-col="'+col+'"]');
+    if(th){th.classList.add('sorted');var a=th.querySelector('.sort-arr');if(a)a.textContent=sortState.asc?'\u25B2':'\u25BC'}
+    rows.sort(function(a,b){
+      var va=a.getAttribute('data-sort-'+col)||'';
+      var vb=b.getAttribute('data-sort-'+col)||'';
+      if(type==='num'){va=parseFloat(va)||0;vb=parseFloat(vb)||0}
+      if(va<vb)return sortState.asc?-1:1;
+      if(va>vb)return sortState.asc?1:-1;
+      return 0;
+    });
+    for(var i=0;i<rows.length;i++){tbody.appendChild(rows[i])}
+  }
+  </script>
+</body>
+</html>

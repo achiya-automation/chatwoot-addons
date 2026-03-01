@@ -1,0 +1,16 @@
+{
+  "name": "chatwoot-addons",
+  "version": "1.0.0",
+  "description": "Visual Bot Builder & Campaign Analytics for Chatwoot",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  },
+  "keywords": ["chatwoot", "bot-builder", "campaign-analytics", "drawflow"],
+  "author": "achiya-automation",
+  "license": "MIT"
+}

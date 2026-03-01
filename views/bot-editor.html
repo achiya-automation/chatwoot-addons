@@ -1,0 +1,219 @@
+<!DOCTYPE html><html lang="en" dir="ltr"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bot Editor | Chatwoot</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></script>
+<link href="/public/bot-editor.css" rel="stylesheet">
+</head>
+<body>
+<script>(function(){var s=null;try{var k=Object.keys(localStorage);for(var i=0;i<k.length;i++){if(k[i].indexOf('COLOR_SCHEME')!==-1){s=localStorage.getItem(k[i]);break}}}catch(e){}if(s==='dark'||(s!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches))document.body.classList.add('dark')})();</script>
+<script>
+// Theme from URL param
+(function(){
+  var urlTheme = new URLSearchParams(window.location.search).get('theme');
+  if (urlTheme === 'dark') document.body.classList.add('dark');
+  else if (urlTheme === 'light') document.body.classList.remove('dark');
+})();
+</script>
+<div class="demo-banner" id="demo-banner">
+  <i class="ti ti-info-circle"></i>
+  <span>Live Demo — in production, this connects to your Chatwoot instance with real WhatsApp</span>
+  <button onclick="this.parentElement.style.display='none';document.body.classList.remove('has-demo-banner')" class="demo-banner-close"><i class="ti ti-x"></i></button>
+</div>
+<script>document.body.classList.add('has-demo-banner');</script>
+<div class="app-shell">
+<nav class="app-nav">
+  <a href="/bot-builder" class="active" title="Bot Builder"><i class="ti ti-robot"></i></a>
+  <a href="/campaign-report" title="Campaign Report"><i class="ti ti-chart-bar"></i></a>
+  <div class="nav-sp"></div>
+  <a href="/app" title="Chatwoot"><i class="ti ti-layout-dashboard"></i></a>
+</nav>
+<div class="app-main">
+<div class="tb">
+  <a href="/bot-builder" class="tbtn tbtn-back" title="Back to list"><i class="ti ti-arrow-right"></i></a>
+  <span class="tb-logo"><i class="ti ti-robot"></i></span>
+  <div class="tb-center">
+    <input type="text" id="bname" class="tb-bot-name" placeholder="Click to edit bot name...">
+    <i class="ti ti-pencil" style="font-size:12px;color:var(--text-faint);pointer-events:none;margin-right:-4px"></i>
+  </div>
+  <div class="sp"></div>
+  <div class="tb-group">
+    <button class="tbtn" id="undo-btn" onclick="undo()" title="Undo (Ctrl+Z)" disabled><i class="ti ti-arrow-back-up"></i></button>
+    <button class="tbtn" id="redo-btn" onclick="redo()" title="Redo (Ctrl+Shift+Z)" disabled><i class="ti ti-arrow-forward-up"></i></button>
+  </div>
+  <div class="tb-divider"></div>
+  <div class="tb-group">
+    <button class="tbtn" onclick="var sc=document.getElementById('side-cfg');sc.classList.contains('open')?closeCfg():openCfg()" title="Bot Settings"><i class="ti ti-settings"></i></button>
+    <button class="tbtn" onclick="autoAlign()" title="Auto-align"><i class="ti ti-layout-grid"></i></button>
+    <button class="tbtn" onclick="validateFlow()" title="Validate Flow"><i class="ti ti-circle-check"></i></button>
+    <button class="tbtn" onclick="downloadFlow()" title="Export Flow (JSON)"><i class="ti ti-download"></i></button>
+    <button class="tbtn" onclick="document.getElementById('flow-import').click()" title="Import Flow (JSON)"><i class="ti ti-upload"></i></button>
+    <input type="file" id="flow-import" accept=".json" style="display:none" onchange="importFlow(this)">
+  </div>
+  <div class="tb-divider"></div>
+  <button class="tbtn-test" id="test-bot-btn" onclick="toggleSimulator()"><i class="ti ti-player-play"></i> <span id="test-bot-label">Test Bot</span></button>
+  <button class="tbtn tbtn-save" id="savebtn"><i class="ti ti-device-floppy"></i> Save</button>
+</div>
+<div class="layout">
+  <!-- RIGHT SIDEBAR: Nodes (collapsible 48px strip / 240px expanded) -->
+  <div class="side-nodes" id="side-nodes">
+    <button class="nodes-toggle" id="nodes-toggle" title="Expand/Collapse palette"><i class="ti ti-chevron-left"></i></button>
+    <div class="nodes-content">
+      <input type="text" id="node-search" class="node-search" placeholder="Search nodes...">
+      <div id="nodes-no-results" style="display:none;text-align:center;padding:16px 8px;color:var(--text-muted);font-size:12px"><i class="ti ti-search-off" style="font-size:20px;display:block;margin-bottom:4px;opacity:.5"></i>No nodes found</div>
+      <div class="sec" style="--sec-color:#ff6b35"><div class="sec-t" style="--sec-color:#ff6b35"><span class="dn-label">Triggers</span></div>
+        <div class="dn dn-or" draggable="true" data-node="trigger" title="Incoming Message"><i class="ti ti-target"></i><span class="dn-label">Incoming Message</span></div>
+      </div>
+      <div class="sec" style="--sec-color:#4a9eff"><div class="sec-t" style="--sec-color:#4a9eff"><span class="dn-label">Messages</span></div>
+        <div class="dn dn-bl" draggable="true" data-node="message" title="Send Message"><i class="ti ti-message"></i><span class="dn-label">Send Message</span></div>
+        <div class="dn dn-gr" draggable="true" data-node="image" title="Send Image"><i class="ti ti-photo"></i><span class="dn-label">Send Image</span></div>
+        <div class="dn dn-vi" draggable="true" data-node="video" title="Send Video"><i class="ti ti-video"></i><span class="dn-label">Send Video</span></div>
+        <div class="dn dn-bt" draggable="true" data-node="buttons" title="Buttons"><i class="ti ti-click"></i><span class="dn-label">Buttons</span></div>
+        <div class="dn dn-pu" draggable="true" data-node="menu" title="Menu"><i class="ti ti-list"></i><span class="dn-label">Menu</span></div>
+      </div>
+      <div class="sec" style="--sec-color:#f1c40f"><div class="sec-t" style="--sec-color:#f1c40f"><span class="dn-label">Logic</span></div>
+        <div class="dn dn-ye" draggable="true" data-node="condition" title="Condition"><i class="ti ti-git-branch"></i><span class="dn-label">Condition</span></div>
+        <div class="dn dn-dl" draggable="true" data-node="delay" title="Delay"><i class="ti ti-clock-pause"></i><span class="dn-label">Delay</span></div>
+        <div class="dn dn-nt" draggable="true" data-node="note" title="Internal Note"><i class="ti ti-note"></i><span class="dn-label">Internal Note</span></div>
+        <div class="dn dn-wr" draggable="true" data-node="wait_reply" title="Wait for Reply"><i class="ti ti-message-question"></i><span class="dn-label">Wait for Reply</span></div>
+        <div class="dn dn-ab" draggable="true" data-node="ab_split" title="A/B Split"><i class="ti ti-arrows-split-2"></i><span class="dn-label">A/B Split</span></div>
+        <div class="dn dn-go" draggable="true" data-node="goto_step" title="Go to Step"><i class="ti ti-arrow-back-up"></i><span class="dn-label">Go to Step</span></div>
+      </div>
+      <div class="sec" style="--sec-color:#27ae60"><div class="sec-t" style="--sec-color:#27ae60"><span class="dn-label">Actions</span></div>
+        <div class="dn dn-gr" draggable="true" data-node="assign" title="Assign to Agent"><i class="ti ti-user"></i><span class="dn-label">Assign to Agent</span></div>
+        <div class="dn dn-tl" draggable="true" data-node="add_label" title="Add Label"><i class="ti ti-tag"></i><span class="dn-label">Add Label</span></div>
+        <div class="dn dn-tl" draggable="true" data-node="remove_label" title="Remove Label"><i class="ti ti-tag-off"></i><span class="dn-label">Remove Label</span></div>
+        <div class="dn dn-nt" draggable="true" data-node="set_attribute" title="Set Attribute"><i class="ti ti-pencil"></i><span class="dn-label">Set Attribute</span></div>
+        <div class="dn dn-sp" draggable="true" data-node="set_priority" title="Set Priority"><i class="ti ti-flag"></i><span class="dn-label">Set Priority</span></div>
+        <div class="dn dn-ss" draggable="true" data-node="set_status" title="Set Status"><i class="ti ti-toggle-right"></i><span class="dn-label">Set Status</span></div>
+        <div class="dn dn-ti" draggable="true" data-node="transfer_inbox" title="Transfer Inbox"><i class="ti ti-transfer"></i><span class="dn-label">Transfer Inbox</span></div>
+        <div class="dn dn-rd" draggable="true" data-node="close" title="Close Conversation"><i class="ti ti-circle-check"></i><span class="dn-label">Close Conversation</span></div>
+      </div>
+      <div class="sec" style="--sec-color:#3498db"><div class="sec-t" style="--sec-color:#3498db"><span class="dn-label">Integrations</span></div>
+        <div class="dn dn-wb" draggable="true" data-node="webhook" title="Webhook"><i class="ti ti-webhook"></i><span class="dn-label">Webhook</span></div>
+        <div class="dn dn-api" draggable="true" data-node="api_action" title="API Action"><i class="ti ti-cloud-computing"></i><span class="dn-label">API Action</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: Canvas -->
+  <div class="canvas">
+    <div class="hint">Drag nodes to canvas &#x2022; Double-click = edit &#x2022; Scroll = zoom &#x2022; Connect ports</div>
+    <div class="canvas-loading" id="canvas-loading"><div class="spinner"></div><span style="font-size:13px;color:var(--text-muted)">Loading...</span></div>
+    <div id="drawflow"></div>
+    <div class="canvas-empty" id="canvas-empty">
+      <div class="canvas-empty-icon"><i class="ti ti-topology-star-3"></i></div>
+      <h3>Build a bot in 3 steps</h3>
+      <div class="empty-steps">
+        <div>&#9312; Start with a <strong>Trigger</strong> (Incoming Message)</div>
+        <div>&#9313; Add <strong>Actions</strong> (Message, Buttons, Menu...)</div>
+        <div>&#9314; Connect nodes to create a Flow</div>
+      </div>
+      <p>
+        <kbd>Ctrl</kbd>+<kbd>Z</kbd> Undo &#x2022;
+        <kbd>Ctrl</kbd>+<kbd>S</kbd> Save &#x2022;
+        <kbd>Del</kbd> Delete
+      </p>
+    </div>
+    <div class="zoom">
+      <button class="zb" onclick="editor.zoom_out()"><i class="ti ti-minus"></i></button>
+      <span class="zoom-pct" id="zoom-pct">100%</span>
+      <button class="zb" onclick="editor.zoom_in()"><i class="ti ti-plus"></i></button>
+      <button class="zb" onclick="fitToScreen()" title="Fit to screen"><i class="ti ti-arrows-maximize"></i></button>
+      <button class="zb" onclick="editor.zoom_reset();updZoom()" title="Reset"><i class="ti ti-refresh"></i></button>
+    </div>
+    <div class="snap-toggle active" id="snap-toggle" onclick="toggleSnap()" title="Snap to grid">
+      <i class="ti ti-grid-dots"></i> <span id="snap-label">Snap</span>
+    </div>
+    <div class="minimap" id="minimap">
+      <canvas id="minimap-canvas" width="320" height="200"></canvas>
+    </div>
+  </div>
+
+</div>
+<!-- Status bar below layout -->
+<div class="status-bar">
+  <span id="sb-nodes" class="sb-badge sb-badge-blue">0 nodes</span>
+  <span id="sb-conns" class="sb-badge sb-badge-green">0 connections</span>
+  <span class="status-sep">|</span>
+  <span id="sb-snap">Snap: On</span>
+  <div style="flex:1"></div>
+  <span id="save-ind" class="save-ind"></span>
+</div>
+</div><!-- /app-main -->
+</div><!-- /app-shell -->
+
+<!-- CHAT SIMULATOR PANEL -->
+<div class="sim-panel" id="sim-panel">
+  <div class="sim-header">
+    <div class="sim-title"><i class="ti ti-robot"></i> <span id="sim-title-text">Chat Simulator</span></div>
+    <div class="sim-actions">
+      <button class="sim-btn" onclick="simReset()" title="Restart"><i class="ti ti-refresh"></i></button>
+      <button class="sim-btn" onclick="toggleSimulator()"><i class="ti ti-x"></i></button>
+    </div>
+  </div>
+  <div class="sim-info"><span id="sim-status">Send a message to start...</span></div>
+  <div class="sim-messages" id="sim-messages"></div>
+  <div id="sim-choices" class="sim-choices"></div>
+  <div class="sim-input-area" id="sim-input-area">
+    <input type="text" id="sim-input" class="sim-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey)simSend()">
+    <button class="sim-send" onclick="simSend()"><i class="ti ti-send"></i></button>
+  </div>
+</div>
+
+<!-- LEFT SIDEBAR: Settings - OVERLAY (outside layout flex) -->
+<div class="side-cfg" id="side-cfg" role="dialog" aria-label="Bot Settings">
+  <button class="side-cfg-close" id="side-cfg-close"><i class="ti ti-chevron-right" style="font-size:14px"></i> Close <kbd>Esc</kbd></button>
+  <h3><i class="ti ti-settings" style="font-size:16px;vertical-align:middle"></i> Bot Settings</h3>
+  <label>Description</label>
+  <input type="text" id="bdesc" placeholder="Short description..." style="width:100%;margin-bottom:14px">
+  <label>Inboxes</label>
+  <div id="inbox-list" class="inbox-list"></div>
+  <div class="sep"></div>
+  <h3><i class="ti ti-chart-bar" style="font-size:16px;vertical-align:middle"></i> Info</h3>
+  <div class="sr"><span class="lab">Status</span><span class="val" id="st-s">New</span></div>
+  <div class="sr"><span class="lab">Nodes</span><span class="val" id="st-n">0</span></div>
+  <div class="sr"><span class="lab">Connections</span><span class="val" id="st-c">0</span></div>
+  <div class="sr"><span class="lab">Last updated</span><span class="val" id="st-u">-</span></div>
+  <div class="sep"></div>
+  <!-- Properties panel -->
+  <div id="props-panel" class="props-panel"></div>
+  <!-- Tips -->
+  <div id="tips-panel" class="tips-panel">
+    <h3><i class="ti ti-bulb" style="font-size:16px;vertical-align:middle"></i> Tips</h3>
+    <div style="font-size:12px;color:var(--text-muted);line-height:1.8">
+      <i class="ti ti-drag-drop" style="font-size:13px"></i> Drag node to canvas<br>
+      <i class="ti ti-mouse" style="font-size:13px"></i> Double-click = edit<br>
+      <i class="ti ti-device-floppy" style="font-size:13px"></i> Ctrl+S = save<br>
+      <i class="ti ti-backspace" style="font-size:13px"></i> Delete = remove node<br>
+      <i class="ti ti-arrow-back-up" style="font-size:13px"></i> Ctrl+Z = undo<br>
+      <i class="ti ti-menu-2" style="font-size:13px"></i> Right-click = menu
+    </div>
+  </div>
+  <!-- Validation results -->
+  <div id="valid-panel" style="display:none">
+    <div class="sep"></div>
+    <h3 style="color:var(--danger-text)"><i class="ti ti-alert-triangle" style="font-size:16px;vertical-align:middle"></i> Issues</h3>
+    <div id="valid-list" class="valid-list"></div>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+<div id="ctx-menu" class="ctx-menu">
+  <div class="ctx-item" data-act="duplicate"><i class="ti ti-copy"></i> Duplicate<span class="ks">Ctrl+D</span></div>
+  <div class="ctx-item" data-act="copy"><i class="ti ti-clipboard"></i> Copy<span class="ks">Ctrl+C</span></div>
+  <div class="ctx-item" data-act="paste"><i class="ti ti-clipboard-check"></i> Paste<span class="ks">Ctrl+V</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item ctx-del" data-act="delete"><i class="ti ti-trash"></i> Delete<span class="ks">Del</span></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.js"></script>
+<script>
+var BOT_ID = __BOT_ID__;
+var LOCALE = __LOCALE__;
+if(!LOCALE || LOCALE==='en'){try{var k=Object.keys(localStorage);for(var i=0;i<k.length;i++){if(k[i].indexOf('user:')!==-1){try{var u=JSON.parse(localStorage.getItem(k[i]));if(u&&u.locale){LOCALE=u.locale;break}}catch(x){}}}}catch(e){}}
+if(!LOCALE)LOCALE='en';
+</script>
+<script src="/public/bot-editor.js"></script>
+</body></html>

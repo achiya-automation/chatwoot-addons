@@ -1,0 +1,103 @@
+[
+  {
+    "id": 1,
+    "title": "Spring Sale 2026",
+    "status": "completed",
+    "scheduled_at": "2026-02-20T10:00:00Z",
+    "audience_size": 1250,
+    "template_name": "spring_promo_v2",
+    "template_language": "he",
+    "message": "Hi {{contact.name}}! Our Spring Sale is here — 30% off everything this week. Shop now at example.com/spring",
+    "total_sent": 1180,
+    "delivered": 1095,
+    "read": 842,
+    "failed": 23,
+    "contacts": [
+      {"n": "Lior Avraham", "p": "+972501234567", "s": "read", "d": "20/02/2026 10:01", "c": "10001"},
+      {"n": "Maya Shapira", "p": "+972521234568", "s": "read", "d": "20/02/2026 10:01", "c": "10002"},
+      {"n": "Oren Ben David", "p": "+972531234569", "s": "delivered", "d": "20/02/2026 10:02", "c": "10003"},
+      {"n": "Noa Goldstein", "p": "+972541234570", "s": "read", "d": "20/02/2026 10:02", "c": "10004"},
+      {"n": "Eitan Peretz", "p": "+972551234571", "s": "failed", "d": "20/02/2026 10:03", "c": "10005"},
+      {"n": "Shira Levy", "p": "+972501234572", "s": "read", "d": "20/02/2026 10:03", "c": "10006"},
+      {"n": "Yonatan Cohen", "p": "+972521234573", "s": "delivered", "d": "20/02/2026 10:04", "c": "10007"},
+      {"n": "Tal Mizrahi", "p": "+972531234574", "s": "read", "d": "20/02/2026 10:04", "c": "10008"},
+      {"n": "Rotem Katz", "p": "+972541234575", "s": "read", "d": "20/02/2026 10:05", "c": "10009"},
+      {"n": "Amir Hassan", "p": "+972551234576", "s": "delivered", "d": "20/02/2026 10:05", "c": "10010"}
+    ]
+  },
+  {
+    "id": 2,
+    "title": "New Feature Announcement",
+    "status": "completed",
+    "scheduled_at": "2026-02-25T14:00:00Z",
+    "audience_size": 3200,
+    "template_name": "feature_launch_v1",
+    "template_language": "en",
+    "message": "Hey {{contact.name}}, exciting news! We just launched our new AI-powered dashboard. Check it out: example.com/new-feature",
+    "total_sent": 3050,
+    "delivered": 2890,
+    "read": 1650,
+    "failed": 45,
+    "contacts": [
+      {"n": "Dan Aharoni", "p": "+972501112233", "s": "read", "d": "25/02/2026 14:01", "c": "20001"},
+      {"n": "Hila Baruch", "p": "+972521112234", "s": "read", "d": "25/02/2026 14:01", "c": "20002"},
+      {"n": "Gal Friedman", "p": "+972531112235", "s": "delivered", "d": "25/02/2026 14:02", "c": "20003"},
+      {"n": "Ofir Dayan", "p": "+972541112236", "s": "failed", "d": "25/02/2026 14:02", "c": "20004"},
+      {"n": "Sapir Weiss", "p": "+972551112237", "s": "read", "d": "25/02/2026 14:03", "c": "20005"}
+    ]
+  },
+  {
+    "id": 3,
+    "title": "Customer Satisfaction Survey",
+    "status": "completed",
+    "scheduled_at": "2026-02-15T09:00:00Z",
+    "audience_size": 800,
+    "template_name": "satisfaction_survey",
+    "template_language": "he",
+    "message": "Hi {{contact.name}}, we value your feedback! Please take a moment to fill out our satisfaction survey: example.com/survey",
+    "total_sent": 780,
+    "delivered": 745,
+    "read": 520,
+    "failed": 8,
+    "contacts": [
+      {"n": "Michal Stern", "p": "+972502223344", "s": "read", "d": "15/02/2026 09:01", "c": "30001"},
+      {"n": "Yossi Klein", "p": "+972522223345", "s": "read", "d": "15/02/2026 09:01", "c": "30002"},
+      {"n": "Lihi Rosenberg", "p": "+972532223346", "s": "delivered", "d": "15/02/2026 09:02", "c": "30003"},
+      {"n": "Ido Shachar", "p": "+972542223347", "s": "read", "d": "15/02/2026 09:02", "c": "30004"}
+    ]
+  },
+  {
+    "id": 4,
+    "title": "Purim Special Offer",
+    "status": "scheduled",
+    "scheduled_at": "2026-03-05T08:00:00Z",
+    "audience_size": 2100,
+    "template_name": "purim_2026",
+    "template_language": "he",
+    "message": "Chag Purim Sameach, {{contact.name}}! Celebrate with 25% off our entire collection. Use code PURIM26",
+    "total_sent": 0,
+    "delivered": 0,
+    "read": 0,
+    "failed": 0,
+    "contacts": []
+  },
+  {
+    "id": 5,
+    "title": "Onboarding Welcome Series",
+    "status": "active",
+    "scheduled_at": "2026-02-28T12:00:00Z",
+    "audience_size": 450,
+    "template_name": "onboarding_welcome",
+    "template_language": "en",
+    "message": "Welcome to our platform, {{contact.name}}! Here are 3 tips to get started: example.com/getting-started",
+    "total_sent": 380,
+    "delivered": 365,
+    "read": 210,
+    "failed": 3,
+    "contacts": [
+      {"n": "Alex Mor", "p": "+972503334455", "s": "read", "d": "28/02/2026 12:01", "c": "50001"},
+      {"n": "Roni Tal", "p": "+972523334456", "s": "delivered", "d": "28/02/2026 12:01", "c": "50002"},
+      {"n": "Keren Oz", "p": "+972533334457", "s": "read", "d": "28/02/2026 12:02", "c": "50003"}
+    ]
+  }
+]

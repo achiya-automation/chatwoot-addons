@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chatwoot Addons — Bot Builder & Campaign Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0B0C10;--surface:#141519;--surface2:#1A1B21;--border:rgba(255,255,255,.06);
+  --text:#EDEEF0;--text2:#8B8D9E;--text3:#555770;
+  --accent:#6366F1;--accent2:#818CF8;--accent-glow:rgba(99,102,241,.15);
+  --green:#34D399;--blue:#60A5FA;--purple:#C4B5FD;--orange:#FBBF24;
+}
+body{font-family:'Inter',-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+a{text-decoration:none;color:inherit}
+
+/* Animated background */
+.bg-grid{position:fixed;inset:0;z-index:0;overflow:hidden}
+.bg-grid::before{content:'';position:absolute;inset:-50%;background:radial-gradient(circle at 30% 20%,rgba(99,102,241,.08) 0%,transparent 50%),radial-gradient(circle at 70% 80%,rgba(129,140,248,.06) 0%,transparent 40%);animation:bgPulse 15s ease-in-out infinite alternate}
+@keyframes bgPulse{0%{opacity:.6;transform:scale(1)}100%{opacity:1;transform:scale(1.05)}}
+
+/* Container */
+.container{max-width:1100px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+
+/* Navigation */
+.top-nav{padding:20px 0;display:flex;align-items:center;justify-content:space-between}
+.nav-brand{display:flex;align-items:center;gap:10px}
+.nav-logo{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center}
+.nav-logo i{font-size:18px;color:#fff}
+.nav-title{font-size:15px;font-weight:600;color:var(--text2)}
+.nav-links{display:flex;gap:8px}
+.nav-link{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;color:var(--text2);transition:all .2s}
+.nav-link:hover{background:var(--accent-glow);color:var(--text)}
+.nav-link i{margin-right:6px;font-size:15px;vertical-align:-2px}
+
+/* Hero */
+.hero{padding:80px 0 60px;text-align:center}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:20px;background:var(--accent-glow);border:1px solid rgba(99,102,241,.2);font-size:12px;font-weight:600;color:var(--accent2);margin-bottom:24px;letter-spacing:.02em}
+.hero-badge i{font-size:14px}
+.hero h1{font-size:clamp(36px,5vw,56px);font-weight:800;line-height:1.1;letter-spacing:-.03em;margin-bottom:20px}
+.hero h1 .gradient{background:linear-gradient(135deg,var(--accent),var(--accent2),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:18px;color:var(--text2);max-width:600px;margin:0 auto 40px;line-height:1.6}
+.hero-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-size:14px;font-weight:600;transition:all .2s;cursor:pointer;border:none}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#4F46E5);color:#fff;box-shadow:0 4px 20px rgba(99,102,241,.3)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(99,102,241,.4)}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1)}
+.btn i{font-size:16px}
+
+/* Stats row */
+.stats-row{display:flex;justify-content:center;gap:40px;padding:40px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:80px}
+.stat{text-align:center}
+.stat-val{font-size:28px;font-weight:700;color:var(--text)}
+.stat-label{font-size:13px;color:var(--text3);margin-top:4px}
+
+/* Feature cards */
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(460px,1fr));gap:24px;margin-bottom:80px}
+.feature-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:all .3s}
+.feature-card:hover{border-color:rgba(99,102,241,.2);box-shadow:0 8px 40px rgba(0,0,0,.3)}
+.feature-preview{height:240px;background:var(--surface2);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.feature-preview-inner{padding:20px;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+.feature-body{padding:24px}
+.feature-tag{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.03em;margin-bottom:12px}
+.tag-bot{background:rgba(99,102,241,.12);color:var(--accent2)}
+.tag-campaign{background:rgba(52,211,153,.12);color:var(--green)}
+.feature-body h3{font-size:20px;font-weight:700;margin-bottom:8px;letter-spacing:-.01em}
+.feature-body p{font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:16px}
+.feature-list{list-style:none;display:flex;flex-wrap:wrap;gap:8px}
+.feature-list li{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);padding:4px 10px;border-radius:6px;background:var(--surface2)}
+.feature-list li i{font-size:14px;color:var(--accent2)}
+.feature-cta{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;margin-top:16px;transition:all .2s}
+.cta-bot{background:var(--accent-glow);color:var(--accent2);border:1px solid rgba(99,102,241,.2)}
+.cta-bot:hover{background:rgba(99,102,241,.2)}
+.cta-campaign{background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.2)}
+.cta-campaign:hover{background:rgba(52,211,153,.15)}
+
+/* Preview mockups */
+.mock-editor{width:90%;max-width:420px;border-radius:8px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.4);border:1px solid var(--border)}
+.mock-toolbar{height:32px;background:#1D1E24;display:flex;align-items:center;padding:0 10px;gap:6px;border-bottom:1px solid var(--border)}
+.mock-dot{width:8px;height:8px;border-radius:50%}
+.mock-dot.r{background:#FF5F57}.mock-dot.y{background:#FEBC2E}.mock-dot.g{background:#28C840}
+.mock-canvas{height:150px;background:#141517;position:relative;display:flex;align-items:center;justify-content:center}
+.mock-node{padding:6px 10px;border-radius:6px;font-size:9px;font-weight:600;color:#fff;position:absolute;white-space:nowrap}
+.mock-node.trigger{background:#0F3966;border-left:2px solid #2781F6;top:20px;left:30px}
+.mock-node.message{background:#0A3D2E;border-left:2px solid #34D399;top:60px;left:140px}
+.mock-node.condition{background:#3D2A0A;border-left:2px solid #FBBF24;top:20px;right:40px}
+.mock-node.action{background:#2D1042;border-left:2px solid #A78BFA;bottom:25px;right:60px}
+.mock-line{position:absolute;height:1px;background:#3B82F6;opacity:.4}
+.mock-line.l1{width:60px;top:30px;left:100px;transform:rotate(25deg)}
+.mock-line.l2{width:50px;top:50px;left:220px;transform:rotate(-30deg)}
+.mock-line.l3{width:40px;bottom:45px;right:130px;transform:rotate(20deg)}
+
+.mock-dashboard{width:90%;max-width:420px;border-radius:8px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.4);border:1px solid var(--border)}
+.mock-dash-header{height:32px;background:#1D1E24;display:flex;align-items:center;padding:0 10px;gap:6px;border-bottom:1px solid var(--border)}
+.mock-dash-body{background:#141517;padding:12px}
+.mock-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.mock-kpi{padding:8px 6px;border-radius:6px;background:var(--surface2);text-align:center;border:1px solid var(--border)}
+.mock-kpi-val{font-size:12px;font-weight:700}
+.mock-kpi-label{font-size:7px;color:var(--text3);margin-top:2px}
+.mock-funnel{height:16px;border-radius:4px;overflow:hidden;display:flex;margin-bottom:8px}
+.mock-funnel div{height:100%}
+.mock-funnel .f-read{background:#a29bfe;flex:42}
+.mock-funnel .f-del{background:#2ecc71;flex:25}
+.mock-funnel .f-fail{background:#ff6b6b;flex:3}
+.mock-funnel .f-unsent{background:#f0ad4e;flex:30}
+.mock-table{width:100%;border-collapse:collapse}
+.mock-table th{font-size:7px;color:var(--text3);text-align:left;padding:4px 6px;border-bottom:1px solid var(--border)}
+.mock-table td{font-size:8px;color:var(--text2);padding:4px 6px}
+.mock-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:7px;font-weight:600}
+.mock-badge.done{background:rgba(52,211,153,.15);color:#34D399}
+.mock-badge.live{background:rgba(96,165,250,.15);color:#60A5FA}
+
+/* Tech stack */
+.tech-section{text-align:center;margin-bottom:80px}
+.tech-section h2{font-size:14px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:24px}
+.tech-badges{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.tech-badge{display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:8px;background:var(--surface);border:1px solid var(--border);font-size:13px;font-weight:500;color:var(--text2)}
+.tech-badge i{font-size:16px}
+
+/* Footer */
+.footer{padding:32px 0;border-top:1px solid var(--border);text-align:center}
+.footer p{font-size:13px;color:var(--text3)}
+.footer a{color:var(--accent2);font-weight:500}
+.footer a:hover{text-decoration:underline}
+
+/* Animations */
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeUp .6s ease forwards;opacity:0}
+.delay-1{animation-delay:.1s}.delay-2{animation-delay:.2s}.delay-3{animation-delay:.3s}.delay-4{animation-delay:.4s}
+
+/* Responsive */
+@media(max-width:768px){
+  .features{grid-template-columns:1fr}
+  .stats-row{gap:24px}
+  .stat-val{font-size:22px}
+  .hero h1{font-size:32px}
+  .nav-links{display:none}
+}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+
+<div class="container">
+  <!-- Nav -->
+  <nav class="top-nav fade-in">
+    <div class="nav-brand">
+      <div class="nav-logo"><i class="ti ti-robot"></i></div>
+      <span class="nav-title">Chatwoot Addons</span>
+    </div>
+    <div class="nav-links">
+      <a href="/bot-builder" class="nav-link"><i class="ti ti-robot"></i>Bot Builder</a>
+      <a href="/campaign-report" class="nav-link"><i class="ti ti-chart-bar"></i>Campaigns</a>
+      <a href="https://github.com/achiya-automation/chatwoot-addons" target="_blank" class="nav-link"><i class="ti ti-brand-github"></i>GitHub</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-badge fade-in"><i class="ti ti-sparkles"></i> Open Source · Free Forever</div>
+    <h1 class="fade-in delay-1">Build Bots.<br><span class="gradient">Analyze Campaigns.</span></h1>
+    <p class="fade-in delay-2">The missing tools for Chatwoot — a visual drag-and-drop bot builder and campaign analytics dashboard. Zero config, just plug and play.</p>
+    <div class="hero-ctas fade-in delay-3">
+      <a href="/bot-builder" class="btn btn-primary"><i class="ti ti-robot"></i>Try Bot Builder</a>
+      <a href="/campaign-report" class="btn btn-secondary"><i class="ti ti-chart-bar"></i>View Campaigns</a>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <div class="stats-row fade-in delay-3">
+    <div class="stat"><div class="stat-val">22</div><div class="stat-label">Node Types</div></div>
+    <div class="stat"><div class="stat-val">2</div><div class="stat-label">Languages</div></div>
+    <div class="stat"><div class="stat-val">0</div><div class="stat-label">Config Required</div></div>
+    <div class="stat"><div class="stat-val">MIT</div><div class="stat-label">License</div></div>
+  </div>
+
+  <!-- Feature Cards -->
+  <div class="features">
+    <!-- Bot Builder -->
+    <div class="feature-card fade-in delay-2">
+      <div class="feature-preview">
+        <div class="feature-preview-inner">
+          <div class="mock-editor">
+            <div class="mock-toolbar">
+              <div class="mock-dot r"></div><div class="mock-dot y"></div><div class="mock-dot g"></div>
+            </div>
+            <div class="mock-canvas">
+              <div class="mock-node trigger"><i class="ti ti-bolt" style="font-size:9px;margin-right:3px"></i>Trigger: keyword</div>
+              <div class="mock-node message"><i class="ti ti-message" style="font-size:9px;margin-right:3px"></i>Send Message</div>
+              <div class="mock-node condition"><i class="ti ti-git-branch" style="font-size:9px;margin-right:3px"></i>Condition</div>
+              <div class="mock-node action"><i class="ti ti-user-plus" style="font-size:9px;margin-right:3px"></i>Assign Agent</div>
+              <div class="mock-line l1"></div>
+              <div class="mock-line l2"></div>
+              <div class="mock-line l3"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="feature-body">
+        <div class="feature-tag tag-bot"><i class="ti ti-robot"></i>BOT BUILDER</div>
+        <h3>Visual Bot Builder</h3>
+        <p>Drag-and-drop conversation flow editor powered by Drawflow. Create complex chatbots with 22 node types — no code required.</p>
+        <ul class="feature-list">
+          <li><i class="ti ti-arrows-move"></i>Drag & Drop</li>
+          <li><i class="ti ti-git-branch"></i>Conditions</li>
+          <li><i class="ti ti-webhook"></i>Webhooks</li>
+          <li><i class="ti ti-arrow-back-up"></i>Undo/Redo</li>
+          <li><i class="ti ti-layout-grid"></i>Auto-align</li>
+          <li><i class="ti ti-map"></i>Minimap</li>
+          <li><i class="ti ti-moon"></i>Dark Mode</li>
+          <li><i class="ti ti-language"></i>i18n</li>
+        </ul>
+        <a href="/bot-builder/new" class="feature-cta cta-bot"><i class="ti ti-plus"></i>Create a Bot</a>
+      </div>
+    </div>
+
+    <!-- Campaign Report -->
+    <div class="feature-card fade-in delay-3">
+      <div class="feature-preview">
+        <div class="feature-preview-inner">
+          <div class="mock-dashboard">
+            <div class="mock-dash-header">
+              <div class="mock-dot r"></div><div class="mock-dot y"></div><div class="mock-dot g"></div>
+            </div>
+            <div class="mock-dash-body">
+              <div class="mock-kpis">
+                <div class="mock-kpi"><div class="mock-kpi-val" style="color:#6366F1">5</div><div class="mock-kpi-label">Campaigns</div></div>
+                <div class="mock-kpi"><div class="mock-kpi-val" style="color:#60A5FA">5.4K</div><div class="mock-kpi-label">Sent</div></div>
+                <div class="mock-kpi"><div class="mock-kpi-val" style="color:#34D399">5.1K</div><div class="mock-kpi-label">Delivered</div></div>
+                <div class="mock-kpi"><div class="mock-kpi-val" style="color:#C4B5FD">3.2K</div><div class="mock-kpi-label">Read</div></div>
+              </div>
+              <div class="mock-funnel">
+                <div class="f-read"></div><div class="f-del"></div><div class="f-fail"></div><div class="f-unsent"></div>
+              </div>
+              <table class="mock-table">
+                <tr><th>Campaign</th><th>Status</th><th>Sent</th><th>Read</th></tr>
+                <tr><td>Spring Sale</td><td><span class="mock-badge done">Completed</span></td><td>1,180</td><td>842</td></tr>
+                <tr><td>Feature Launch</td><td><span class="mock-badge done">Completed</span></td><td>3,050</td><td>1,650</td></tr>
+                <tr><td>Purim Offer</td><td><span class="mock-badge live">Scheduled</span></td><td>—</td><td>—</td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="feature-body">
+        <div class="feature-tag tag-campaign"><i class="ti ti-chart-bar"></i>CAMPAIGN ANALYTICS</div>
+        <h3>Campaign Report Dashboard</h3>
+        <p>Real-time WhatsApp campaign analytics with delivery funnel, per-contact tracking, and CSV export. See exactly what's working.</p>
+        <ul class="feature-list">
+          <li><i class="ti ti-chart-pie"></i>Funnel View</li>
+          <li><i class="ti ti-numbers"></i>KPI Cards</li>
+          <li><i class="ti ti-search"></i>Search & Sort</li>
+          <li><i class="ti ti-download"></i>CSV Export</li>
+          <li><i class="ti ti-moon"></i>Dark Mode</li>
+          <li><i class="ti ti-language"></i>i18n</li>
+        </ul>
+        <a href="/campaign-report" class="feature-cta cta-campaign"><i class="ti ti-chart-bar"></i>View Dashboard</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tech Stack -->
+  <div class="tech-section fade-in delay-4">
+    <h2>Built With</h2>
+    <div class="tech-badges">
+      <div class="tech-badge"><i class="ti ti-brand-open-source"></i>Chatwoot</div>
+      <div class="tech-badge"><i class="ti ti-arrows-shuffle"></i>Drawflow.js</div>
+      <div class="tech-badge"><i class="ti ti-brand-nodejs"></i>Node.js</div>
+      <div class="tech-badge"><i class="ti ti-palette"></i>Vanilla CSS</div>
+      <div class="tech-badge"><i class="ti ti-brand-javascript"></i>Vanilla JS</div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer fade-in delay-4">
+    <p>Made by <a href="https://github.com/achiya-automation" target="_blank">Achiya Automation</a> &middot; <a href="https://github.com/achiya-automation/chatwoot-addons" target="_blank">View on GitHub</a></p>
+  </footer>
+</div>
+</body>
+</html>

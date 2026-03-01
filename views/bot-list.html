@@ -1,0 +1,376 @@
+<!DOCTYPE html><html dir='ltr' lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>Bot Builder | Chatwoot</title>
+<link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap' rel='stylesheet'>
+<link href='https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css' rel='stylesheet'>
+<style>
+:root{--bg-app:#F8F9FB;--bg-card:#FFFFFF;--bg-surface:#FFFFFF;--border-weak:#E2E4E9;--border-strong:#D1D5DB;--text-12:#111827;--text-11:#4B5563;--text-10:#6B7280;--text-9:#9CA3AF;--btn-bg:#FFFFFF;--overlay:rgba(0,0,0,.08);--label-bg:#F3F4F6;--card-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.04);--card-hover-shadow:0 2px 8px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.06)}
+body.dark{--bg-app:#0F0F14;--bg-card:#1A1B24;--bg-surface:#111118;--border-weak:rgba(255,255,255,.06);--border-strong:rgba(255,255,255,.1);--text-12:#F1F2F6;--text-11:#A1A6B4;--text-10:#6B7280;--text-9:#4B5563;--btn-bg:#1C1E28;--overlay:rgba(0,0,0,.4);--label-bg:#1C1E28;--card-shadow:0 2px 8px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.2);--card-hover-shadow:0 4px 12px rgba(0,0,0,.35),0 12px 36px rgba(0,0,0,.25)}
+*{margin:0;padding:0;box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--border-strong) transparent}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:5px}::-webkit-scrollbar-thumb:hover{background:var(--text-10)}
+body{font-family:'Inter',-apple-system,system-ui,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Tahoma,Arial,sans-serif;background:var(--bg-app);color:var(--text-12);margin:0;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-feature-settings:'cv02','cv03','cv04','cv11';text-rendering:optimizeLegibility}
+.app-shell{display:flex;min-height:100vh}
+.app-nav{width:56px;background:var(--bg-surface);border-left:1px solid var(--border-weak);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px;flex-shrink:0;position:sticky;top:0;height:100vh}
+.app-nav a{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--text-10);text-decoration:none;transition:background .15s ease,color .15s ease,box-shadow .2s ease;font-size:0;position:relative}
+.app-nav a:hover{background:rgba(124,58,237,.04);color:var(--text-12)}
+.app-nav a.active{color:#A78BFA;background:rgba(124,58,237,.08);box-shadow:0 0 16px rgba(124,58,237,.15)}
+.app-nav a.active::before{content:'';position:absolute;left:-1px;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:linear-gradient(180deg,#7C3AED,#A78BFA)}
+.app-nav .nav-sp{flex:1}
+.app-nav .ti{font-size:20px}
+.app-main{flex:1;overflow-y:auto;min-width:0}
+.wrap{max-width:1200px;margin:0 auto;padding:32px 64px}
+.page-hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:24px}
+.page-hdr h1{font-size:22px;font-weight:600;letter-spacing:-.03em;color:var(--text-12)}
+.page-hdr p{font-size:14px;color:var(--text-11);margin-top:4px}
+.btn{display:inline-flex;align-items:center;gap:6px;border-radius:10px;font-family:inherit;font-weight:500;font-size:14px;cursor:pointer;border:0;outline:1px solid transparent;transition:background .12s ease,color .12s ease,transform .1s;text-decoration:none}
+.btn:active{transform:scale(.97)}
+.btn-md{padding:8px 16px;height:40px}
+.btn-sm{padding:6px 12px;height:32px;font-size:13px}
+.bp{background:linear-gradient(135deg,#7C3AED,#6366F1);color:#fff;box-shadow:0 1px 3px rgba(124,58,237,.3),0 4px 12px rgba(124,58,237,.15)}.bp:hover{background:linear-gradient(135deg,#8B5CF6,#818CF8);box-shadow:0 2px 8px rgba(124,58,237,.35),0 6px 20px rgba(124,58,237,.2)}
+.bo{background:var(--btn-bg);color:var(--text-12);outline:1px solid var(--border-weak)}.bo:hover{background:var(--label-bg)}
+.bd{background:rgba(229,70,102,.08);color:rgb(229,70,102)}.bd:hover{background:rgba(229,70,102,.18)}
+.btn .ti{vertical-align:middle;font-size:14px}
+
+.stats-bar{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--bg-card);border:none;border-radius:14px;margin-bottom:16px;font-size:13px;color:var(--text-11);box-shadow:0 0 0 1px rgba(0,0,0,.03),0 1px 2px rgba(0,0,0,.04),0 4px 12px rgba(0,0,0,.04)}
+.stat-item{display:flex;align-items:center;gap:6px}
+.stat-sep{color:var(--border-strong);font-size:13px}
+.stat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-g{background:#12a594}
+.dot-n{background:var(--text-10)}
+
+.filter-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.search-wrap{position:relative;flex:1;min-width:200px;max-width:360px}
+.search-wrap .ti{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--text-9);pointer-events:none}
+.search-wrap input{width:100%;background:var(--btn-bg);border:1px solid var(--border-weak);outline:none;border-radius:10px;padding:9px 36px 9px 12px;color:var(--text-12);font-family:inherit;font-size:14px;transition:border-color .15s,box-shadow .15s}
+.search-wrap input:focus{border-color:#7C3AED;box-shadow:0 0 0 3px rgba(124,58,237,.1)}
+.search-wrap input:hover{outline-color:var(--text-9)}
+.search-wrap input::placeholder{color:var(--text-9)}
+.filter-chips{display:flex;gap:4px}
+.fchip{padding:6px 14px;border-radius:20px;border:1px solid var(--border-weak);background:transparent;color:var(--text-10);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:border-color .15s,color .15s,background .15s}
+.fchip:hover{border-color:var(--border-strong);color:var(--text-11)}
+.fchip.active{background:rgba(124,58,237,.1);color:#7C3AED;border-color:rgba(124,58,237,.3)}
+.sort-select{margin-right:auto;background:var(--btn-bg);border:1px solid var(--border-weak);border-radius:8px;padding:6px 12px;color:var(--text-11);font-family:inherit;font-size:13px;cursor:pointer;transition:border-color .15s}
+.sort-select:hover{border-color:var(--border-strong)}
+.sort-select:focus{outline:none;border-color:#7C3AED}
+.sort-select option{background:var(--bg-card)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px}
+.no-results{text-align:center;padding:48px 20px;color:var(--text-9);font-size:14px;display:none}
+.bc{background:var(--bg-card);border-radius:16px;border:none;box-shadow:0 0 0 1px rgba(0,0,0,.03),0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.04);transition:box-shadow .25s ease,transform .2s ease;overflow:hidden;animation:fadeUp .4s cubic-bezier(.16,1,.3,1) both}
+.bc:hover{box-shadow:0 0 0 1.5px rgba(124,58,237,.2),0 2px 4px rgba(0,0,0,.05),0 8px 24px rgba(0,0,0,.08),0 16px 40px rgba(0,0,0,.05);transform:translateY(-2px)}
+.bc-link{display:block;padding:20px 24px 12px;text-decoration:none;color:inherit;cursor:pointer}
+.bc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.bc-info h3{font-size:15px;font-weight:600;letter-spacing:-.01em;color:var(--text-12);margin-bottom:4px}.bc-info p{font-size:13px;color:var(--text-10);line-height:1.4}
+.badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;white-space:nowrap;border:1px solid;display:flex;align-items:center;gap:5px}
+.badge-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.bg{background:rgba(18,165,148,.08);color:rgb(18,165,148);border-color:rgba(18,165,148,.2)}
+.bi{background:rgba(139,141,152,.06);color:var(--text-9);border-color:rgba(139,141,152,.15)}
+.bc-meta{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text-9)}
+.bc-meta .ti{font-size:14px;vertical-align:middle;margin-right:3px}
+.bc-act{display:flex;gap:6px;padding:0 24px 16px;border-top:1px solid var(--border-weak);padding-top:12px}
+.empty{text-align:center;padding:80px 20px}
+.empty-icon{width:80px;height:80px;border-radius:24px;background:linear-gradient(135deg,rgba(124,58,237,.06),rgba(124,58,237,.03));border:1px solid rgba(124,58,237,.12);display:flex;align-items:center;justify-content:center;margin:0 auto 24px}
+.empty-icon .ti{font-size:36px;color:#7C3AED}
+.empty h2{font-size:20px;font-weight:600;color:var(--text-12);margin-bottom:8px;letter-spacing:-.02em}.empty p{color:var(--text-11);margin-bottom:24px;font-size:14px}
+.toast{position:fixed;bottom:36px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--bg-card);border:1px solid var(--border-weak);color:var(--text-12);padding:10px 22px;border-radius:100px;font-size:13px;font-weight:600;z-index:9999;transition:transform .35s cubic-bezier(.2,.8,.2,1);box-shadow:var(--card-hover-shadow);backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3)}.toast.show{transform:translateX(-50%) translateY(0)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:768px){.wrap{padding:16px}.app-nav{width:48px}.app-nav .ti{font-size:18px}.filter-bar{flex-direction:column;align-items:stretch}.search-wrap{max-width:100%}.sort-select{margin-right:0}}
+</style></head><body>
+<script>
+// Theme detection: URL param override, then Chatwoot localStorage, then system preference
+(function(){
+  var urlTheme = new URLSearchParams(window.location.search).get('theme');
+  if (urlTheme === 'dark') document.body.classList.add('dark');
+  else if (urlTheme === 'light') document.body.classList.remove('dark');
+  else {
+    var s=null;try{var k=Object.keys(localStorage);for(var i=0;i<k.length;i++){if(k[i].indexOf('COLOR_SCHEME')!==-1){s=localStorage.getItem(k[i]);break}}}catch(e){}
+    if(s==='dark'||(s!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches))document.body.classList.add('dark');
+  }
+})();
+</script>
+<div class='app-shell'>
+<nav class='app-nav'><a href='/bot-builder' class='active' title='Bot Builder'><i class='ti ti-robot'></i></a><a href='/campaign-report' title='Campaign Report'><i class='ti ti-chart-bar'></i></a><div class='nav-sp'></div><a href='/app' title='Chatwoot'><i class='ti ti-layout-dashboard'></i></a></nav>
+<div class='app-main'>
+<div class='wrap'>
+<div class='page-hdr'><div><h1 id='page-title'>Bot Builder</h1><p id='page-subtitle'>Manage automated bots for your inboxes</p></div><a href='/bot-builder/new' id='new-bot-btn' class='btn btn-md bp'><i class='ti ti-plus' style='font-size:16px'></i> New Bot</a></div>
+<div id='stats-container'></div>
+<div id='filter-container'></div>
+<div id='content-container'></div>
+</div>
+</div></div>
+<div id='toast' class='toast'></div>
+<script>
+var LOCALE = __LOCALE__;
+var isHe = LOCALE === 'he';
+
+if(isHe){document.documentElement.setAttribute('dir','rtl');document.documentElement.setAttribute('lang','he')}
+
+// i18n strings
+var i18n = {
+  title: isHe ? '\u05D1\u05D5\u05E0\u05D4 \u05D1\u05D5\u05D8\u05D9\u05DD' : 'Bot Builder',
+  subtitle: isHe ? '\u05E0\u05D4\u05DC \u05D1\u05D5\u05D8\u05D9\u05DD \u05D0\u05D5\u05D8\u05D5\u05DE\u05D8\u05D9\u05D9\u05DD \u05DC\u05EA\u05D9\u05D1\u05D5\u05EA \u05D4\u05D3\u05D5\u05D0\u05E8' : 'Manage automated bots for your inboxes',
+  newBot: isHe ? '\u05D1\u05D5\u05D8 \u05D7\u05D3\u05E9' : 'New Bot',
+  active: isHe ? '\u05E4\u05E2\u05D9\u05DC\u05D9\u05DD' : 'Active',
+  disabled: isHe ? '\u05DE\u05D5\u05E9\u05D1\u05EA\u05D9\u05DD' : 'Disabled',
+  search: isHe ? '\u05D7\u05E4\u05E9 \u05D1\u05D5\u05D8\u05D9\u05DD...' : 'Search bots...',
+  all: isHe ? '\u05D4\u05DB\u05DC' : 'All',
+  sortUpdated: isHe ? '\u05E2\u05D3\u05DB\u05D5\u05DF \u05D0\u05D7\u05E8\u05D5\u05DF' : 'Last updated',
+  sortName: isHe ? '\u05E9\u05DD' : 'Name',
+  sortCreated: isHe ? '\u05EA\u05D0\u05E8\u05D9\u05DA \u05D9\u05E6\u05D9\u05E8\u05D4' : 'Date created',
+  emptyTitle: isHe ? '\u05D0\u05D9\u05DF \u05D1\u05D5\u05D8\u05D9\u05DD \u05E2\u05D3\u05D9\u05D9\u05DF' : 'No Bots Yet',
+  emptyDesc: isHe ? '\u05E6\u05D5\u05E8 \u05D0\u05EA \u05D4\u05D1\u05D5\u05D8 \u05D4\u05E8\u05D0\u05E9\u05D5\u05DF \u05E9\u05DC\u05DA \u05E2\u05DD \u05D4\u05E2\u05D5\u05E8\u05DA \u05D4\u05D5\u05D9\u05D6\u05D5\u05D0\u05DC\u05D9' : 'Create your first bot with the visual drag-and-drop editor',
+  noResults: isHe ? '\u05DC\u05D0 \u05E0\u05DE\u05E6\u05D0\u05D5 \u05D1\u05D5\u05D8\u05D9\u05DD \u05EA\u05D5\u05D0\u05DE\u05D9\u05DD' : 'No matching bots found',
+  deleteConfirm: isHe ? '\u05DC\u05DE\u05D7\u05D5\u05E7 \u05D0\u05EA \u05D4\u05D1\u05D5\u05D8?' : 'Delete this bot?',
+  enable: isHe ? '\u05D4\u05E4\u05E2\u05DC' : 'Enable',
+  disable: isHe ? '\u05D4\u05E9\u05D1\u05EA' : 'Disable',
+  deleteBtn: isHe ? '\u05DE\u05D7\u05E7' : 'Delete',
+  notAssigned: isHe ? '\u05DC\u05D0 \u05DE\u05E9\u05D5\u05D9\u05DA' : 'Not assigned',
+  nodes: isHe ? '\u05E6\u05DE\u05EA\u05D9\u05DD' : 'nodes',
+  totalNodes: isHe ? '\u05E6\u05DE\u05EA\u05D9\u05DD \u05D1\u05E1\u05DA \u05D4\u05DB\u05DC' : 'total nodes',
+  created: isHe ? '\u05E0\u05D5\u05E6\u05E8' : 'Created',
+  unnamed: isHe ? '\u05DC\u05DC\u05D0 \u05E9\u05DD' : 'Unnamed'
+};
+
+// Apply i18n to static page header
+(function(){
+  document.getElementById('page-title').textContent=i18n.title;
+  document.getElementById('page-subtitle').textContent=i18n.subtitle;
+  var nb=document.getElementById('new-bot-btn');
+  nb.lastChild.textContent=' '+i18n.newBot;
+})();
+
+// HTML-escape helper
+function esc(s){
+  if(s==null)return '';
+  var d=document.createElement('div');
+  d.appendChild(document.createTextNode(String(s)));
+  return d.innerHTML;
+}
+
+// Attribute-escape helper (for use in data-* attributes)
+function attrEsc(s){
+  if(s==null)return '';
+  return String(s).replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function fmtDateTime(s){
+  try{var d=new Date(s);if(isNaN(d.getTime()))return '-';
+  var dd=String(d.getUTCDate()).padStart(2,'0'),mm=String(d.getUTCMonth()+1).padStart(2,'0'),yy=d.getUTCFullYear();
+  var hh=String(d.getUTCHours()).padStart(2,'0'),mi=String(d.getUTCMinutes()).padStart(2,'0');
+  return dd+'/'+mm+'/'+yy+' '+hh+':'+mi}catch(e){return '-'}
+}
+function fmtDate(s){
+  try{var d=new Date(s);if(isNaN(d.getTime()))return '-';
+  var dd=String(d.getUTCDate()).padStart(2,'0'),mm=String(d.getUTCMonth()+1).padStart(2,'0'),yy=d.getUTCFullYear();
+  return dd+'/'+mm+'/'+yy}catch(e){return '-'}
+}
+function countNodes(b){
+  try{var data=(b.flow&&b.flow.drawflow&&b.flow.drawflow.Home&&b.flow.drawflow.Home.data)||{};return Object.keys(data).length}catch(e){return 0}
+}
+function getInboxDisplay(b){
+  var names=b.inbox_names||[];
+  if(names.length===0)return i18n.notAssigned;
+  if(names.length<=2)return names.join(', ');
+  return names.slice(0,2).join(', ')+' +'+(names.length-2);
+}
+
+// State
+var currentFilter='all';
+var botsData=[];
+
+function renderStats(bots){
+  var el=document.getElementById('stats-container');
+  if(!bots.length){el.textContent='';return}
+  var active=0,totalNodes=0;
+  for(var i=0;i<bots.length;i++){if(bots[i].active)active++;totalNodes+=countNodes(bots[i])}
+  var inactive=bots.length-active;
+  var bar=document.createElement('div');bar.className='stats-bar';
+  bar.innerHTML=
+    "<span class='stat-item'><span class='stat-dot dot-g'></span>"+active+" "+esc(i18n.active)+"</span>"+
+    "<span class='stat-sep'>\u00B7</span>"+
+    "<span class='stat-item'><span class='stat-dot dot-n'></span>"+inactive+" "+esc(i18n.disabled)+"</span>"+
+    "<span class='stat-sep'>\u00B7</span>"+
+    "<span class='stat-item'><i class='ti ti-puzzle' style='font-size:14px;vertical-align:middle;margin-right:4px'></i>"+totalNodes+" "+esc(i18n.totalNodes)+"</span>";
+  el.textContent='';
+  el.appendChild(bar);
+}
+
+function renderFilter(bots){
+  var el=document.getElementById('filter-container');
+  if(!bots.length){el.textContent='';return}
+  var bar=document.createElement('div');bar.className='filter-bar';
+  bar.innerHTML=
+    "<div class='search-wrap'><i class='ti ti-search'></i><input type='text' id='bot-search' placeholder='"+attrEsc(i18n.search)+"' autocomplete='off'></div>"+
+    "<div class='filter-chips'>"+
+    "<button class='fchip active' data-filter='all'>"+esc(i18n.all)+"</button>"+
+    "<button class='fchip' data-filter='active'>"+esc(i18n.active)+"</button>"+
+    "<button class='fchip' data-filter='inactive'>"+esc(i18n.disabled)+"</button>"+
+    "</div>"+
+    "<select id='bot-sort' class='sort-select'>"+
+    "<option value='updated'>"+esc(i18n.sortUpdated)+"</option>"+
+    "<option value='name'>"+esc(i18n.sortName)+"</option>"+
+    "<option value='created'>"+esc(i18n.sortCreated)+"</option>"+
+    "</select>";
+  el.textContent='';
+  el.appendChild(bar);
+}
+
+function buildBotCardHTML(b,idx){
+  var act=b.active;
+  var inbDisplay=getInboxDisplay(b);
+  var upd=fmtDateTime(b.updated_at);
+  var crt=fmtDate(b.created_at);
+  var nc=countNodes(b);
+  var name=b.name||i18n.unnamed;
+  var desc=b.description||'';
+  var descHtml=(desc.trim().length>0)?"<p>"+esc(desc)+"</p>":"";
+
+  return "<div class='bc' data-name='"+attrEsc(name)+"' data-desc='"+attrEsc(desc)+"' data-active='"+act+"' data-updated='"+attrEsc(b.updated_at||'')+"' data-created='"+attrEsc(b.created_at||'')+"' style='animation-delay:"+(idx*0.05)+"s'>"+
+    "<a href='/bot-builder/"+esc(b.id)+"/edit' class='bc-link'>"+
+    "<div class='bc-top'><div class='bc-info'><h3>"+esc(name)+"</h3>"+descHtml+
+    "</div><span class='badge "+(act?"bg":"bi")+"'><span class='badge-dot "+(act?"dot-g":"dot-n")+"'></span>"+(act?esc(i18n.active):esc(i18n.disabled))+"</span></div>"+
+    "<div class='bc-meta'><span><i class='ti ti-inbox'></i> "+esc(inbDisplay)+"</span>"+
+    "<span><i class='ti ti-puzzle'></i> "+nc+" "+esc(i18n.nodes)+"</span><span><i class='ti ti-clock'></i> "+esc(upd)+"</span><span><i class='ti ti-calendar'></i> "+esc(i18n.created)+" "+esc(crt)+"</span></div>"+
+    "</a>"+
+    "<div class='bc-act'>"+
+    "<button class='btn btn-sm bo' data-tid='"+attrEsc(b.id)+"'><i class='ti "+(act?'ti-player-pause':'ti-player-play')+"'></i> "+(act?esc(i18n.disable):esc(i18n.enable))+"</button>"+
+    "<button class='btn btn-sm bd' data-did='"+attrEsc(b.id)+"'><i class='ti ti-trash'></i> "+esc(i18n.deleteBtn)+"</button></div></div>";
+}
+
+function renderContent(bots){
+  var el=document.getElementById('content-container');
+  if(!bots.length){
+    var empty=document.createElement('div');empty.className='empty';
+    empty.innerHTML=
+      "<div class='empty-icon'><i class='ti ti-robot'></i></div>"+
+      "<h2>"+esc(i18n.emptyTitle)+"</h2><p>"+esc(i18n.emptyDesc)+"</p>"+
+      "<a href='/bot-builder/new' class='btn bp' style='padding:14px 28px;font-size:16px'><i class='ti ti-plus' style='font-size:18px'></i> "+esc(i18n.newBot)+"</a>";
+    el.textContent='';
+    el.appendChild(empty);
+    return;
+  }
+  var rows='';
+  for(var i=0;i<bots.length;i++){rows+=buildBotCardHTML(bots[i],i)}
+  var wrapper=document.createElement('div');
+  wrapper.innerHTML=
+    "<div class='grid' id='bot-grid'>"+rows+"</div>"+
+    "<div class='no-results' id='no-results'><i class='ti ti-search-off' style='font-size:32px;display:block;margin-bottom:8px;opacity:.5'></i>"+esc(i18n.noResults)+"</div>";
+  el.textContent='';
+  while(wrapper.firstChild)el.appendChild(wrapper.firstChild);
+}
+
+function renderAll(bots){
+  botsData=bots;
+  renderStats(bots);
+  renderFilter(bots);
+  renderContent(bots);
+  bindEvents();
+}
+
+function bindEvents(){
+  var searchEl=document.getElementById('bot-search');
+  var grid=document.getElementById('bot-grid');
+  var noRes=document.getElementById('no-results');
+  var chips=document.querySelectorAll('.fchip');
+  var sortEl=document.getElementById('bot-sort');
+
+  // Restore filter chip state
+  for(var ci=0;ci<chips.length;ci++){
+    if(chips[ci].getAttribute('data-filter')===currentFilter){
+      for(var cj=0;cj<chips.length;cj++)chips[cj].classList.remove('active');
+      chips[ci].classList.add('active');
+    }
+  }
+
+  function filterBots(){
+    if(!grid)return;
+    var q=(searchEl?searchEl.value:'').trim().toLowerCase();
+    var cards=grid.querySelectorAll('.bc');
+    var vis=0;
+    for(var i=0;i<cards.length;i++){
+      var c=cards[i];var name=(c.getAttribute('data-name')||'').toLowerCase();var desc=(c.getAttribute('data-desc')||'').toLowerCase();var isActive=c.getAttribute('data-active')==='true';
+      var matchSearch=!q||name.indexOf(q)!==-1||desc.indexOf(q)!==-1;
+      var matchFilter=currentFilter==='all'||(currentFilter==='active'&&isActive)||(currentFilter==='inactive'&&!isActive);
+      c.style.display=(matchSearch&&matchFilter)?'':'none';
+      if(matchSearch&&matchFilter)vis++;
+    }
+    if(noRes)noRes.style.display=vis===0?'block':'none';
+  }
+
+  function updChipCounts(){
+    if(!grid)return;var cards=grid.querySelectorAll('.bc');
+    var all=cards.length,act=0,inact=0;
+    for(var i=0;i<cards.length;i++){var a=cards[i].getAttribute('data-active')==='true';if(a)act++;else inact++}
+    chips.forEach(function(ch){var f=ch.getAttribute('data-filter');
+      var cnt=f==='all'?all:f==='active'?act:inact;
+      var lbl=f==='all'?i18n.all:f==='active'?i18n.active:i18n.disabled;
+      ch.textContent=lbl+' ('+cnt+')';
+    });
+  }
+  updChipCounts();
+
+  if(searchEl)searchEl.addEventListener('input',filterBots);
+  for(var i=0;i<chips.length;i++){chips[i].addEventListener('click',function(){
+    for(var j=0;j<chips.length;j++)chips[j].classList.remove('active');
+    this.classList.add('active');currentFilter=this.getAttribute('data-filter');filterBots();
+  })}
+
+  function doSort(v){
+    if(!grid)return;var cards=Array.from(grid.querySelectorAll('.bc'));
+    cards.sort(function(a,b){
+      if(v==='name')return(a.getAttribute('data-name')||'').localeCompare(b.getAttribute('data-name')||'');
+      if(v==='updated')return(b.getAttribute('data-updated')||'').localeCompare(a.getAttribute('data-updated')||'');
+      if(v==='created')return(b.getAttribute('data-created')||'').localeCompare(a.getAttribute('data-created')||'');
+      return 0;
+    });
+    cards.forEach(function(c){grid.appendChild(c)});
+  }
+
+  if(sortEl){
+    var sv=localStorage.getItem('bb-sort');if(sv){sortEl.value=sv;doSort(sv)}
+    sortEl.addEventListener('change',function(){var v=this.value;localStorage.setItem('bb-sort',v);doSort(v)});
+  }
+
+  // Apply filter after rendering
+  filterBots();
+}
+
+// Toast helper
+function showToast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show')},2500);
+}
+
+// Click handlers for toggle and delete (delegated)
+document.addEventListener('click',function(e){
+  if(e.target.closest('.bc-link'))return;
+  var t=e.target.closest('[data-tid]');
+  if(t){
+    e.preventDefault();e.stopPropagation();
+    fetch('/bot-builder/api/bots/'+t.getAttribute('data-tid')+'/toggle',{method:'POST'}).then(function(r){
+      if(r.ok)fetchAndRender();
+    });
+    return;
+  }
+  var d=e.target.closest('[data-did]');
+  if(d&&confirm(i18n.deleteConfirm)){
+    e.preventDefault();e.stopPropagation();
+    fetch('/bot-builder/api/bots/'+d.getAttribute('data-did'),{method:'DELETE'}).then(function(r){
+      if(r.ok)fetchAndRender();
+    });
+  }
+});
+
+// Fetch bots from API and render
+function fetchAndRender(){
+  fetch('/bot-builder/api/bots').then(function(r){return r.json()}).then(function(bots){
+    renderAll(bots);
+  }).catch(function(err){
+    console.error('Failed to fetch bots:',err);
+    renderAll([]);
+  });
+}
+
+// Initial load
+fetchAndRender();
+</script></body></html>

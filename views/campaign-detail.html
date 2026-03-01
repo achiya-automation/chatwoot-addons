@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campaign Detail</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" rel="stylesheet">
+  <style>
+    :root{
+      --bg-app:#F4F5F8;--bg-card:#FFFFFF;--bg-surface:#FAFBFC;--border-weak:#E8E9ED;--border-strong:#D4D6DC;
+      --text-1:#1C2024;--text-2:#60646C;--text-3:#80838D;--text-4:#8B8D98;
+      --accent:#6366F1;--accent-light:#818CF8;--accent-bg:rgba(99,102,241,.06);--accent-border:rgba(99,102,241,.15);
+      --card-shadow:0 1px 2px rgba(0,0,0,.04),0 2px 4px rgba(0,0,0,.03),0 4px 8px rgba(0,0,0,.02);
+      --card-hover-shadow:0 2px 4px rgba(0,0,0,.05),0 4px 8px rgba(0,0,0,.04),0 8px 16px rgba(0,0,0,.04),0 16px 32px rgba(0,0,0,.03);
+      --glass-bg:rgba(255,255,255,.6);--glass-border:rgba(255,255,255,.8);
+      --nav-bg:#FEFEFE;--nav-border:#E8E9ED;--nav-text:#80838D;
+      --table-bg:#FFFFFF;--table-border:#E8E9ED;--table-hover:rgba(99,102,241,.03);
+      --bar-bg:#E8E9ED;--input-bg:#FFFFFF;--input-border:#E8E9ED;
+      --glow-accent:rgba(99,102,241,.08);
+    }
+    body.dark{
+      --bg-app:#0F1014;--bg-card:#16171F;--bg-surface:#1C1E28;--border-weak:#1E1F2E;--border-strong:#2A2B3D;
+      --text-1:#EDEEF0;--text-2:#B0B4BA;--text-3:#777B84;--text-4:#555770;
+      --accent:#818CF8;--accent-light:#A5B4FC;--accent-bg:rgba(99,102,241,.08);--accent-border:rgba(99,102,241,.2);
+      --card-shadow:0 1px 2px rgba(0,0,0,.2),0 2px 4px rgba(0,0,0,.15),0 4px 8px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.03);
+      --card-hover-shadow:0 2px 4px rgba(0,0,0,.2),0 4px 8px rgba(0,0,0,.15),0 8px 16px rgba(0,0,0,.12),0 16px 32px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.05);
+      --glass-bg:rgba(22,23,31,.7);--glass-border:rgba(255,255,255,.06);
+      --nav-bg:#0C0D14;--nav-border:rgba(255,255,255,.04);--nav-text:#555770;
+      --table-bg:#16171F;--table-border:#1E1F2E;--table-hover:rgba(99,102,241,.04);
+      --bar-bg:#1E1F2E;--input-bg:#1C1E28;--input-border:rgba(255,255,255,.06);
+      --glow-accent:rgba(99,102,241,.12);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}::-webkit-scrollbar-thumb:hover{background:var(--text-3)}
+    body{font-family:'Inter',-apple-system,system-ui,sans-serif;background:var(--bg-app);color:var(--text-1);line-height:1.65;margin:0;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+
+    /* App shell */
+    .app-shell{display:flex;min-height:100vh}
+    .app-nav{width:56px;background:var(--nav-bg);border-right:1px solid var(--nav-border);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px;flex-shrink:0;position:sticky;top:0;height:100vh}
+    .app-nav a{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--nav-text);text-decoration:none;transition:background .15s,color .15s,box-shadow .2s;font-size:0;position:relative}
+    .app-nav a:hover{background:rgba(99,102,241,.04);color:var(--text-1)}
+    .app-nav a.active{color:var(--accent);background:var(--accent-bg);box-shadow:0 0 12px var(--glow-accent)}
+    .app-nav a.active::before{content:'';position:absolute;left:-1px;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:linear-gradient(180deg,#6366F1,#818CF8)}
+    .app-nav .nav-sp{flex:1}
+    .app-nav .ti{font-size:20px}
+
+    /* Layout */
+    .app-main{flex:1;overflow-y:auto;min-width:0}
+    .container{max-width:1200px;margin:0 auto;padding:32px 48px}
+
+    /* Page header */
+    .page-hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:28px}
+    .page-hdr h1{font-size:22px;font-weight:700;letter-spacing:-.03em;color:var(--text-1)}
+    .page-hdr .subtitle{color:var(--text-3);font-size:13px;margin-top:4px;letter-spacing:-.01em}
+    .page-hdr .refresh-btn{background:var(--glass-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-border);border-radius:10px;padding:8px 16px;color:var(--text-2);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s,color .15s,border-color .15s,box-shadow .2s;text-decoration:none;display:inline-flex;align-items:center;gap:6px;height:38px}
+    .page-hdr .refresh-btn:hover{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-border);box-shadow:0 0 12px var(--glow-accent);text-decoration:none}
+
+    /* === STAT CARDS - Premium glass === */
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px}
+    .stat-card{background:var(--bg-card);border:1px solid var(--border-weak);border-radius:16px;padding:20px 22px;position:relative;overflow:hidden;transition:border-color .2s,box-shadow .3s,transform .2s;box-shadow:var(--card-shadow)}
+    .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0;background:var(--stat-accent,var(--accent));opacity:.6;transition:opacity .2s}
+    .stat-card:hover{border-color:var(--border-strong);box-shadow:var(--card-hover-shadow);transform:translateY(-2px)}
+    .stat-card:hover::before{opacity:1}
+    .stat-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:17px;transition:box-shadow .2s}
+    .stat-card:hover .stat-icon{box-shadow:0 0 12px var(--stat-glow,rgba(99,102,241,.2))}
+    .stat-number{font-size:30px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.03em;transition:color .2s}
+    .stat-label{font-size:10px;color:var(--text-4);margin-top:8px;font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+    .stat-pct{font-size:12px;color:var(--accent);margin-top:4px;font-weight:600;letter-spacing:-.01em}
+    .stat-bar{height:3px;background:var(--bar-bg);border-radius:2px;margin-top:10px;overflow:hidden}
+    .stat-bar-fill{height:100%;border-radius:2px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+
+    /* === SECTION TITLES === */
+    .section-title{font-size:10px;font-weight:700;margin-bottom:12px;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:8px}
+    .section-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border-weak),transparent)}
+
+    /* Status badge */
+    .campaign-status{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:-.01em}
+    .campaign-status::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.6}
+    .cs-completed{background:rgba(46,204,113,.1);color:#2ecc71}
+    .cs-active{background:var(--accent-bg);color:var(--accent)}
+    .cs-scheduled{background:rgba(240,173,78,.1);color:#f0ad4e}
+
+    /* Links */
+    a{color:var(--accent);text-decoration:none;font-weight:500}
+    a:hover{text-decoration:underline;text-underline-offset:3px}
+
+    /* Info card */
+    .info-card{background:var(--bg-card);border:1px solid var(--border-weak);border-radius:16px;padding:24px;box-shadow:var(--card-shadow)}
+    .info-card h3{font-size:10px;font-weight:700;margin-bottom:14px;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:8px}
+    .info-card h3::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border-weak),transparent)}
+    .info-row{display:flex;gap:8px;margin-bottom:8px;color:var(--text-3);font-size:13px;align-items:baseline}
+    .info-row strong{color:var(--text-2);min-width:80px;font-weight:600;font-size:12px}
+
+    /* Export button */
+    .export-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:10px;background:var(--glass-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-border);color:var(--accent);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s,border-color .15s,box-shadow .2s;text-decoration:none}
+    .export-btn:hover{background:var(--accent-bg);border-color:var(--accent-border);box-shadow:0 0 16px var(--glow-accent);text-decoration:none}
+    .export-btn:active{transform:scale(.97)}
+    .export-btn .ti{font-size:15px}
+    .hdr-actions{display:flex;gap:8px;align-items:center}
+
+    /* === FUNNEL - Gradient bars === */
+    .funnel{margin-bottom:28px}
+    .funnel-bar-wrap{background:var(--bg-card);border:1px solid var(--border-weak);border-radius:12px;overflow:hidden;height:32px;display:flex;box-shadow:var(--card-shadow)}
+    .funnel-seg{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:white;transition:width 1s cubic-bezier(.4,0,.2,1);min-width:0;overflow:hidden;letter-spacing:-.01em}
+    .funnel-seg span{white-space:nowrap;padding:0 8px}
+    .funnel-labels{display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--text-4);padding:0 2px}
+    .funnel-label{display:flex;align-items:center;gap:5px;font-weight:500}
+    .funnel-label .dot{width:8px;height:8px;border-radius:3px;flex-shrink:0}
+
+    /* Attention box */
+    .attention-box{background:rgba(229,70,102,.04);border:1px solid rgba(229,70,102,.12);border-radius:14px;padding:14px 20px;margin-bottom:24px;display:flex;align-items:center;gap:12px}
+    .attention-box .att-icon{width:34px;height:34px;border-radius:10px;background:rgba(229,70,102,.1);color:#FCA5A5;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
+    .attention-box .att-text{flex:1;font-size:13px;color:var(--text-2)}
+    .attention-box .att-text strong{color:#FCA5A5;font-weight:600}
+
+    /* === DOWNLOAD CARD === */
+    .download-card{background:var(--bg-card);border:1px solid var(--border-weak);border-radius:16px;padding:32px;text-align:center;margin-bottom:28px;box-shadow:var(--card-shadow);transition:border-color .2s,box-shadow .3s,transform .2s;position:relative;overflow:hidden}
+    .download-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% -20%,var(--glow-accent),transparent 70%);pointer-events:none}
+    .download-card:hover{border-color:var(--accent-border);box-shadow:var(--card-hover-shadow);transform:translateY(-1px)}
+    .download-card .dl-icon{width:52px;height:52px;border-radius:14px;background:var(--accent-bg);border:1px solid var(--accent-border);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:14px;position:relative;transition:box-shadow .2s}
+    .download-card:hover .dl-icon{box-shadow:0 0 20px var(--glow-accent)}
+    .download-card h3{font-size:15px;font-weight:700;letter-spacing:-.02em;color:var(--text-1);margin-bottom:4px;position:relative}
+    .download-card p{font-size:13px;color:var(--text-4);margin-bottom:18px;position:relative}
+    .download-card .dl-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 28px;border-radius:10px;background:linear-gradient(135deg,#6366F1 0%,#4F46E5 100%);border:none;color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:box-shadow .2s,transform .15s;box-shadow:0 2px 8px rgba(99,102,241,.3),0 0 0 1px rgba(99,102,241,.1);position:relative;letter-spacing:-.01em}
+    .download-card .dl-btn:hover{box-shadow:0 4px 16px rgba(99,102,241,.4),0 0 0 1px rgba(99,102,241,.2);text-decoration:none;color:#fff;transform:translateY(-1px)}
+    .download-card .dl-btn:active{transform:scale(.97) translateY(0)}
+    .download-card .dl-btn .ti{font-size:17px}
+
+    /* === ANIMATE ON LOAD === */
+    @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    .stat-card,.table-wrapper,.funnel,.download-card,.info-card,.attention-box{animation:fadeUp .4s ease-out both}
+    .stat-card:nth-child(1){animation-delay:.05s}.stat-card:nth-child(2){animation-delay:.1s}.stat-card:nth-child(3){animation-delay:.15s}.stat-card:nth-child(4){animation-delay:.2s}
+    .funnel{animation-delay:.2s}.download-card{animation-delay:.3s}
+
+    @media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr);gap:8px}.container{padding:16px}.app-nav{width:48px}.app-nav .ti{font-size:18px}.download-card{padding:20px}}
+  </style>
+</head>
+<body>
+  <script>
+  // Theme detection: URL param > Chatwoot localStorage > system preference
+  (function(){
+    var urlTheme = new URLSearchParams(window.location.search).get('theme');
+    if (urlTheme === 'dark') document.body.classList.add('dark');
+    else if (urlTheme === 'light') document.body.classList.remove('dark');
+    else {
+      var s=null;try{var k=Object.keys(localStorage);for(var i=0;i<k.length;i++){if(k[i].indexOf("COLOR_SCHEME")!==-1){s=localStorage.getItem(k[i]);break}}}catch(e){}
+      if(s==="dark"||(s!=="light"&&window.matchMedia("(prefers-color-scheme:dark)").matches))document.body.classList.add("dark");
+    }
+  })();
+  </script>
+
+  <!-- Data injection point: server replaces __CAMPAIGN__ and __LOCALE__ -->
+  <script>
+  var _campaign = __CAMPAIGN__;
+  var _locale = __LOCALE__;
+  </script>
+
+  <div class="app-shell">
+    <nav class="app-nav">
+      <a href="/bot-builder" title="Bot Builder"><i class="ti ti-robot"></i></a>
+      <a href="/campaign-report" class="active" title="Campaign Report"><i class="ti ti-chart-bar"></i></a>
+      <div class="nav-sp"></div>
+      <a href="/app" title="Chatwoot"><i class="ti ti-layout-dashboard"></i></a>
+    </nav>
+    <div class="app-main">
+      <div class="container">
+
+        <div class="page-hdr" style="direction:ltr">
+          <div>
+            <h1 id="page-title"></h1>
+            <div class="subtitle" id="page-subtitle"></div>
+          </div>
+          <div class="hdr-actions">
+            <button class="export-btn" id="export-btn" onclick="exportCSV()"><i class="ti ti-file-spreadsheet"></i> <span>Export Excel</span></button>
+            <a href="/campaign-report" class="refresh-btn" id="all-link"><i class="ti ti-arrow-right" style="font-size:16px"></i> <span>All Campaigns</span></a>
+          </div>
+        </div>
+
+        <div class="stats-grid" id="stats-grid"></div>
+
+        <div class="funnel" id="funnel-section">
+          <div class="funnel-bar-wrap" id="funnel-bar"></div>
+          <div class="funnel-labels" id="funnel-labels"></div>
+        </div>
+
+        <div id="attention-container"></div>
+
+        <div class="download-card" id="download-card">
+          <div class="dl-icon"><i class="ti ti-table-export"></i></div>
+          <h3 id="dl-title">Download Full Report</h3>
+          <p id="dl-desc">Includes all contact details, delivery status, dates, and conversation IDs</p>
+          <button class="dl-btn" onclick="exportCSV()"><i class="ti ti-download"></i> <span id="dl-btn-text">Download CSV</span></button>
+        </div>
+
+        <div class="info-card" id="info-card">
+          <h3 id="info-title">Template Details</h3>
+          <div class="info-row"><strong id="info-lbl-template">Template:</strong> <span id="info-val-template"></span></div>
+          <div class="info-row"><strong id="info-lbl-language">Language:</strong> <span id="info-val-language"></span></div>
+          <div class="info-row"><strong id="info-lbl-message">Message:</strong> <span id="info-val-message"></span></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    var c = _campaign || {};
+    var isHe = _locale === 'he';
+    if(isHe){document.documentElement.setAttribute('dir','rtl');document.documentElement.setAttribute('lang','he')}
+
+    // i18n
+    var t = {
+      sent:           isHe ? '\u05E0\u05E9\u05DC\u05D7\u05D5' : 'Sent',
+      delivered:      isHe ? '\u05E0\u05DE\u05E1\u05E8\u05D5' : 'Delivered',
+      read:           isHe ? '\u05E0\u05E7\u05E8\u05D0\u05D5' : 'Read',
+      failed:         isHe ? '\u05E0\u05DB\u05E9\u05DC\u05D5' : 'Failed',
+      notSent:        isHe ? '\u05DC\u05D0 \u05E0\u05E9\u05DC\u05D7\u05D5' : 'Not Sent',
+      exportExcel:    isHe ? '\u05D9\u05D9\u05E6\u05D5\u05D0 Excel' : 'Export Excel',
+      allCampaigns:   isHe ? '\u05DB\u05DC \u05D4\u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD' : 'All Campaigns',
+      dlTitle:        isHe ? '\u05D4\u05D5\u05E8\u05D3\u05EA \u05D3\u05D5\u05D7 \u05DE\u05DC\u05D0' : 'Download Full Report',
+      dlDesc:         isHe ? '\u05DB\u05D5\u05DC\u05DC \u05E4\u05E8\u05D8\u05D9 \u05DB\u05DC \u05D0\u05E0\u05E9\u05D9 \u05D4\u05E7\u05E9\u05E8, \u05E1\u05D8\u05D8\u05D5\u05E1 \u05DE\u05E9\u05DC\u05D5\u05D7, \u05EA\u05D0\u05E8\u05D9\u05DB\u05D9\u05DD \u05D5\u05DE\u05D6\u05D4\u05D9 \u05E9\u05D9\u05D7\u05D4' : 'Includes all contact details, delivery status, dates, and conversation IDs',
+      dlBtn:          isHe ? '\u05D4\u05D5\u05E8\u05D3 CSV' : 'Download CSV',
+      templateTitle:  isHe ? '\u05E4\u05E8\u05D8\u05D9 \u05EA\u05D1\u05E0\u05D9\u05EA' : 'Template Details',
+      lblTemplate:    isHe ? '\u05EA\u05D1\u05E0\u05D9\u05EA:' : 'Template:',
+      lblLanguage:    isHe ? '\u05E9\u05E4\u05D4:' : 'Language:',
+      lblMessage:     isHe ? '\u05D4\u05D5\u05D3\u05E2\u05D4:' : 'Message:',
+      attention:      isHe ? '\u05D3\u05D5\u05E8\u05E9 \u05EA\u05E9\u05D5\u05DE\u05EA \u05DC\u05D1:' : 'Needs Attention:',
+      audience:       isHe ? '\u05E7\u05D4\u05DC:' : 'Audience:',
+      statusCompleted:isHe ? '\u05D4\u05D5\u05E9\u05DC\u05DD' : 'Completed',
+      statusActive:   isHe ? '\u05E4\u05E2\u05D9\u05DC' : 'Active',
+      statusScheduled:isHe ? '\u05DE\u05EA\u05D5\u05D6\u05DE\u05DF' : 'Scheduled',
+      noData:         isHe ? '\u05D0\u05D9\u05DF \u05E0\u05EA\u05D5\u05E0\u05D9\u05DD \u05DC\u05D9\u05D9\u05E6\u05D5\u05D0' : 'No data to export',
+      csvName:        isHe ? '\u05E9\u05DD' : 'Name',
+      csvPhone:       isHe ? '\u05D8\u05DC\u05E4\u05D5\u05DF' : 'Phone',
+      csvStatus:      isHe ? '\u05E1\u05D8\u05D8\u05D5\u05E1' : 'Status',
+      csvDate:        isHe ? '\u05EA\u05D0\u05E8\u05D9\u05DA \u05E9\u05DC\u05D9\u05D7\u05D4' : 'Send Date',
+      csvConvId:      isHe ? '\u05DE\u05D6\u05D4\u05D4 \u05E9\u05D9\u05D7\u05D4' : 'Conversation ID'
+    };
+
+    function statusText(s){
+      switch(s){case 'completed':return t.statusCompleted;case 'active':return t.statusActive;case 'scheduled':return t.statusScheduled;default:return s||''}
+    }
+    function formatTime(iso){
+      if(!iso)return '-';
+      var d=new Date(iso);
+      if(isNaN(d.getTime()))return '-';
+      var dd=('0'+d.getDate()).slice(-2),mm=('0'+(d.getMonth()+1)).slice(-2),yy=d.getFullYear();
+      var hh=('0'+d.getHours()).slice(-2),mi=('0'+d.getMinutes()).slice(-2);
+      return dd+'/'+mm+'/'+yy+' '+hh+':'+mi;
+    }
+
+    // Calculate stats
+    var totalSent = c.total_sent || 0;
+    var delivered = c.delivered || 0;
+    var readCount = c.read || 0;
+    var failed = c.failed || 0;
+    var contacts = c.contacts || [];
+
+    // Count not_sent from contacts array
+    var notSentCount = 0;
+    for(var i=0;i<contacts.length;i++){if(contacts[i].s==='not_sent')notSentCount++}
+    // Also derive from audience_size if available
+    var audienceSize = c.audience_size || (totalSent + notSentCount);
+    var allCount = totalSent + notSentCount;
+
+    var pctDelivered = totalSent > 0 ? ((delivered / totalSent) * 100).toFixed(1) : 0;
+    var pctRead = totalSent > 0 ? ((readCount / totalSent) * 100).toFixed(1) : 0;
+
+    // Funnel percentages (based on allCount = sent + not_sent)
+    var barRead = allCount > 0 ? ((readCount / allCount) * 100).toFixed(1) : 0;
+    var barDelivered = allCount > 0 ? ((delivered / allCount) * 100).toFixed(1) : 0;
+    var barFailed = allCount > 0 ? ((failed / allCount) * 100).toFixed(1) : 0;
+    var barNotSent = allCount > 0 ? ((notSentCount / allCount) * 100).toFixed(1) : 0;
+
+    // Page title
+    document.title = 'Campaign: ' + (c.title || '');
+    document.getElementById('page-title').textContent = c.title || '';
+
+    // Subtitle: #ID . Status badge . Date . Audience
+    var subtitleEl = document.getElementById('page-subtitle');
+    subtitleEl.appendChild(document.createTextNode('#' + (c.id||'') + ' \u00B7 '));
+    var badge = document.createElement('span');
+    badge.className = 'campaign-status cs-' + (c.status||'');
+    badge.textContent = statusText(c.status);
+    subtitleEl.appendChild(badge);
+    subtitleEl.appendChild(document.createTextNode(' \u00B7 ' + formatTime(c.scheduled_at) + ' \u00B7 ' + t.audience + ' ' + allCount));
+
+    // Header action labels
+    document.querySelector('#export-btn span').textContent = t.exportExcel;
+    document.querySelector('#all-link span').textContent = t.allCampaigns;
+
+    // Build KPI cards via DOM
+    var grid = document.getElementById('stats-grid');
+    var cardsConfig = [
+      {accent:'#3B82F6',glow:'rgba(59,130,246,.25)',iconBg:'rgba(59,130,246,.08)',iconColor:'#60A5FA',iconBorder:'rgba(59,130,246,.12)',icon:'ti-send',numColor:'#60A5FA',num:totalSent,label:t.sent,pct:null,bar:null},
+      {accent:'#14B8A6',glow:'rgba(20,184,166,.25)',iconBg:'rgba(20,184,166,.08)',iconColor:'#5EEAD4',iconBorder:'rgba(20,184,166,.12)',icon:'ti-checks',numColor:'#5EEAD4',num:delivered,label:t.delivered,pct:totalSent>0?pctDelivered+'%':null,pctColor:null,bar:totalSent>0?{w:pctDelivered,grad:'linear-gradient(90deg,#14B8A6,#5EEAD4)'}:null},
+      {accent:'#8B5CF6',glow:'rgba(139,92,246,.25)',iconBg:'rgba(139,92,246,.08)',iconColor:'#C4B5FD',iconBorder:'rgba(139,92,246,.12)',icon:'ti-chevron-down',numColor:'#C4B5FD',num:readCount,label:t.read,pct:totalSent>0?pctRead+'%':null,pctColor:'#C4B5FD',bar:totalSent>0?{w:pctRead,grad:'linear-gradient(90deg,#8B5CF6,#C4B5FD)'}:null},
+      {accent:'#EF4444',glow:'rgba(239,68,68,.25)',iconBg:'rgba(239,68,68,.08)',iconColor:'#FCA5A5',iconBorder:'rgba(239,68,68,.12)',icon:'ti-x',numColor:failed>0?'#FCA5A5':'var(--text-4)',num:failed,label:t.failed,pct:null,bar:null}
+    ];
+    for(var ci=0;ci<cardsConfig.length;ci++){
+      var cfg=cardsConfig[ci];
+      var card=document.createElement('div');card.className='stat-card';
+      card.style.cssText='--stat-accent:'+cfg.accent+';--stat-glow:'+cfg.glow;
+      var iconDiv=document.createElement('div');iconDiv.className='stat-icon';
+      iconDiv.style.cssText='background:'+cfg.iconBg+';color:'+cfg.iconColor+';border:1px solid '+cfg.iconBorder;
+      var iconI=document.createElement('i');iconI.className='ti '+cfg.icon;iconDiv.appendChild(iconI);card.appendChild(iconDiv);
+      var numDiv=document.createElement('div');numDiv.className='stat-number';numDiv.style.color=cfg.numColor;numDiv.textContent=cfg.num;card.appendChild(numDiv);
+      var lblDiv=document.createElement('div');lblDiv.className='stat-label';lblDiv.textContent=cfg.label;card.appendChild(lblDiv);
+      if(cfg.pct){
+        var pctDiv=document.createElement('div');pctDiv.className='stat-pct';
+        if(cfg.pctColor)pctDiv.style.color=cfg.pctColor;
+        pctDiv.textContent=cfg.pct;card.appendChild(pctDiv);
+      }
+      if(cfg.bar){
+        var barDiv=document.createElement('div');barDiv.className='stat-bar';
+        var fillDiv=document.createElement('div');fillDiv.className='stat-bar-fill';fillDiv.style.cssText='width:'+cfg.bar.w+'%;background:'+cfg.bar.grad;
+        barDiv.appendChild(fillDiv);card.appendChild(barDiv);
+      }
+      grid.appendChild(card);
+    }
+
+    // Build funnel bar via DOM
+    var funnelBar = document.getElementById('funnel-bar');
+    var funnelLabels = document.getElementById('funnel-labels');
+
+    var segments = [
+      {pct:parseFloat(barRead),   color:'#a29bfe', count:readCount,                labelKey:t.read,    barPct:barRead},
+      {pct:parseFloat(barDelivered)-parseFloat(barRead), color:'#2ecc71', count:delivered-readCount, labelKey:t.delivered, barPct:barDelivered},
+      {pct:parseFloat(barFailed), color:'#ff6b6b', count:failed,                   labelKey:t.failed,  barPct:barFailed},
+      {pct:parseFloat(barNotSent),color:'#f0ad4e', count:notSentCount,             labelKey:t.notSent, barPct:barNotSent}
+    ];
+
+    for(var si=0;si<segments.length;si++){
+      var seg=segments[si];
+      if(seg.pct>0){
+        var segDiv=document.createElement('div');segDiv.className='funnel-seg';
+        segDiv.style.cssText='width:'+seg.pct+'%;background:'+seg.color;
+        var segSpan=document.createElement('span');segSpan.textContent=seg.count+' '+seg.labelKey;
+        segDiv.appendChild(segSpan);funnelBar.appendChild(segDiv);
+      }
+    }
+
+    // Always show Read and Delivered labels; Failed and Not Sent only if > 0
+    var labelConfigs = [
+      {color:'#a29bfe', text:t.read+' '+barRead+'%', show:true},
+      {color:'#2ecc71', text:t.delivered+' '+barDelivered+'%', show:true},
+      {color:'#ff6b6b', text:t.failed+' '+barFailed+'%', show:parseFloat(barFailed)>0},
+      {color:'#f0ad4e', text:t.notSent+' '+barNotSent+'%', show:parseFloat(barNotSent)>0}
+    ];
+    for(var li=0;li<labelConfigs.length;li++){
+      if(!labelConfigs[li].show)continue;
+      var flDiv=document.createElement('div');flDiv.className='funnel-label';
+      var dotSpan=document.createElement('span');dotSpan.className='dot';dotSpan.style.background=labelConfigs[li].color;
+      flDiv.appendChild(dotSpan);
+      flDiv.appendChild(document.createTextNode(' '+labelConfigs[li].text));
+      funnelLabels.appendChild(flDiv);
+    }
+
+    // Attention box (if failed > 0 or not_sent > 0)
+    var attContainer = document.getElementById('attention-container');
+    var attentionItems = [];
+    if(failed > 0) attentionItems.push(failed + ' ' + t.failed);
+    if(notSentCount > 0) attentionItems.push(notSentCount + ' ' + t.notSent);
+    if(attentionItems.length > 0){
+      var attBox = document.createElement('div');attBox.className='attention-box';
+      var attIconDiv = document.createElement('div');attIconDiv.className='att-icon';
+      var attIconI = document.createElement('i');attIconI.className='ti ti-alert-triangle';attIconDiv.appendChild(attIconI);attBox.appendChild(attIconDiv);
+      var attTextDiv = document.createElement('div');attTextDiv.className='att-text';
+      var attStrong = document.createElement('strong');attStrong.textContent=t.attention;attTextDiv.appendChild(attStrong);
+      attTextDiv.appendChild(document.createTextNode(' '+attentionItems.join(', ')));
+      attBox.appendChild(attTextDiv);attContainer.appendChild(attBox);
+    }
+
+    // Download card labels
+    document.getElementById('dl-title').textContent = t.dlTitle;
+    document.getElementById('dl-desc').textContent = t.dlDesc;
+    document.getElementById('dl-btn-text').textContent = t.dlBtn;
+
+    // Info card
+    document.getElementById('info-title').textContent = t.templateTitle;
+    document.getElementById('info-lbl-template').textContent = t.lblTemplate;
+    document.getElementById('info-lbl-language').textContent = t.lblLanguage;
+    document.getElementById('info-lbl-message').textContent = t.lblMessage;
+    document.getElementById('info-val-template').textContent = c.template_name || '-';
+    document.getElementById('info-val-language').textContent = c.template_language || '-';
+    document.getElementById('info-val-message').textContent = c.message || '-';
+
+    // CSV export function (client-side)
+    window.exportCSV = function(){
+      var exportData = contacts;
+      if(!exportData || !exportData.length){alert(t.noData);return}
+      var csv = '\uFEFF'; // BOM for Excel UTF-8
+      csv += t.csvName+','+t.csvPhone+','+t.csvStatus+','+t.csvDate+','+t.csvConvId+'\n';
+      for(var i=0;i<exportData.length;i++){
+        var r=exportData[i];
+        csv+='"'+(r.n||'').replace(/"/g,'""')+'","'+(r.p||'').replace(/"/g,'""')+'","'+(r.s||'').replace(/"/g,'""')+'","'+(r.d||'').replace(/"/g,'""')+'","'+(r.c||'').replace(/"/g,'""')+'"\n';
+      }
+      var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url;
+      a.download='campaign-report-'+(c.id||'unknown')+'.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+  })();
+  </script>
+</body>
+</html>

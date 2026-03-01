@@ -1,0 +1,31 @@
+{
+  "inboxes": [
+    {"id": 1, "name": "WhatsApp Business", "channel_type": "Channel::Api"},
+    {"id": 2, "name": "Website Chat", "channel_type": "Channel::WebWidget"},
+    {"id": 3, "name": "Telegram Bot", "channel_type": "Channel::Telegram"},
+    {"id": 4, "name": "Email Support", "channel_type": "Channel::Email"}
+  ],
+  "agents": [
+    {"id": 1, "name": "Sarah Cohen"},
+    {"id": 2, "name": "David Levi"},
+    {"id": 3, "name": "Yael Mizrahi"},
+    {"id": 4, "name": "Amit Rosen"}
+  ],
+  "labels": [
+    {"id": 1, "title": "VIP"},
+    {"id": 2, "title": "New Customer"},
+    {"id": 3, "title": "Support"},
+    {"id": 4, "title": "Sales Lead"},
+    {"id": 5, "title": "Returning"}
+  ],
+  "teams": [
+    {"id": 1, "name": "Sales"},
+    {"id": 2, "name": "Support"},
+    {"id": 3, "name": "Marketing"}
+  ],
+  "custom_attributes": [
+    {"id": 1, "key": "plan_type", "name": "Plan Type", "type": "list", "model": "contact_attribute"},
+    {"id": 2, "key": "company_size", "name": "Company Size", "type": "number", "model": "contact_attribute"},
+    {"id": 3, "key": "lead_score", "name": "Lead Score", "type": "number", "model": "conversation_attribute"}
+  ]
+}
