@@ -1,0 +1,20 @@
+# Example docker-compose override for Chatwoot Addons
+# Copy this file as docker-compose.override.yml next to your Chatwoot docker-compose.yaml
+# Then run: docker compose up -d
+#
+# Adjust the paths if your custom-initializers directory is different
+
+services:
+  rails:
+    volumes:
+      - /opt/chatwoot/custom-initializers/bot_builder.rb:/app/config/initializers/bot_builder.rb:ro
+      - /opt/chatwoot/custom-initializers/campaign_report_dashboard.rb:/app/config/initializers/campaign_report_dashboard.rb:ro
+      - /opt/chatwoot/custom-initializers/custom_nav_widget.rb:/app/config/initializers/custom_nav_widget.rb:ro
+      - /opt/chatwoot/bot_flows:/app/storage/bot_flows  # Persist bot flows
+
+  sidekiq:
+    volumes:
+      - /opt/chatwoot/custom-initializers/bot_builder.rb:/app/config/initializers/bot_builder.rb:ro
+      - /opt/chatwoot/custom-initializers/campaign_report_dashboard.rb:/app/config/initializers/campaign_report_dashboard.rb:ro
+      - /opt/chatwoot/custom-initializers/custom_nav_widget.rb:/app/config/initializers/custom_nav_widget.rb:ro
+      - /opt/chatwoot/bot_flows:/app/storage/bot_flows

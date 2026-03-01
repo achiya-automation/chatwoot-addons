@@ -1,0 +1,5 @@
+*.backup.*
+*.swp
+*.swo
+.DS_Store
+.env
