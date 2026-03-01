@@ -22,6 +22,18 @@
 
 Both are injected as Rack middleware via Docker volume mounts. They run alongside Chatwoot and use its authentication, database, and session management.
 
+## 📸 Screenshots
+
+### Bot Builder — Visual Flow Editor
+<p align="center">
+  <img src="screenshots/bot-builder-demo.gif" alt="Bot Builder Demo — drag and drop nodes to create conversation flows" width="800">
+</p>
+
+### Campaign Report — Analytics Dashboard
+<p align="center">
+  <img src="screenshots/campaign-report-demo.gif" alt="Campaign Report — KPI cards, delivery funnel, CSV export" width="800">
+</p>
+
 ## ✨ Features
 
 ### Bot Builder (`/bot-builder`)
