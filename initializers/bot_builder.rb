@@ -83,11 +83,11 @@ class BotBuilderMiddleware
     ac = aids(user)
     case path
     when '/bot-builder'
-      return list_page(ac) if req.get?
+      return list_page(ac, user) if req.get?
     when '/bot-builder/new'
-      return editor_page(nil) if req.get?
+      return editor_page(nil, user) if req.get?
     when %r{^/bot-builder/(\w+)/edit$}
-      return editor_page($1) if req.get?
+      return editor_page($1, user) if req.get?
     when '/bot-builder/api/bots'
       return jr(BotFlowStore.all.select{|b| ac.include?(b['account_id'])}) if req.get?
       if req.post?
@@ -152,12 +152,13 @@ class BotBuilderMiddleware
     '<a href="/app" class="cw-fab-link"><svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>Chatwoot</a></div>'
   end
 
-  def list_page(ac)
+  def list_page(ac, user=nil)
     bots = BotFlowStore.all.select{|b| ac.include?(b['account_id'])}
-    [200, sh.merge('Content-Type'=>'text/html; charset=utf-8'), [list_html(bots)]]
+    locale = (user.respond_to?(:locale) ? user.locale : nil) || 'en'
+    [200, sh.merge('Content-Type'=>'text/html; charset=utf-8'), [list_html(bots, locale)]]
   end
 
-  def list_html(bots)
+  def list_html(bots, locale='en')
     active_count = bots.count{|b| b['active']}
     inactive_count = bots.length - active_count
     total_nodes = bots.sum{|b| begin; (b.dig('flow','drawflow','Home','data')||{}).keys.length; rescue; 0 end }
@@ -177,7 +178,7 @@ class BotBuilderMiddleware
       nc = begin; (b.dig('flow','drawflow','Home','data')||{}).keys.length; rescue; 0 end
       "<div class='bc' data-name='#{e(b['name']||'')}' data-desc='#{e(b['description']||'')}' data-active='#{act}' data-updated='#{b['updated_at']||''}' data-created='#{b['created_at']||''}'>" \
       "<a href='/bot-builder/#{e(b['id'])}/edit' class='bc-link'>" \
-      "<div class='bc-top'><div class='bc-info'><h3>#{e(b['name']||"\u05DC\u05DC\u05D0 Name")}</h3>" \
+      "<div class='bc-top'><div class='bc-info'><h3>#{e(b['name']||"Unnamed")}</h3>" \
       "#{"<p>#{e(b['description'])}</p>" if b['description'].to_s.strip.length > 0}" \
       "</div><span class='badge #{act ? "bg" : "bi"}'><span class='badge-dot #{act ? "dot-g" : "dot-n"}'></span>#{act ? "Active" : "Disabled"}</span></div>" \
       "<div class='bc-meta'><span><i class='ti ti-inbox'></i> #{e(inb_display)}</span>" \
@@ -194,11 +195,11 @@ class BotBuilderMiddleware
 
     stats_html = if bots.any?
       "<div class='stats-bar'>" \
-      "<span class='stat-item'><span class='stat-dot dot-g'></span>#{active_count} Active\u05D9\u05DD</span>" \
+      "<span class='stat-item' data-i18n='stat-active'><span class='stat-dot dot-g'></span>#{active_count} Active</span>" \
       "<span class='stat-sep'>\u00B7</span>" \
-      "<span class='stat-item'><span class='stat-dot dot-n'></span>#{inactive_count} Disabled\u05D9\u05DD</span>" \
+      "<span class='stat-item' data-i18n='stat-disabled'><span class='stat-dot dot-n'></span>#{inactive_count} Disabled</span>" \
       "<span class='stat-sep'>\u00B7</span>" \
-      "<span class='stat-item'><i class='ti ti-puzzle' style='font-size:14px;vertical-align:middle;margin-right:4px'></i>#{total_nodes} nodes \u05E1\u05D4\"\u05DB</span>" \
+      "<span class='stat-item'><i class='ti ti-puzzle' style='font-size:14px;vertical-align:middle;margin-right:4px'></i>#{total_nodes} total nodes</span>" \
       "</div>"
     else "" end
 
@@ -207,8 +208,8 @@ class BotBuilderMiddleware
       "<div class='search-wrap'><i class='ti ti-search'></i><input type='text' id='bot-search' placeholder='Search bots...' autocomplete='off'></div>" \
       "<div class='filter-chips'>" \
       "<button class='fchip active' data-filter='all'>All</button>" \
-      "<button class='fchip' data-filter='active'>Active\u05D9\u05DD</button>" \
-      "<button class='fchip' data-filter='inactive'>Disabled\u05D9\u05DD</button>" \
+      "<button class='fchip' data-filter='active'>Active</button>" \
+      "<button class='fchip' data-filter='inactive'>Disabled</button>" \
       "</div>" \
       "<select id='bot-sort' class='sort-select'>" \
       "<option value='updated'>Last updated</option>" \
@@ -304,10 +305,27 @@ class BotBuilderMiddleware
     "</div></div>" \
     "<div id='toast' class='toast'></div>" \
     "<script>" \
+    "var _locale='#{locale}';" \
+    "(function(){if(_locale&&_locale!=='en')return;try{var k=Object.keys(localStorage);for(var i=0;i<k.length;i++){if(k[i].indexOf('user:locale')!==-1||k[i].indexOf('cw_d_')!==-1){var v=localStorage.getItem(k[i]);if(typeof v==='string'&&v.length===2){_locale=v;break}}}if(!_locale||_locale==='en'){for(var i=0;i<k.length;i++){if(k[i].indexOf('_locale')!==-1){var v=localStorage.getItem(k[i]);if(v&&v.length===2){_locale=v;break}}}}}catch(e){}})();" \
+    "var _isHe=_locale==='he';" \
+    "if(_isHe){document.documentElement.setAttribute('dir','rtl');document.documentElement.setAttribute('lang','he')}" \
+    "(function(){if(!_isHe)return;" \
+    "var h1=document.querySelector('.page-hdr h1');if(h1)h1.textContent='\\u05D1\\u05D5\\u05E0\\u05D4 \\u05D1\\u05D5\\u05D8\\u05D9\\u05DD';" \
+    "var sub=document.querySelector('.page-hdr p');if(sub)sub.textContent='\\u05E0\\u05D4\\u05DC \\u05D1\\u05D5\\u05D8\\u05D9\\u05DD \\u05D0\\u05D5\\u05D8\\u05D5\\u05DE\\u05D8\\u05D9\\u05D9\\u05DD \\u05DC\\u05EA\\u05D9\\u05D1\\u05D5\\u05EA \\u05D4\\u05D3\\u05D5\\u05D0\\u05E8';" \
+    "var nb=document.querySelector('.page-hdr .bp');if(nb)nb.innerHTML='<i class=\"ti ti-plus\" style=\"font-size:16px\"></i> \\u05D1\\u05D5\\u05D8 \\u05D7\\u05D3\\u05E9';" \
+    "var si=document.querySelector('[data-i18n=\"stat-active\"]');if(si)si.innerHTML='<span class=\"stat-dot dot-g\"></span>'+si.textContent.match(/\\d+/)[0]+' \\u05E4\\u05E2\\u05D9\\u05DC\\u05D9\\u05DD';" \
+    "var sd=document.querySelector('[data-i18n=\"stat-disabled\"]');if(sd)sd.innerHTML='<span class=\"stat-dot dot-n\"></span>'+sd.textContent.match(/\\d+/)[0]+' \\u05DE\\u05D5\\u05E9\\u05D1\\u05EA\\u05D9\\u05DD';" \
+    "var se=document.getElementById('bot-search');if(se)se.placeholder='\\u05D7\\u05E4\\u05E9 \\u05D1\\u05D5\\u05D8\\u05D9\\u05DD...';" \
+    "var so=document.getElementById('bot-sort');if(so){so.options[0].text='\\u05E2\\u05D3\\u05DB\\u05D5\\u05DF \\u05D0\\u05D7\\u05E8\\u05D5\\u05DF';so.options[1].text='\\u05E9\\u05DD';so.options[2].text='\\u05EA\\u05D0\\u05E8\\u05D9\\u05DA \\u05D9\\u05E6\\u05D9\\u05E8\\u05D4'}" \
+    "var em=document.querySelector('.empty h2');if(em)em.textContent='\\u05D0\\u05D9\\u05DF \\u05D1\\u05D5\\u05D8\\u05D9\\u05DD \\u05E2\\u05D3\\u05D9\\u05D9\\u05DF';" \
+    "var ep=document.querySelector('.empty p');if(ep)ep.textContent='\\u05E6\\u05D5\\u05E8 \\u05D0\\u05EA \\u05D4\\u05D1\\u05D5\\u05D8 \\u05D4\\u05E8\\u05D0\\u05E9\\u05D5\\u05DF \\u05E9\\u05DC\\u05DA \\u05E2\\u05DD \\u05D4\\u05E2\\u05D5\\u05E8\\u05DA \\u05D4\\u05D5\\u05D9\\u05D6\\u05D5\\u05D0\\u05DC\\u05D9';" \
+    "var eb=document.querySelector('.empty .bp');if(eb)eb.innerHTML='<i class=\"ti ti-plus\" style=\"font-size:18px\"></i> \\u05D1\\u05D5\\u05D8 \\u05D7\\u05D3\\u05E9';" \
+    "var nr=document.getElementById('no-results');if(nr)nr.innerHTML='<i class=\"ti ti-search-off\" style=\"font-size:32px;display:block;margin-bottom:8px;opacity:.5\"></i>\\u05DC\\u05D0 \\u05E0\\u05DE\\u05E6\\u05D0\\u05D5 \\u05D1\\u05D5\\u05D8\\u05D9\\u05DD \\u05EA\\u05D5\\u05D0\\u05DE\\u05D9\\u05DD';" \
+    "})();" \
     "document.addEventListener('click',function(e){" \
     "if(e.target.closest('.bc-link'))return;" \
     "var t=e.target.closest('[data-tid]');if(t){e.preventDefault();e.stopPropagation();fetch('/bot-builder/api/bots/'+t.getAttribute('data-tid')+'/toggle',{method:'POST'}).then(function(r){if(r.ok)location.reload()});return}" \
-    "var d=e.target.closest('[data-did]');if(d&&confirm('Delete this bot??')){e.preventDefault();e.stopPropagation();fetch('/bot-builder/api/bots/'+d.getAttribute('data-did'),{method:'DELETE'}).then(function(r){if(r.ok)location.reload()})}" \
+    "var d=e.target.closest('[data-did]');if(d&&confirm(_isHe?'\\u05DC\\u05DE\\u05D7\\u05D5\\u05E7 \\u05D0\\u05EA \\u05D4\\u05D1\\u05D5\\u05D8?':'Delete this bot?')){e.preventDefault();e.stopPropagation();fetch('/bot-builder/api/bots/'+d.getAttribute('data-did'),{method:'DELETE'}).then(function(r){if(r.ok)location.reload()})}" \
     "});" \
     "var searchEl=document.getElementById('bot-search');" \
     "var grid=document.getElementById('bot-grid');" \
@@ -335,7 +353,7 @@ class BotBuilderMiddleware
     "for(var i=0;i<cards.length;i++){var a=cards[i].getAttribute('data-active')==='true';if(a)act++;else inact++}" \
     "chips.forEach(function(ch){var f=ch.getAttribute('data-filter');" \
     "var cnt=f==='all'?all:f==='active'?act:inact;" \
-    "var lbl=f==='all'?'All':f==='active'?'Active\u05D9\u05DD':'Disabled\u05D9\u05DD';" \
+    "var lbl=f==='all'?(_isHe?'\\u05D4\\u05DB\\u05DC':'All'):f==='active'?(_isHe?'\\u05E4\\u05E2\\u05D9\\u05DC\\u05D9\\u05DD':'Active'):(_isHe?'\\u05DE\\u05D5\\u05E9\\u05D1\\u05EA\\u05D9\\u05DD':'Disabled');" \
     "ch.textContent=lbl+' ('+cnt+')';" \
     "})}" \
     "updChipCounts();" \
@@ -361,12 +379,13 @@ class BotBuilderMiddleware
     "</script></body></html>"
   end
 
-  def editor_page(bot_id)
-    [200, sh.merge('Content-Type'=>'text/html; charset=utf-8'), [editor_html(bot_id)]]
+  def editor_page(bot_id, user=nil)
+    [200, sh.merge('Content-Type'=>'text/html; charset=utf-8'), [editor_html(bot_id, user)]]
   end
 
-  def editor_html(bot_id)
+  def editor_html(bot_id, user=nil)
     bid_js = bot_id ? "\"#{e(bot_id)}\"" : 'null'
+    locale = (user.respond_to?(:locale) ? user.locale : nil) || 'en'
     # Use single-quoted heredoc so Ruby doesn't interpret backslashes
     # All Hebrew text is actual UTF-8, emojis use HTML entities
     html = <<~'ENDHTML'
@@ -1017,6 +1036,174 @@ body.dark .nb select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http
 <script src="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.js"></script>
 <script>
 var BOT_ID = __BOT_ID__;
+var LOCALE = __LOCALE__;
+// Detect from Chatwoot if not set
+if(!LOCALE || LOCALE==='en'){try{var k=Object.keys(localStorage);for(var i=0;i<k.length;i++){if(k[i].indexOf('user:')!==-1){try{var u=JSON.parse(localStorage.getItem(k[i]));if(u&&u.locale){LOCALE=u.locale;break}}catch(x){}}}}catch(e){}}
+if(!LOCALE)LOCALE='en';
+var isHe=LOCALE==='he';
+var ARR=isHe?'ti-arrow-left':'ti-arrow-right';
+var L={
+  // Node categories
+  trigger_cat:isHe?'\u05D8\u05E8\u05D9\u05D2\u05E8':'Trigger',
+  message_cat:isHe?'\u05D4\u05D5\u05D3\u05E2\u05D4':'Message',
+  logic_cat:isHe?'\u05DC\u05D5\u05D2\u05D9\u05E7\u05D4':'Logic',
+  action_cat:isHe?'\u05E4\u05E2\u05D5\u05DC\u05D4':'Action',
+  integration_cat:isHe?'\u05D0\u05D9\u05E0\u05D8\u05D2\u05E8\u05E6\u05D9\u05D4':'Integration',
+  note_cat:isHe?'\u05D4\u05E2\u05E8\u05D4':'Note',
+  // Node titles
+  incoming_msg:isHe?'\u05D4\u05D5\u05D3\u05E2\u05D4 \u05E0\u05DB\u05E0\u05E1\u05EA':'Incoming Message',
+  send_msg:isHe?'\u05E9\u05DC\u05D7 \u05D4\u05D5\u05D3\u05E2\u05D4':'Send Message',
+  send_img:isHe?'\u05E9\u05DC\u05D7 \u05EA\u05DE\u05D5\u05E0\u05D4':'Send Image',
+  send_vid:isHe?'\u05E9\u05DC\u05D7 \u05D5\u05D9\u05D3\u05D0\u05D5':'Send Video',
+  buttons_title:isHe?'\u05DB\u05E4\u05EA\u05D5\u05E8\u05D9\u05DD':'Buttons',
+  menu_title:isHe?'\u05EA\u05E4\u05E8\u05D9\u05D8':'Menu',
+  condition_title:isHe?'\u05EA\u05E0\u05D0\u05D9':'Condition',
+  delay_title:isHe?'\u05D4\u05DE\u05EA\u05E0\u05D4':'Delay',
+  assign_title:isHe?'\u05D4\u05E7\u05E6\u05D4 \u05DC\u05E0\u05E6\u05D9\u05D2':'Assign to Agent',
+  add_label_title:isHe?'\u05D4\u05D5\u05E1\u05E3 \u05EA\u05D2\u05D9\u05EA':'Add Label',
+  remove_label_title:isHe?'\u05D4\u05E1\u05E8 \u05EA\u05D2\u05D9\u05EA':'Remove Label',
+  set_attr_title:isHe?'\u05E2\u05D3\u05DB\u05DF \u05DE\u05D0\u05E4\u05D9\u05D9\u05DF':'Set Attribute',
+  close_title:isHe?'\u05E1\u05D2\u05D5\u05E8 \u05E9\u05D9\u05D7\u05D4':'Close Conversation',
+  note_title:isHe?'\u05D4\u05E2\u05E8\u05D4 \u05E4\u05E0\u05D9\u05DE\u05D9\u05EA':'Internal Note',
+  priority_title:isHe?'\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA \u05E9\u05D9\u05D7\u05D4':'Set Priority',
+  status_title:isHe?'\u05E1\u05D8\u05D8\u05D5\u05E1 \u05E9\u05D9\u05D7\u05D4':'Set Status',
+  transfer_title:isHe?'\u05D4\u05E2\u05D1\u05E8 \u05EA\u05D9\u05D1\u05D4':'Transfer Inbox',
+  wait_reply_title:isHe?'\u05D4\u05DE\u05EA\u05DF \u05DC\u05EA\u05E9\u05D5\u05D1\u05D4':'Wait for Reply',
+  goto_title:isHe?'\u05E7\u05E4\u05D5\u05E5 \u05DC\u05E9\u05DC\u05D1':'Go to Step',
+  // Labels
+  trigger_type:isHe?'\u05E1\u05D5\u05D2 \u05D8\u05E8\u05D9\u05D2\u05E8':'Trigger type',
+  keyword:isHe?'\u05DE\u05D9\u05DC\u05EA \u05DE\u05E4\u05EA\u05D7':'Keyword',
+  any_msg:isHe?'\u05DB\u05DC \u05D4\u05D5\u05D3\u05E2\u05D4':'Any message',
+  new_conv:isHe?'\u05E9\u05D9\u05D7\u05D4 \u05D7\u05D3\u05E9\u05D4':'New conversation',
+  enter_keyword:isHe?'\u05D4\u05D6\u05DF \u05DE\u05D9\u05DC\u05D4...':'Enter keyword...',
+  content:isHe?'\u05EA\u05D5\u05DB\u05DF':'Content',
+  type_msg:isHe?'\u05D4\u05E7\u05DC\u05D3 \u05D4\u05D5\u05D3\u05E2\u05D4...':'Type a message...',
+  img_url:isHe?'URL \u05EA\u05DE\u05D5\u05E0\u05D4':'Image URL',
+  caption:isHe?'\u05DB\u05D9\u05EA\u05D5\u05D1':'Caption',
+  optional:isHe?'\u05D0\u05D5\u05E4\u05E6\u05D9\u05D5\u05E0\u05DC\u05D9...':'Optional...',
+  vid_url:isHe?'URL \u05D5\u05D9\u05D3\u05D0\u05D5':'Video URL',
+  msg_text:isHe?'\u05D8\u05E7\u05E1\u05D8 \u05D4\u05D5\u05D3\u05E2\u05D4':'Message text',
+  buttons_label:isHe?'\u05DB\u05E4\u05EA\u05D5\u05E8\u05D9\u05DD (\u05E2\u05D3 3)':'Buttons (up to 3)',
+  btn1:isHe?'\u05DB\u05E4\u05EA\u05D5\u05E8 1':'Button 1',
+  btn2:isHe?'\u05DB\u05E4\u05EA\u05D5\u05E8 2':'Button 2',
+  btn3:isHe?'\u05DB\u05E4\u05EA\u05D5\u05E8 3':'Button 3',
+  title_label:isHe?'\u05DB\u05D5\u05EA\u05E8\u05EA':'Title',
+  choose_option:isHe?'\u05D1\u05D7\u05E8 \u05D0\u05E4\u05E9\u05E8\u05D5\u05EA:':'Choose an option:',
+  options_label:isHe?'\u05D0\u05E4\u05E9\u05E8\u05D5\u05D9\u05D5\u05EA':'Options',
+  opt:isHe?'\u05D0\u05E4\u05E9\u05E8\u05D5\u05EA':'Option',
+  check_label:isHe?'\u05D1\u05D3\u05D9\u05E7\u05D4':'Check',
+  contains:isHe?'\u05DE\u05DB\u05D9\u05DC\u05D4':'Contains',
+  equals:isHe?'\u05E9\u05D5\u05D5\u05D4 \u05DC':'Equals',
+  label_exists:isHe?'\u05EA\u05D2\u05D9\u05EA \u05E7\u05D9\u05D9\u05DE\u05EA':'Label exists',
+  contact_type:isHe?'\u05E1\u05D5\u05D2 \u05D0\u05D9\u05E9 \u05E7\u05E9\u05E8':'Contact type',
+  conv_status:isHe?'\u05E1\u05D8\u05D8\u05D5\u05E1 \u05E9\u05D9\u05D7\u05D4':'Conv. status',
+  conv_priority:isHe?'\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA \u05E9\u05D9\u05D7\u05D4':'Conv. priority',
+  conv_label:isHe?'\u05EA\u05D2\u05D9\u05EA \u05E9\u05D9\u05D7\u05D4':'Conv. label',
+  custom_attr:isHe?'\u05DE\u05D0\u05E4\u05D9\u05D9\u05DF \u05DE\u05D5\u05EA\u05D0\u05DD':'Custom attribute',
+  contact_field:isHe?'\u05E9\u05D3\u05D4 \u05D0\u05D9\u05E9 \u05E7\u05E9\u05E8':'Contact field',
+  value_label:isHe?'\u05E2\u05E8\u05DA':'Value',
+  seconds:isHe?'\u05E9\u05E0\u05D9\u05D5\u05EA':'Seconds',
+  typing_ind:isHe?'\u05D0\u05D9\u05E0\u05D3\u05D9\u05E7\u05D8\u05D5\u05E8 \u05D4\u05E7\u05DC\u05D3\u05D4':'Typing indicator',
+  no:isHe?'\u05DC\u05D0':'No',
+  yes_typing:isHe?'\u05DB\u05DF \u2014 \u05D4\u05E6\u05D2 \u05D4\u05E7\u05DC\u05D3\u05D4':'Yes \u2014 show typing',
+  agent:isHe?'\u05E0\u05E6\u05D9\u05D2':'Agent',
+  team:isHe?'\u05E6\u05D5\u05D5\u05EA':'Team',
+  none:isHe?'\u05DC\u05DC\u05D0':'None',
+  label_label:isHe?'\u05EA\u05D2\u05D9\u05EA':'Label',
+  select:isHe?'\u05D1\u05D7\u05E8...':'Select...',
+  attr_label:isHe?'\u05DE\u05D0\u05E4\u05D9\u05D9\u05DF':'Attribute',
+  close_resolved:isHe?'\u05D4\u05E9\u05D9\u05D7\u05D4 \u05EA\u05E1\u05D5\u05DE\u05DF \u05DB\u05E4\u05EA\u05D5\u05E8\u05D4':'Conversation will be marked as resolved',
+  internal_note_ph:isHe?'\u05D4\u05E2\u05E8\u05D4 \u05E4\u05E0\u05D9\u05DE\u05D9\u05EA...':'Internal note...',
+  priority_label:isHe?'\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA':'Priority',
+  low:isHe?'\u05E0\u05DE\u05D5\u05DB\u05D4':'Low',
+  medium:isHe?'\u05D1\u05D9\u05E0\u05D5\u05E0\u05D9\u05EA':'Medium',
+  high:isHe?'\u05D2\u05D1\u05D5\u05D4\u05D4':'High',
+  urgent:isHe?'\u05D3\u05D7\u05D5\u05E4\u05D4':'Urgent',
+  status_label:isHe?'\u05E1\u05D8\u05D8\u05D5\u05E1':'Status',
+  open:isHe?'\u05E4\u05EA\u05D5\u05D7\u05D4':'Open',
+  resolved:isHe?'\u05E4\u05EA\u05D5\u05E8\u05D4':'Resolved',
+  pending:isHe?'\u05DE\u05DE\u05EA\u05D9\u05E0\u05D4':'Pending',
+  inbox_label:isHe?'\u05EA\u05D9\u05D1\u05EA \u05D3\u05D5\u05D0\u05E8':'Inbox',
+  save_var:isHe?'\u05E9\u05DE\u05D5\u05E8 \u05EA\u05E9\u05D5\u05D1\u05D4 \u05D1\u05DE\u05E9\u05EA\u05E0\u05D4':'Save response to variable',
+  timeout_sec:isHe?'Timeout (\u05E9\u05E0\u05D9\u05D5\u05EA)':'Timeout (seconds)',
+  timeout_msg:isHe?'\u05D4\u05D5\u05D3\u05E2\u05EA timeout (\u05D0\u05D5\u05E4\u05E6\u05D9\u05D5\u05E0\u05DC\u05D9)':'Timeout message (optional)',
+  no_reply:isHe?'\u05DC\u05D0 \u05E7\u05D9\u05D1\u05DC\u05E0\u05D5 \u05EA\u05E9\u05D5\u05D1\u05D4. \u05E0\u05E1\u05D4 \u05E9\u05D5\u05D1...':'No reply received. Try again...',
+  reply_received:isHe?'\u05EA\u05E9\u05D5\u05D1\u05D4 \u05D4\u05EA\u05E7\u05D1\u05DC\u05D4':'Reply received',
+  save_response:isHe?'\u05E9\u05DE\u05D5\u05E8 \u05EA\u05E9\u05D5\u05D1\u05D4 \u05D1\u05DE\u05E9\u05EA\u05E0\u05D4':'Save response to variable',
+  test_name:isHe?'Name \u05D4\u05D1\u05D3\u05D9\u05E7\u05D4':'Test name',
+  test_ph:isHe?'\u05D1\u05D3\u05D9\u05E7\u05EA \u05D4\u05D5\u05D3\u05E2\u05D4 A':'Message test A',
+  split_pct:isHe?'\u05D0\u05D7\u05D5\u05D6 \u05E0\u05EA\u05D9\u05D1 A (%)':'Path A percentage (%)',
+  target_node:isHe?'\u05E6\u05D5\u05DE\u05EA \u05D9\u05E2\u05D3':'Target node',
+  select_node:isHe?'\u05D1\u05D7\u05E8 \u05E6\u05D5\u05DE\u05EA...':'Select node...',
+  // Output labels
+  next:isHe?'\u05D4\u05DE\u05E9\u05DA':'Next',
+  yes:isHe?'\u05DB\u05DF':'Yes',
+  no_out:isHe?'\u05DC\u05D0':'No',
+  success:isHe?'\u05D4\u05E6\u05DC\u05D7\u05D4':'Success',
+  error:isHe?'\u05E9\u05D2\u05D9\u05D0\u05D4':'Error',
+  // Summary / preview placeholders
+  keyword_prefix:isHe?'\u05DE\u05D9\u05DC\u05EA \u05DE\u05E4\u05EA\u05D7: ':'Keyword: ',
+  type_msg_ph:isHe?'\u05D4\u05E7\u05DC\u05D3 \u05D4\u05D5\u05D3\u05E2\u05D4...':'Type a message...',
+  add_buttons_ph:isHe?'\u05D4\u05D5\u05E1\u05E3 \u05DB\u05E4\u05EA\u05D5\u05E8\u05D9\u05DD...':'Add buttons...',
+  add_options_ph:isHe?'\u05D4\u05D5\u05E1\u05E3 \u05D0\u05E4\u05E9\u05E8\u05D5\u05D9\u05D5\u05EA...':'Add options...',
+  img_attached:isHe?'\u05EA\u05DE\u05D5\u05E0\u05D4 \u05DE\u05E6\u05D5\u05E8\u05E4\u05EA':'Image attached',
+  add_img_ph:isHe?'\u05D4\u05D5\u05E1\u05E3 \u05EA\u05DE\u05D5\u05E0\u05D4...':'Add image...',
+  vid_attached:isHe?'\u05D5\u05D9\u05D3\u05D0\u05D5 \u05DE\u05E6\u05D5\u05E8\u05E3':'Video attached',
+  add_vid_ph:isHe?'\u05D4\u05D5\u05E1\u05E3 \u05D5\u05D9\u05D3\u05D0\u05D5...':'Add video...',
+  typing_label:isHe?'\u05D4\u05E7\u05DC\u05D3\u05D4':'Typing',
+  delay_label:isHe?'\u05D4\u05DE\u05EA\u05E0\u05D4':'Delay',
+  agent_prefix:isHe?'\u05E0\u05E6\u05D9\u05D2: ':'Agent: ',
+  team_prefix:isHe?'\u05E6\u05D5\u05D5\u05EA: ':'Team: ',
+  select_agent_team:isHe?'\u05D1\u05D7\u05E8 \u05E0\u05E6\u05D9\u05D2/\u05E6\u05D5\u05D5\u05EA...':'Select agent/team...',
+  select_label_ph:isHe?'\u05D1\u05D7\u05E8 \u05EA\u05D2\u05D9\u05EA...':'Select label...',
+  select_attr_ph:isHe?'\u05D1\u05D7\u05E8 \u05DE\u05D0\u05E4\u05D9\u05D9\u05DF...':'Select attribute...',
+  enter_url_ph:isHe?'\u05D4\u05D6\u05DF URL...':'Enter URL...',
+  note_ph:isHe?'\u05D4\u05E2\u05E8\u05D4 \u05E4\u05E0\u05D9\u05DE\u05D9\u05EA...':'Internal note...',
+  select_priority_ph:isHe?'\u05D1\u05D7\u05E8 \u05E2\u05D3\u05D9\u05E4\u05D5\u05EA...':'Select priority...',
+  priority_prefix:isHe?'\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA: ':'Priority: ',
+  select_status_ph:isHe?'\u05D1\u05D7\u05E8 \u05E1\u05D8\u05D8\u05D5\u05E1...':'Select status...',
+  status_prefix:isHe?'\u05E1\u05D8\u05D8\u05D5\u05E1: ':'Status: ',
+  inbox_prefix:isHe?'\u05EA\u05D9\u05D1\u05D4: ':'Inbox: ',
+  select_inbox_ph:isHe?'\u05D1\u05D7\u05E8 \u05EA\u05D9\u05D1\u05D4...':'Select inbox...',
+  saved_in:isHe?'\u05E9\u05DE\u05D5\u05E8 \u05D1: ':'Saved in: ',
+  waiting_reply:isHe?'\u05DE\u05DE\u05EA\u05D9\u05DF \u05DC\u05EA\u05E9\u05D5\u05D1\u05D4':'Waiting for reply',
+  set_url_ph:isHe?'\u05D4\u05D2\u05D3\u05E8 URL...':'Set URL...',
+  select_target_ph:isHe?'\u05D1\u05D7\u05E8 \u05E6\u05D5\u05DE\u05EA \u05D9\u05E2\u05D3...':'Select target node...',
+  goto_node:isHe?'\u05E7\u05E4\u05D5\u05E5 \u05DC\u05E6\u05D5\u05DE\u05EA #':'Go to node #',
+  // Condition check types for summary
+  cond_contains:isHe?'\u05DE\u05DB\u05D9\u05DC\u05D4':'Contains',
+  cond_equals:isHe?'\u05E9\u05D5\u05D5\u05D4 \u05DC':'Equals',
+  cond_label_exists:isHe?'\u05EA\u05D2\u05D9\u05EA \u05E7\u05D9\u05D9\u05DE\u05EA':'Label exists',
+  cond_contact_type:isHe?'\u05E1\u05D5\u05D2 \u05D0\u05D9\u05E9 \u05E7\u05E9\u05E8':'Contact type',
+  cond_conv_status:isHe?'\u05E1\u05D8\u05D8\u05D5\u05E1':'Status',
+  cond_conv_priority:isHe?'\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA':'Priority',
+  cond_has_label:isHe?'\u05EA\u05D2\u05D9\u05EA \u05E9\u05D9\u05D7\u05D4':'Conv. label',
+  cond_custom_attr:isHe?'\u05DE\u05D0\u05E4\u05D9\u05D9\u05DF':'Attribute',
+  cond_contact_field:isHe?'\u05E9\u05D3\u05D4':'Field',
+  // Toast messages
+  file_exported:isHe?'\u05E7\u05D5\u05D1\u05E5 \u05D9\u05D5\u05E6\u05D0 \u05D1\u05D4\u05E6\u05DC\u05D7\u05D4':'File exported successfully',
+  import_confirm:isHe?'\u05D4\u05D9\u05D9\u05D1\u05D5\u05D0 \u05D9\u05D7\u05DC\u05D9\u05E3 \u05D0\u05EA \u05D4-flow \u05D4\u05E0\u05D5\u05DB\u05D7\u05D9. \u05DC\u05D4\u05DE\u05E9\u05D9\u05DA?':'Importing will replace the current flow. Continue?',
+  invalid_file:isHe?'\u05E7\u05D5\u05D1\u05E5 \u05DC\u05D0 \u05EA\u05E7\u05D9\u05DF':'Invalid file',
+  flow_imported:isHe?'Flow \u05D9\u05D5\u05D1\u05D0 \u05D1\u05D4\u05E6\u05DC\u05D7\u05D4':'Flow imported successfully',
+  file_read_err:isHe?'\u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05E7\u05E8\u05D9\u05D0\u05EA \u05D4\u05E7\u05D5\u05D1\u05E5':'Error reading file',
+  load_err:isHe?'\u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05D8\u05E2\u05D9\u05E0\u05EA \u05D4\u05D1\u05D5\u05D8':'Error loading bot',
+  draft_saved:isHe?'\u05D8\u05D9\u05D5\u05D8\u05D4 \u05E0\u05E9\u05DE\u05E8\u05D4':'Draft saved',
+  unsaved_changes:isHe?'\u05E9\u05D9\u05E0\u05D5\u05D9\u05D9\u05DD \u05DC\u05D0 \u05E0\u05E9\u05DE\u05E8\u05D5':'Unsaved changes',
+  ls_full:isHe?'localStorage \u05DE\u05DC\u05D0 \u2014 \u05E9\u05DE\u05D5\u05E8 \u05D9\u05D3\u05E0\u05D9\u05EA':'localStorage full \u2014 save manually',
+  copied:isHe?'\u05D4\u05D5\u05E2\u05EA\u05E7':'Copied',
+  pasted:isHe?'\u05D4\u05D5\u05D3\u05D1\u05E7':'Pasted',
+  node_duplicated:isHe?'\u05E6\u05D5\u05DE\u05EA \u05E9\u05D5\u05DB\u05E4\u05DC':'Node duplicated',
+  // Draft restore
+  ago_moments:isHe?'\u05DC\u05E4\u05E0\u05D9 \u05E8\u05D2\u05E2':'a moment ago',
+  ago_min:isHe?'\u05DC\u05E4\u05E0\u05D9 ':'',
+  ago_min_suffix:isHe?' \u05D3\u05E7\u05F3':' min ago',
+  ago_hours:isHe?'\u05DC\u05E4\u05E0\u05D9 ':'',
+  ago_hours_suffix:isHe?' \u05E9\u05E2\u05D5\u05EA':' hours ago',
+  ago_days:isHe?'\u05DC\u05E4\u05E0\u05D9 ':'',
+  ago_days_suffix:isHe?' \u05D9\u05DE\u05D9\u05DD':' days ago',
+  draft_found:isHe?'\u05E0\u05DE\u05E6\u05D0\u05D4 \u05D8\u05D9\u05D5\u05D8\u05D4 \u05DE':'Draft found from ',
+  draft_restore:isHe?'. \u05DC\u05E9\u05D7\u05D6\u05E8?':'. Restore?'
+};
 var botData = null;
 var agents=[], labels=[], teams=[], inboxes=[], customAttrs=[], contactFields=[];
 var dragNodeType = null;
@@ -1160,29 +1347,30 @@ var NC = {
 
 function nHtml(t){
   var tgl='<button class="nh-toggle" onclick="event.stopPropagation();toggleNodeCollapse(this)"><i class="ti ti-chevron-down"></i></button>';
+  var olbNext='<div class="olb olb-single"><div class="olb-next"><span>'+L.next+'</span> <i class="ti '+ARR+'" style="font-size:10px"></i></div></div>';
   var h={
-    trigger:'<div><div class="nh nh-or"><i class="ti ti-target"></i><div class="nh-text"><span class="nh-cat">\u05D8\u05E8\u05D9\u05D2\u05E8</span><span class="nh-title">\u05D4\u05D5\u05D3\u05E2\u05D4 \u05E0\u05DB\u05E0\u05E1\u05EA</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05E1\u05D5\u05D2 \u05D8\u05E8\u05D9\u05D2\u05E8</label><select df-trigger_type><option value="keyword">\u05DE\u05D9\u05DC\u05EA \u05DE\u05E4\u05EA\u05D7</option><option value="any">\u05DB\u05DC \u05D4\u05D5\u05D3\u05E2\u05D4</option><option value="first">\u05E9\u05D9\u05D7\u05D4 \u05D7\u05D3\u05E9\u05D4</option></select><label>\u05DE\u05D9\u05DC\u05EA \u05DE\u05E4\u05EA\u05D7</label><input type="text" df-keyword placeholder="\u05D4\u05D6\u05DF \u05DE\u05D9\u05DC\u05D4..."></div><div class="node-preview"></div></div>',
-    message:'<div><div class="nh nh-bl"><i class="ti ti-message"></i><div class="nh-text"><span class="nh-cat">\u05D4\u05D5\u05D3\u05E2\u05D4</span><span class="nh-title">\u05E9\u05DC\u05D7 \u05D4\u05D5\u05D3\u05E2\u05D4</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05EA\u05D5\u05DB\u05DF</label><textarea df-message placeholder="\u05D4\u05E7\u05DC\u05D3 \u05D4\u05D5\u05D3\u05E2\u05D4..." rows="3"></textarea></div><div class="node-preview"></div><div class="olb olb-single"><div class="olb-next"><span>\u05D4\u05DE\u05E9\u05DA</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    image:'<div><div class="nh nh-im"><i class="ti ti-photo"></i><div class="nh-text"><span class="nh-cat">\u05D4\u05D5\u05D3\u05E2\u05D4</span><span class="nh-title">\u05E9\u05DC\u05D7 \u05EA\u05DE\u05D5\u05E0\u05D4</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>URL \u05EA\u05DE\u05D5\u05E0\u05D4</label><input type="text" df-image_url placeholder="https://..." style="direction:ltr"><label>\u05DB\u05D9\u05EA\u05D5\u05D1</label><input type="text" df-caption placeholder="\u05D0\u05D5\u05E4\u05E6\u05D9\u05D5\u05E0\u05DC\u05D9..."></div><div class="node-preview"></div><div class="olb olb-single"><div class="olb-next"><span>\u05D4\u05DE\u05E9\u05DA</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    video:'<div><div class="nh nh-vi"><i class="ti ti-video"></i><div class="nh-text"><span class="nh-cat">\u05D4\u05D5\u05D3\u05E2\u05D4</span><span class="nh-title">\u05E9\u05DC\u05D7 \u05D5\u05D9\u05D3\u05D0\u05D5</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>URL \u05D5\u05D9\u05D3\u05D0\u05D5</label><input type="text" df-video_url placeholder="https://..." style="direction:ltr"><label>\u05DB\u05D9\u05EA\u05D5\u05D1</label><input type="text" df-caption placeholder="\u05D0\u05D5\u05E4\u05E6\u05D9\u05D5\u05E0\u05DC\u05D9..."></div><div class="node-preview"></div><div class="olb olb-single"><div class="olb-next"><span>\u05D4\u05DE\u05E9\u05DA</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    buttons:'<div><div class="nh nh-bt"><i class="ti ti-click"></i><div class="nh-text"><span class="nh-cat">\u05D4\u05D5\u05D3\u05E2\u05D4</span><span class="nh-title">\u05DB\u05E4\u05EA\u05D5\u05E8\u05D9\u05DD</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05D8\u05E7\u05E1\u05D8 \u05D4\u05D5\u05D3\u05E2\u05D4</label><textarea df-body placeholder="\u05D4\u05E7\u05DC\u05D3 \u05D4\u05D5\u05D3\u05E2\u05D4..." rows="2"></textarea><label>\u05DB\u05E4\u05EA\u05D5\u05E8\u05D9\u05DD (\u05E2\u05D3 3)</label><input type="text" df-btn1 placeholder="\u05DB\u05E4\u05EA\u05D5\u05E8 1"><input type="text" df-btn2 placeholder="\u05DB\u05E4\u05EA\u05D5\u05E8 2"><input type="text" df-btn3 placeholder="\u05DB\u05E4\u05EA\u05D5\u05E8 3"></div><div class="node-preview"></div><div class="olb"><div class="olb-btn-label" data-btn="1"><i class="ti ti-arrow-left" style="font-size:10px"></i> <span>\u05DB\u05E4\u05EA\u05D5\u05E8 1</span></div><div class="olb-btn-label" data-btn="2"><i class="ti ti-arrow-left" style="font-size:10px"></i> <span>\u05DB\u05E4\u05EA\u05D5\u05E8 2</span></div><div class="olb-btn-label" data-btn="3"><i class="ti ti-arrow-left" style="font-size:10px"></i> <span>\u05DB\u05E4\u05EA\u05D5\u05E8 3</span></div></div></div>',
-    menu:'<div><div class="nh nh-pu"><i class="ti ti-list"></i><div class="nh-text"><span class="nh-cat">\u05D4\u05D5\u05D3\u05E2\u05D4</span><span class="nh-title">\u05EA\u05E4\u05E8\u05D9\u05D8</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05DB\u05D5\u05EA\u05E8\u05EA</label><input type="text" df-title placeholder="\u05D1\u05D7\u05E8 \u05D0\u05E4\u05E9\u05E8\u05D5\u05EA:"><label>\u05D0\u05E4\u05E9\u05E8\u05D5\u05D9\u05D5\u05EA</label><input type="text" df-opt1 placeholder="1. ..."><input type="text" df-opt2 placeholder="2. ..."><input type="text" df-opt3 placeholder="3. ..."><input type="text" df-opt4 placeholder="4. ..."><input type="text" df-opt5 placeholder="5. ..."><input type="text" df-opt6 placeholder="6. ..."></div><div class="node-preview"></div><div class="olb"><div class="olb-btn-label" data-opt="1"><i class="ti ti-arrow-left" style="font-size:10px"></i> <span>\u05D0\u05E4\u05E9\u05E8\u05D5\u05EA 1</span></div><div class="olb-btn-label" data-opt="2"><i class="ti ti-arrow-left" style="font-size:10px"></i> <span>\u05D0\u05E4\u05E9\u05E8\u05D5\u05EA 2</span></div><div class="olb-btn-label" data-opt="3"><i class="ti ti-arrow-left" style="font-size:10px"></i> <span>\u05D0\u05E4\u05E9\u05E8\u05D5\u05EA 3</span></div><div class="olb-btn-label" data-opt="4"><i class="ti ti-arrow-left" style="font-size:10px"></i> <span>\u05D0\u05E4\u05E9\u05E8\u05D5\u05EA 4</span></div><div class="olb-btn-label" data-opt="5"><i class="ti ti-arrow-left" style="font-size:10px"></i> <span>\u05D0\u05E4\u05E9\u05E8\u05D5\u05EA 5</span></div><div class="olb-btn-label" data-opt="6"><i class="ti ti-arrow-left" style="font-size:10px"></i> <span>\u05D0\u05E4\u05E9\u05E8\u05D5\u05EA 6</span></div></div></div>',
-    condition:'<div><div class="nh nh-ye"><i class="ti ti-git-branch"></i><div class="nh-text"><span class="nh-cat">\u05DC\u05D5\u05D2\u05D9\u05E7\u05D4</span><span class="nh-title">\u05EA\u05E0\u05D0\u05D9</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05D1\u05D3\u05D9\u05E7\u05D4</label><select df-check_type><option value="contains">\u05DE\u05DB\u05D9\u05DC\u05D4</option><option value="equals">\u05E9\u05D5\u05D5\u05D4 \u05DC</option><option value="regex">Regex</option><option value="label_exists">\u05EA\u05D2\u05D9\u05EA \u05E7\u05D9\u05D9\u05DE\u05EA</option><option value="contact_type">\u05E1\u05D5\u05D2 \u05D0\u05D9\u05E9 \u05E7\u05E9\u05E8</option><option value="conversation_status">\u05E1\u05D8\u05D8\u05D5\u05E1 \u05E9\u05D9\u05D7\u05D4</option><option value="conversation_priority">\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA \u05E9\u05D9\u05D7\u05D4</option><option value="has_label">\u05EA\u05D2\u05D9\u05EA \u05E9\u05D9\u05D7\u05D4</option><option value="custom_attribute">\u05DE\u05D0\u05E4\u05D9\u05D9\u05DF \u05DE\u05D5\u05EA\u05D0\u05DD</option><option value="contact_field">\u05E9\u05D3\u05D4 \u05D0\u05D9\u05E9 \u05E7\u05E9\u05E8</option></select><label>\u05E2\u05E8\u05DA</label><input type="text" df-check_value placeholder="..."></div><div class="node-preview"></div><div class="olb"><div><i class="ti ti-check" style="font-size:10px;color:#16A34A"></i> \u05DB\u05DF <i class="ti ti-arrow-left" style="font-size:10px"></i></div><div><i class="ti ti-x" style="font-size:10px;color:#DC2626"></i> \u05DC\u05D0 <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    delay:'<div><div class="nh nh-dl"><i class="ti ti-clock-pause"></i><div class="nh-text"><span class="nh-cat">\u05DC\u05D5\u05D2\u05D9\u05E7\u05D4</span><span class="nh-title">\u05D4\u05DE\u05EA\u05E0\u05D4</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05E9\u05E0\u05D9\u05D5\u05EA</label><input type="number" df-seconds value="5" min="1" max="3600"><label>\u05D0\u05D9\u05E0\u05D3\u05D9\u05E7\u05D8\u05D5\u05E8 \u05D4\u05E7\u05DC\u05D3\u05D4</label><select df-typing><option value="false">\u05DC\u05D0</option><option value="true">\u05DB\u05DF — \u05D4\u05E6\u05D2 \u05D4\u05E7\u05DC\u05D3\u05D4</option></select></div><div class="node-preview"></div><div class="olb olb-single"><div class="olb-next"><span>\u05D4\u05DE\u05E9\u05DA</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    assign:'<div><div class="nh nh-gr"><i class="ti ti-user"></i><div class="nh-text"><span class="nh-cat">\u05E4\u05E2\u05D5\u05DC\u05D4</span><span class="nh-title">\u05D4\u05E7\u05E6\u05D4 \u05DC\u05E0\u05E6\u05D9\u05D2</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05E0\u05E6\u05D9\u05D2</label><select df-agent_id class="asel"><option value="">\u05DC\u05DC\u05D0</option></select><label>\u05E6\u05D5\u05D5\u05EA</label><select df-team_id class="tsel"><option value="">\u05DC\u05DC\u05D0</option></select></div><div class="node-preview"></div><div class="olb olb-single"><div class="olb-next"><span>\u05D4\u05DE\u05E9\u05DA</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    add_label:'<div><div class="nh nh-tl"><i class="ti ti-tag"></i><div class="nh-text"><span class="nh-cat">\u05E4\u05E2\u05D5\u05DC\u05D4</span><span class="nh-title">\u05D4\u05D5\u05E1\u05E3 \u05EA\u05D2\u05D9\u05EA</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05EA\u05D2\u05D9\u05EA</label><select df-label_name class="lsel"><option value="">\u05D1\u05D7\u05E8...</option></select></div><div class="node-preview"></div><div class="olb olb-single"><div class="olb-next"><span>\u05D4\u05DE\u05E9\u05DA</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    remove_label:'<div><div class="nh nh-tl"><i class="ti ti-tag-off"></i><div class="nh-text"><span class="nh-cat">\u05E4\u05E2\u05D5\u05DC\u05D4</span><span class="nh-title">\u05D4\u05E1\u05E8 \u05EA\u05D2\u05D9\u05EA</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05EA\u05D2\u05D9\u05EA</label><select df-label_name class="lsel"><option value="">\u05D1\u05D7\u05E8...</option></select></div><div class="node-preview"></div><div class="olb olb-single"><div class="olb-next"><span>\u05D4\u05DE\u05E9\u05DA</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    set_attribute:'<div><div class="nh nh-at"><i class="ti ti-pencil"></i><div class="nh-text"><span class="nh-cat">\u05E4\u05E2\u05D5\u05DC\u05D4</span><span class="nh-title">\u05E2\u05D3\u05DB\u05DF \u05DE\u05D0\u05E4\u05D9\u05D9\u05DF</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05DE\u05D0\u05E4\u05D9\u05D9\u05DF</label><select df-attr_key class="casel"><option value="">\u05D1\u05D7\u05E8...</option></select><label>\u05E2\u05E8\u05DA</label><input type="text" df-attr_value placeholder="..."></div><div class="node-preview"></div><div class="olb olb-single"><div class="olb-next"><span>\u05D4\u05DE\u05E9\u05DA</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    close:'<div><div class="nh nh-rd"><i class="ti ti-circle-check"></i><div class="nh-text"><span class="nh-cat">\u05E4\u05E2\u05D5\u05DC\u05D4</span><span class="nh-title">\u05E1\u05D2\u05D5\u05E8 \u05E9\u05D9\u05D7\u05D4</span></div></div><div class="node-preview"><div class="pv-info"><i class="ti ti-circle-check" style="font-size:12px"></i> \u05D4\u05E9\u05D9\u05D7\u05D4 \u05EA\u05E1\u05D5\u05DE\u05DF \u05DB\u05E4\u05EA\u05D5\u05E8\u05D4</div></div></div>',
-    webhook:'<div><div class="nh nh-wb"><i class="ti ti-webhook"></i><div class="nh-text"><span class="nh-cat">\u05D0\u05D9\u05E0\u05D8\u05D2\u05E8\u05E6\u05D9\u05D4</span><span class="nh-title">Webhook</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>URL</label><input type="text" df-url placeholder="https://..." style="direction:ltr"><label>Method</label><select df-method><option value="POST">POST</option><option value="GET">GET</option></select><label>Headers (JSON)</label><textarea df-headers placeholder=\'{"Authorization":"Bearer ..."}\' rows="2" style="direction:ltr"></textarea></div><div class="node-preview"></div><div class="olb olb-single"><div class="olb-next"><span>\u05D4\u05DE\u05E9\u05DA</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    note:'<div><div class="nh nh-nt"><i class="ti ti-note"></i><div class="nh-text"><span class="nh-cat">\u05D4\u05E2\u05E8\u05D4</span><span class="nh-title">\u05D4\u05E2\u05E8\u05D4 \u05E4\u05E0\u05D9\u05DE\u05D9\u05EA</span></div>'+tgl+'</div><div class="nb nb-collapsible"><textarea df-text placeholder="\u05D4\u05E2\u05E8\u05D4 \u05E4\u05E0\u05D9\u05DE\u05D9\u05EA..." rows="2"></textarea></div><div class="node-preview"></div></div>',
-    set_priority:'<div><div class="nh nh-sp"><i class="ti ti-flag"></i><div class="nh-text"><span class="nh-cat">\u05E4\u05E2\u05D5\u05DC\u05D4</span><span class="nh-title">\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA \u05E9\u05D9\u05D7\u05D4</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA</label><select df-priority><option value="">\u05D1\u05D7\u05E8...</option><option value="0">\u05E0\u05DE\u05D5\u05DB\u05D4</option><option value="1">\u05D1\u05D9\u05E0\u05D5\u05E0\u05D9\u05EA</option><option value="2">\u05D2\u05D1\u05D5\u05D4\u05D4</option><option value="3">\u05D3\u05D7\u05D5\u05E4\u05D4</option></select></div><div class="node-preview"></div><div class="olb olb-single"><div class="olb-next"><span>\u05D4\u05DE\u05E9\u05DA</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    set_status:'<div><div class="nh nh-ss"><i class="ti ti-toggle-right"></i><div class="nh-text"><span class="nh-cat">\u05E4\u05E2\u05D5\u05DC\u05D4</span><span class="nh-title">\u05E1\u05D8\u05D8\u05D5\u05E1 \u05E9\u05D9\u05D7\u05D4</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05E1\u05D8\u05D8\u05D5\u05E1</label><select df-status><option value="">\u05D1\u05D7\u05E8...</option><option value="open">\u05E4\u05EA\u05D5\u05D7\u05D4</option><option value="resolved">\u05E4\u05EA\u05D5\u05E8\u05D4</option><option value="pending">\u05DE\u05DE\u05EA\u05D9\u05E0\u05D4</option></select></div><div class="node-preview"></div><div class="olb olb-single"><div class="olb-next"><span>\u05D4\u05DE\u05E9\u05DA</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    transfer_inbox:'<div><div class="nh nh-ti"><i class="ti ti-transfer"></i><div class="nh-text"><span class="nh-cat">\u05E4\u05E2\u05D5\u05DC\u05D4</span><span class="nh-title">\u05D4\u05E2\u05D1\u05E8 \u05EA\u05D9\u05D1\u05D4</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05EA\u05D9\u05D1\u05EA \u05D3\u05D5\u05D0\u05E8</label><select df-inbox_id class="ibsel"><option value="">\u05D1\u05D7\u05E8...</option></select></div><div class="node-preview"></div><div class="olb olb-single"><div class="olb-next"><span>\u05D4\u05DE\u05E9\u05DA</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    wait_reply:'<div><div class="nh nh-wr"><i class="ti ti-message-question"></i><div class="nh-text"><span class="nh-cat">\u05DC\u05D5\u05D2\u05D9\u05E7\u05D4</span><span class="nh-title">\u05D4\u05DE\u05EA\u05DF \u05DC\u05EA\u05E9\u05D5\u05D1\u05D4</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05E9\u05DE\u05D5\u05E8 \u05EA\u05E9\u05D5\u05D1\u05D4 \u05D1\u05DE\u05E9\u05EA\u05E0\u05D4</label><input type="text" df-variable placeholder="reply_text" style="direction:ltr"><label>Timeout (\u05E9\u05E0\u05D9\u05D5\u05EA)</label><input type="number" df-timeout_seconds value="300" min="10" max="86400"><label>\u05D4\u05D5\u05D3\u05E2\u05EA timeout (\u05D0\u05D5\u05E4\u05E6\u05D9\u05D5\u05E0\u05DC\u05D9)</label><textarea df-timeout_message placeholder="\u05DC\u05D0 \u05E7\u05D9\u05D1\u05DC\u05E0\u05D5 \u05EA\u05E9\u05D5\u05D1\u05D4. \u05E0\u05E1\u05D4 \u05E9\u05D5\u05D1..." rows="2"></textarea></div><div class="node-preview"></div><div class="olb"><div><i class="ti ti-message-check" style="font-size:10px;color:#16A34A"></i> \u05EA\u05E9\u05D5\u05D1\u05D4 \u05D4\u05EA\u05E7\u05D1\u05DC\u05D4 <i class="ti ti-arrow-left" style="font-size:10px"></i></div><div><i class="ti ti-clock-x" style="font-size:10px;color:#DC2626"></i> Timeout <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    api_action:'<div><div class="nh nh-api"><i class="ti ti-cloud-computing"></i><div class="nh-text"><span class="nh-cat">\u05D0\u05D9\u05E0\u05D8\u05D2\u05E8\u05E6\u05D9\u05D4</span><span class="nh-title">API Action</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>Method</label><select df-method><option value="GET">GET</option><option value="POST">POST</option><option value="PUT">PUT</option><option value="PATCH">PATCH</option><option value="DELETE">DELETE</option></select><label>URL</label><input type="text" df-url placeholder="https://api.example.com/..." style="direction:ltr"><label>Headers (JSON)</label><textarea df-headers placeholder=\'{"Authorization":"Bearer ..."}\' rows="2" style="direction:ltr"></textarea><label>Body (JSON)</label><textarea df-body placeholder=\'{"key":"value"}\' rows="2" style="direction:ltr"></textarea><label>\u05E9\u05DE\u05D5\u05E8 \u05EA\u05E9\u05D5\u05D1\u05D4 \u05D1\u05DE\u05E9\u05EA\u05E0\u05D4</label><input type="text" df-save_response placeholder="api_result" style="direction:ltr"></div><div class="node-preview"></div><div class="olb"><div><i class="ti ti-check" style="font-size:10px;color:#16A34A"></i> \u05D4\u05E6\u05DC\u05D7\u05D4 <i class="ti ti-arrow-left" style="font-size:10px"></i></div><div><i class="ti ti-x" style="font-size:10px;color:#DC2626"></i> \u05E9\u05D2\u05D9\u05D0\u05D4 <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    ab_split:'<div><div class="nh nh-ab"><i class="ti ti-arrows-split-2"></i><div class="nh-text"><span class="nh-cat">\u05DC\u05D5\u05D2\u05D9\u05E7\u05D4</span><span class="nh-title">A/B Split</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>Name \u05D4\u05D1\u05D3\u05D9\u05E7\u05D4</label><input type="text" df-name placeholder="\u05D1\u05D3\u05D9\u05E7\u05EA \u05D4\u05D5\u05D3\u05E2\u05D4 A"><label>\u05D0\u05D7\u05D5\u05D6 \u05E0\u05EA\u05D9\u05D1 A (%)</label><input type="number" df-split_a value="50" min="1" max="99"></div><div class="node-preview"></div><div class="olb"><div><span style="font-weight:600;color:#6366f1">A</span> <span class="olb-pct">50%</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div><div><span style="font-weight:600;color:#a855f7">B</span> <span class="olb-pct">50%</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div></div></div>',
-    goto_step:'<div><div class="nh nh-go"><i class="ti ti-arrow-back-up"></i><div class="nh-text"><span class="nh-cat">\u05DC\u05D5\u05D2\u05D9\u05E7\u05D4</span><span class="nh-title">\u05E7\u05E4\u05D5\u05E5 \u05DC\u05E9\u05DC\u05D1</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>\u05E6\u05D5\u05DE\u05EA \u05D9\u05E2\u05D3</label><select df-target_node class="goto-sel"><option value="">\u05D1\u05D7\u05E8 \u05E6\u05D5\u05DE\u05EA...</option></select></div><div class="node-preview"></div></div>'
+    trigger:'<div><div class="nh nh-or"><i class="ti ti-target"></i><div class="nh-text"><span class="nh-cat">'+L.trigger_cat+'</span><span class="nh-title">'+L.incoming_msg+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.trigger_type+'</label><select df-trigger_type><option value="keyword">'+L.keyword+'</option><option value="any">'+L.any_msg+'</option><option value="first">'+L.new_conv+'</option></select><label>'+L.keyword+'</label><input type="text" df-keyword placeholder="'+L.enter_keyword+'"></div><div class="node-preview"></div></div>',
+    message:'<div><div class="nh nh-bl"><i class="ti ti-message"></i><div class="nh-text"><span class="nh-cat">'+L.message_cat+'</span><span class="nh-title">'+L.send_msg+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.content+'</label><textarea df-message placeholder="'+L.type_msg+'" rows="3"></textarea></div><div class="node-preview"></div>'+olbNext+'</div>',
+    image:'<div><div class="nh nh-im"><i class="ti ti-photo"></i><div class="nh-text"><span class="nh-cat">'+L.message_cat+'</span><span class="nh-title">'+L.send_img+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.img_url+'</label><input type="text" df-image_url placeholder="https://..." style="direction:ltr"><label>'+L.caption+'</label><input type="text" df-caption placeholder="'+L.optional+'"></div><div class="node-preview"></div>'+olbNext+'</div>',
+    video:'<div><div class="nh nh-vi"><i class="ti ti-video"></i><div class="nh-text"><span class="nh-cat">'+L.message_cat+'</span><span class="nh-title">'+L.send_vid+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.vid_url+'</label><input type="text" df-video_url placeholder="https://..." style="direction:ltr"><label>'+L.caption+'</label><input type="text" df-caption placeholder="'+L.optional+'"></div><div class="node-preview"></div>'+olbNext+'</div>',
+    buttons:'<div><div class="nh nh-bt"><i class="ti ti-click"></i><div class="nh-text"><span class="nh-cat">'+L.message_cat+'</span><span class="nh-title">'+L.buttons_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.msg_text+'</label><textarea df-body placeholder="'+L.type_msg+'" rows="2"></textarea><label>'+L.buttons_label+'</label><input type="text" df-btn1 placeholder="'+L.btn1+'"><input type="text" df-btn2 placeholder="'+L.btn2+'"><input type="text" df-btn3 placeholder="'+L.btn3+'"></div><div class="node-preview"></div><div class="olb"><div class="olb-btn-label" data-btn="1"><i class="ti '+ARR+'" style="font-size:10px"></i> <span>'+L.btn1+'</span></div><div class="olb-btn-label" data-btn="2"><i class="ti '+ARR+'" style="font-size:10px"></i> <span>'+L.btn2+'</span></div><div class="olb-btn-label" data-btn="3"><i class="ti '+ARR+'" style="font-size:10px"></i> <span>'+L.btn3+'</span></div></div></div>',
+    menu:'<div><div class="nh nh-pu"><i class="ti ti-list"></i><div class="nh-text"><span class="nh-cat">'+L.message_cat+'</span><span class="nh-title">'+L.menu_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.title_label+'</label><input type="text" df-title placeholder="'+L.choose_option+'"><label>'+L.options_label+'</label><input type="text" df-opt1 placeholder="1. ..."><input type="text" df-opt2 placeholder="2. ..."><input type="text" df-opt3 placeholder="3. ..."><input type="text" df-opt4 placeholder="4. ..."><input type="text" df-opt5 placeholder="5. ..."><input type="text" df-opt6 placeholder="6. ..."></div><div class="node-preview"></div><div class="olb"><div class="olb-btn-label" data-opt="1"><i class="ti '+ARR+'" style="font-size:10px"></i> <span>'+L.opt+' 1</span></div><div class="olb-btn-label" data-opt="2"><i class="ti '+ARR+'" style="font-size:10px"></i> <span>'+L.opt+' 2</span></div><div class="olb-btn-label" data-opt="3"><i class="ti '+ARR+'" style="font-size:10px"></i> <span>'+L.opt+' 3</span></div><div class="olb-btn-label" data-opt="4"><i class="ti '+ARR+'" style="font-size:10px"></i> <span>'+L.opt+' 4</span></div><div class="olb-btn-label" data-opt="5"><i class="ti '+ARR+'" style="font-size:10px"></i> <span>'+L.opt+' 5</span></div><div class="olb-btn-label" data-opt="6"><i class="ti '+ARR+'" style="font-size:10px"></i> <span>'+L.opt+' 6</span></div></div></div>',
+    condition:'<div><div class="nh nh-ye"><i class="ti ti-git-branch"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">'+L.condition_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.check_label+'</label><select df-check_type><option value="contains">'+L.contains+'</option><option value="equals">'+L.equals+'</option><option value="regex">Regex</option><option value="label_exists">'+L.label_exists+'</option><option value="contact_type">'+L.contact_type+'</option><option value="conversation_status">'+L.conv_status+'</option><option value="conversation_priority">'+L.conv_priority+'</option><option value="has_label">'+L.conv_label+'</option><option value="custom_attribute">'+L.custom_attr+'</option><option value="contact_field">'+L.contact_field+'</option></select><label>'+L.value_label+'</label><input type="text" df-check_value placeholder="..."></div><div class="node-preview"></div><div class="olb"><div><i class="ti ti-check" style="font-size:10px;color:#16A34A"></i> '+L.yes+' <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><i class="ti ti-x" style="font-size:10px;color:#DC2626"></i> '+L.no_out+' <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
+    delay:'<div><div class="nh nh-dl"><i class="ti ti-clock-pause"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">'+L.delay_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.seconds+'</label><input type="number" df-seconds value="5" min="1" max="3600"><label>'+L.typing_ind+'</label><select df-typing><option value="false">'+L.no+'</option><option value="true">'+L.yes_typing+'</option></select></div><div class="node-preview"></div>'+olbNext+'</div>',
+    assign:'<div><div class="nh nh-gr"><i class="ti ti-user"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.assign_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.agent+'</label><select df-agent_id class="asel"><option value="">'+L.none+'</option></select><label>'+L.team+'</label><select df-team_id class="tsel"><option value="">'+L.none+'</option></select></div><div class="node-preview"></div>'+olbNext+'</div>',
+    add_label:'<div><div class="nh nh-tl"><i class="ti ti-tag"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.add_label_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.label_label+'</label><select df-label_name class="lsel"><option value="">'+L.select+'</option></select></div><div class="node-preview"></div>'+olbNext+'</div>',
+    remove_label:'<div><div class="nh nh-tl"><i class="ti ti-tag-off"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.remove_label_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.label_label+'</label><select df-label_name class="lsel"><option value="">'+L.select+'</option></select></div><div class="node-preview"></div>'+olbNext+'</div>',
+    set_attribute:'<div><div class="nh nh-at"><i class="ti ti-pencil"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.set_attr_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.attr_label+'</label><select df-attr_key class="casel"><option value="">'+L.select+'</option></select><label>'+L.value_label+'</label><input type="text" df-attr_value placeholder="..."></div><div class="node-preview"></div>'+olbNext+'</div>',
+    close:'<div><div class="nh nh-rd"><i class="ti ti-circle-check"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.close_title+'</span></div></div><div class="node-preview"><div class="pv-info"><i class="ti ti-circle-check" style="font-size:12px"></i> '+L.close_resolved+'</div></div></div>',
+    webhook:'<div><div class="nh nh-wb"><i class="ti ti-webhook"></i><div class="nh-text"><span class="nh-cat">'+L.integration_cat+'</span><span class="nh-title">Webhook</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>URL</label><input type="text" df-url placeholder="https://..." style="direction:ltr"><label>Method</label><select df-method><option value="POST">POST</option><option value="GET">GET</option></select><label>Headers (JSON)</label><textarea df-headers placeholder=\'{"Authorization":"Bearer ..."}\' rows="2" style="direction:ltr"></textarea></div><div class="node-preview"></div>'+olbNext+'</div>',
+    note:'<div><div class="nh nh-nt"><i class="ti ti-note"></i><div class="nh-text"><span class="nh-cat">'+L.note_cat+'</span><span class="nh-title">'+L.note_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><textarea df-text placeholder="'+L.internal_note_ph+'" rows="2"></textarea></div><div class="node-preview"></div></div>',
+    set_priority:'<div><div class="nh nh-sp"><i class="ti ti-flag"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.priority_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.priority_label+'</label><select df-priority><option value="">'+L.select+'</option><option value="0">'+L.low+'</option><option value="1">'+L.medium+'</option><option value="2">'+L.high+'</option><option value="3">'+L.urgent+'</option></select></div><div class="node-preview"></div>'+olbNext+'</div>',
+    set_status:'<div><div class="nh nh-ss"><i class="ti ti-toggle-right"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.status_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.status_label+'</label><select df-status><option value="">'+L.select+'</option><option value="open">'+L.open+'</option><option value="resolved">'+L.resolved+'</option><option value="pending">'+L.pending+'</option></select></div><div class="node-preview"></div>'+olbNext+'</div>',
+    transfer_inbox:'<div><div class="nh nh-ti"><i class="ti ti-transfer"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.transfer_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.inbox_label+'</label><select df-inbox_id class="ibsel"><option value="">'+L.select+'</option></select></div><div class="node-preview"></div>'+olbNext+'</div>',
+    wait_reply:'<div><div class="nh nh-wr"><i class="ti ti-message-question"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">'+L.wait_reply_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.save_var+'</label><input type="text" df-variable placeholder="reply_text" style="direction:ltr"><label>'+L.timeout_sec+'</label><input type="number" df-timeout_seconds value="300" min="10" max="86400"><label>'+L.timeout_msg+'</label><textarea df-timeout_message placeholder="'+L.no_reply+'" rows="2"></textarea></div><div class="node-preview"></div><div class="olb"><div><i class="ti ti-message-check" style="font-size:10px;color:#16A34A"></i> '+L.reply_received+' <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><i class="ti ti-clock-x" style="font-size:10px;color:#DC2626"></i> Timeout <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
+    api_action:'<div><div class="nh nh-api"><i class="ti ti-cloud-computing"></i><div class="nh-text"><span class="nh-cat">'+L.integration_cat+'</span><span class="nh-title">API Action</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>Method</label><select df-method><option value="GET">GET</option><option value="POST">POST</option><option value="PUT">PUT</option><option value="PATCH">PATCH</option><option value="DELETE">DELETE</option></select><label>URL</label><input type="text" df-url placeholder="https://api.example.com/..." style="direction:ltr"><label>Headers (JSON)</label><textarea df-headers placeholder=\'{"Authorization":"Bearer ..."}\' rows="2" style="direction:ltr"></textarea><label>Body (JSON)</label><textarea df-body placeholder=\'{"key":"value"}\' rows="2" style="direction:ltr"></textarea><label>'+L.save_response+'</label><input type="text" df-save_response placeholder="api_result" style="direction:ltr"></div><div class="node-preview"></div><div class="olb"><div><i class="ti ti-check" style="font-size:10px;color:#16A34A"></i> '+L.success+' <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><i class="ti ti-x" style="font-size:10px;color:#DC2626"></i> '+L.error+' <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
+    ab_split:'<div><div class="nh nh-ab"><i class="ti ti-arrows-split-2"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">A/B Split</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.test_name+'</label><input type="text" df-name placeholder="'+L.test_ph+'"><label>'+L.split_pct+'</label><input type="number" df-split_a value="50" min="1" max="99"></div><div class="node-preview"></div><div class="olb"><div><span style="font-weight:600;color:#6366f1">A</span> <span class="olb-pct">50%</span> <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><span style="font-weight:600;color:#a855f7">B</span> <span class="olb-pct">50%</span> <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
+    goto_step:'<div><div class="nh nh-go"><i class="ti ti-arrow-back-up"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">'+L.goto_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.target_node+'</label><select df-target_node class="goto-sel"><option value="">'+L.select_node+'</option></select></div><div class="node-preview"></div></div>'
   };
   return h[t]||'<div>???</div>';
 }
@@ -1222,7 +1410,7 @@ function toggleNodeCollapse(btn){
 function getSummaryText(type,data){
   if(!data)return '';
   switch(type){
-    case 'trigger':var tt=data.trigger_type||'keyword';if(tt==='any')return '\u05DB\u05DC \u05D4\u05D5\u05D3\u05E2\u05D4';if(tt==='first')return '\u05E9\u05D9\u05D7\u05D4 \u05D7\u05D3\u05E9\u05D4';return data.keyword?'\u05DE\u05D9\u05DC\u05EA \u05DE\u05E4\u05EA\u05D7: '+data.keyword:'';
+    case 'trigger':var tt=data.trigger_type||'keyword';if(tt==='any')return L.any_msg;if(tt==='first')return L.new_conv;return data.keyword?L.keyword_prefix+data.keyword:'';
     case 'message':var m=data.message||'';return m?(m.length>45?m.substring(0,45)+'\u2026':m):'';
     default:return '';
   }
@@ -1232,70 +1420,70 @@ function getSummaryHtml(type,data){
   switch(type){
     case 'trigger':
       var tt=data.trigger_type||'keyword';
-      var label=tt==='any'?'\u05DB\u05DC \u05D4\u05D5\u05D3\u05E2\u05D4':tt==='first'?'\u05E9\u05D9\u05D7\u05D4 \u05D7\u05D3\u05E9\u05D4':'\u05DE\u05D9\u05DC\u05EA \u05DE\u05E4\u05EA\u05D7';
+      var label=tt==='any'?L.any_msg:tt==='first'?L.new_conv:L.keyword;
       var val=tt==='keyword'&&data.keyword?data.keyword:'';
       return '<div class="pv-trigger"><i class="ti ti-bolt" style="font-size:12px"></i> '+escHtml(label)+(val?' \u2014 <b>'+escHtml(val)+'</b>':'')+'</div>';
     case 'message':
       var m=data.message||'';
-      if(!m)return '<span class="pv-empty">\u05D4\u05E7\u05DC\u05D3 \u05D4\u05D5\u05D3\u05E2\u05D4...</span>';
+      if(!m)return '<span class="pv-empty">'+L.type_msg_ph+'</span>';
       return '<div class="pv-bubble">'+escHtml(m.length>80?m.substring(0,80)+'\u2026':m)+'</div>';
     case 'buttons':
       var bh='';
       if(data.body)bh+='<div class="pv-bubble">'+escHtml(data.body.length>60?data.body.substring(0,60)+'\u2026':data.body)+'</div>';
       var bs=[data.btn1,data.btn2,data.btn3].filter(Boolean);
       if(bs.length)bh+='<div class="pv-btns">'+bs.map(function(b){return '<span class="pv-pill">'+escHtml(b)+'</span>'}).join('')+'</div>';
-      return bh||'<span class="pv-empty">\u05D4\u05D5\u05E1\u05E3 \u05DB\u05E4\u05EA\u05D5\u05E8\u05D9\u05DD...</span>';
+      return bh||'<span class="pv-empty">'+L.add_buttons_ph+'</span>';
     case 'menu':
       var mh='';
       if(data.title)mh+='<div class="pv-bubble pv-bubble-sm">'+escHtml(data.title)+'</div>';
       var os=[data.opt1,data.opt2,data.opt3,data.opt4,data.opt5,data.opt6].filter(Boolean);
       if(os.length)mh+='<div class="pv-list">'+os.map(function(o,i){return '<div class="pv-list-item">'+(i+1)+'. '+escHtml(o)+'</div>'}).join('')+'</div>';
-      return mh||'<span class="pv-empty">\u05D4\u05D5\u05E1\u05E3 \u05D0\u05E4\u05E9\u05E8\u05D5\u05D9\u05D5\u05EA...</span>';
+      return mh||'<span class="pv-empty">'+L.add_options_ph+'</span>';
     case 'image':
-      return data.image_url?'<div class="pv-media"><i class="ti ti-photo"></i> '+(data.caption?escHtml(data.caption):'\u05EA\u05DE\u05D5\u05E0\u05D4 \u05DE\u05E6\u05D5\u05E8\u05E4\u05EA')+'</div>':'<span class="pv-empty">\u05D4\u05D5\u05E1\u05E3 \u05EA\u05DE\u05D5\u05E0\u05D4...</span>';
+      return data.image_url?'<div class="pv-media"><i class="ti ti-photo"></i> '+(data.caption?escHtml(data.caption):L.img_attached)+'</div>':'<span class="pv-empty">'+L.add_img_ph+'</span>';
     case 'video':
-      return data.video_url?'<div class="pv-media"><i class="ti ti-video"></i> '+(data.caption?escHtml(data.caption):'\u05D5\u05D9\u05D3\u05D0\u05D5 \u05DE\u05E6\u05D5\u05E8\u05E3')+'</div>':'<span class="pv-empty">\u05D4\u05D5\u05E1\u05E3 \u05D5\u05D9\u05D3\u05D0\u05D5...</span>';
+      return data.video_url?'<div class="pv-media"><i class="ti ti-video"></i> '+(data.caption?escHtml(data.caption):L.vid_attached)+'</div>':'<span class="pv-empty">'+L.add_vid_ph+'</span>';
     case 'condition':
-      var cl={contains:'\u05DE\u05DB\u05D9\u05DC\u05D4',equals:'\u05E9\u05D5\u05D5\u05D4 \u05DC',regex:'Regex',label_exists:'\u05EA\u05D2\u05D9\u05EA \u05E7\u05D9\u05D9\u05DE\u05EA',contact_type:'\u05E1\u05D5\u05D2 \u05D0\u05D9\u05E9 \u05E7\u05E9\u05E8',conversation_status:'\u05E1\u05D8\u05D8\u05D5\u05E1',conversation_priority:'\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA',has_label:'\u05EA\u05D2\u05D9\u05EA \u05E9\u05D9\u05D7\u05D4',custom_attribute:'\u05DE\u05D0\u05E4\u05D9\u05D9\u05DF',contact_field:'\u05E9\u05D3\u05D4'};
+      var cl={contains:L.cond_contains,equals:L.cond_equals,regex:'Regex',label_exists:L.cond_label_exists,contact_type:L.cond_contact_type,conversation_status:L.cond_conv_status,conversation_priority:L.cond_conv_priority,has_label:L.cond_has_label,custom_attribute:L.cond_custom_attr,contact_field:L.cond_contact_field};
       var ct=data.check_type||'contains';var v=data.check_value||'';
       return '<div class="pv-condition"><i class="ti ti-filter" style="font-size:12px"></i> '+escHtml(cl[ct]||ct)+(v?' \u2192 <b>'+escHtml(v)+'</b>':'')+'</div>';
     case 'delay':
-      var typing=data.typing==='true'?' + <i class="ti ti-keyboard" style="font-size:12px"></i> \u05D4\u05E7\u05DC\u05D3\u05D4':'';
-      return '<div class="pv-info"><i class="ti ti-clock-pause" style="font-size:14px"></i> \u05D4\u05DE\u05EA\u05E0\u05D4 '+(data.seconds||5)+' \u05E9\u05E0\u05D9\u05D5\u05EA'+typing+'</div>';
+      var typing=data.typing==='true'?' + <i class="ti ti-keyboard" style="font-size:12px"></i> '+L.typing_label:'';
+      return '<div class="pv-info"><i class="ti ti-clock-pause" style="font-size:14px"></i> '+L.delay_label+' '+(data.seconds||5)+' '+L.seconds+typing+'</div>';
     case 'assign':
       var pa=[];
-      if(data.agent_id){var ag=agents.find(function(a){return String(a.id)===String(data.agent_id)});if(ag)pa.push('\u05E0\u05E6\u05D9\u05D2: '+ag.name)}
-      if(data.team_id){var tm=teams.find(function(t){return String(t.id)===String(data.team_id)});if(tm)pa.push('\u05E6\u05D5\u05D5\u05EA: '+tm.name)}
-      return pa.length?'<div class="pv-info"><i class="ti ti-user" style="font-size:14px"></i> '+escHtml(pa.join(' \u00B7 '))+'</div>':'<span class="pv-empty">\u05D1\u05D7\u05E8 \u05E0\u05E6\u05D9\u05D2/\u05E6\u05D5\u05D5\u05EA...</span>';
+      if(data.agent_id){var ag=agents.find(function(a){return String(a.id)===String(data.agent_id)});if(ag)pa.push(L.agent_prefix+ag.name)}
+      if(data.team_id){var tm=teams.find(function(t){return String(t.id)===String(data.team_id)});if(tm)pa.push(L.team_prefix+tm.name)}
+      return pa.length?'<div class="pv-info"><i class="ti ti-user" style="font-size:14px"></i> '+escHtml(pa.join(' \u00B7 '))+'</div>':'<span class="pv-empty">'+L.select_agent_team+'</span>';
     case 'add_label':
-      return data.label_name?'<div class="pv-info"><i class="ti ti-tag" style="font-size:14px"></i> '+escHtml(data.label_name)+'</div>':'<span class="pv-empty">\u05D1\u05D7\u05E8 \u05EA\u05D2\u05D9\u05EA...</span>';
+      return data.label_name?'<div class="pv-info"><i class="ti ti-tag" style="font-size:14px"></i> '+escHtml(data.label_name)+'</div>':'<span class="pv-empty">'+L.select_label_ph+'</span>';
     case 'remove_label':
-      return data.label_name?'<div class="pv-info"><i class="ti ti-tag-off" style="font-size:14px"></i> '+escHtml(data.label_name)+'</div>':'<span class="pv-empty">\u05D1\u05D7\u05E8 \u05EA\u05D2\u05D9\u05EA...</span>';
+      return data.label_name?'<div class="pv-info"><i class="ti ti-tag-off" style="font-size:14px"></i> '+escHtml(data.label_name)+'</div>':'<span class="pv-empty">'+L.select_label_ph+'</span>';
     case 'set_attribute':
-      return data.attr_key?'<div class="pv-info"><i class="ti ti-pencil" style="font-size:14px"></i> '+escHtml(data.attr_key)+' = '+(data.attr_value?escHtml(data.attr_value):'\u2014')+'</div>':'<span class="pv-empty">\u05D1\u05D7\u05E8 \u05DE\u05D0\u05E4\u05D9\u05D9\u05DF...</span>';
+      return data.attr_key?'<div class="pv-info"><i class="ti ti-pencil" style="font-size:14px"></i> '+escHtml(data.attr_key)+' = '+(data.attr_value?escHtml(data.attr_value):'\u2014')+'</div>':'<span class="pv-empty">'+L.select_attr_ph+'</span>';
     case 'close':return '';
     case 'webhook':
-      return data.url?'<div class="pv-info"><i class="ti ti-webhook" style="font-size:14px"></i> '+(data.method||'POST')+' \u2192 '+escHtml(data.url.length>30?data.url.substring(0,30)+'\u2026':data.url)+'</div>':'<span class="pv-empty">\u05D4\u05D6\u05DF URL...</span>';
+      return data.url?'<div class="pv-info"><i class="ti ti-webhook" style="font-size:14px"></i> '+(data.method||'POST')+' \u2192 '+escHtml(data.url.length>30?data.url.substring(0,30)+'\u2026':data.url)+'</div>':'<span class="pv-empty">'+L.enter_url_ph+'</span>';
     case 'note':
       var nt=data.text||'';
-      return nt?'<div class="pv-bubble" style="background:var(--note-bg);border:1px solid var(--note-border)">'+escHtml(nt.length>60?nt.substring(0,60)+'\u2026':nt)+'</div>':'<span class="pv-empty">\u05D4\u05E2\u05E8\u05D4 \u05E4\u05E0\u05D9\u05DE\u05D9\u05EA...</span>';
+      return nt?'<div class="pv-bubble" style="background:var(--note-bg);border:1px solid var(--note-border)">'+escHtml(nt.length>60?nt.substring(0,60)+'\u2026':nt)+'</div>':'<span class="pv-empty">'+L.note_ph+'</span>';
     case 'set_priority':
-      var pm={'0':'\u05E0\u05DE\u05D5\u05DB\u05D4','1':'\u05D1\u05D9\u05E0\u05D5\u05E0\u05D9\u05EA','2':'\u05D2\u05D1\u05D5\u05D4\u05D4','3':'\u05D3\u05D7\u05D5\u05E4\u05D4'};
-      return pm[data.priority]?'<div class="pv-info"><i class="ti ti-flag" style="font-size:14px"></i> \u05E2\u05D3\u05D9\u05E4\u05D5\u05EA: '+escHtml(pm[data.priority])+'</div>':'<span class="pv-empty">\u05D1\u05D7\u05E8 \u05E2\u05D3\u05D9\u05E4\u05D5\u05EA...</span>';
+      var pm={'0':L.low,'1':L.medium,'2':L.high,'3':L.urgent};
+      return pm[data.priority]?'<div class="pv-info"><i class="ti ti-flag" style="font-size:14px"></i> '+L.priority_prefix+escHtml(pm[data.priority])+'</div>':'<span class="pv-empty">'+L.select_priority_ph+'</span>';
     case 'set_status':
-      var sm={'open':'\u05E4\u05EA\u05D5\u05D7\u05D4','resolved':'\u05E4\u05EA\u05D5\u05E8\u05D4','pending':'\u05DE\u05DE\u05EA\u05D9\u05E0\u05D4'};
-      return sm[data.status]?'<div class="pv-info"><i class="ti ti-toggle-right" style="font-size:14px"></i> \u05E1\u05D8\u05D8\u05D5\u05E1: '+escHtml(sm[data.status])+'</div>':'<span class="pv-empty">\u05D1\u05D7\u05E8 \u05E1\u05D8\u05D8\u05D5\u05E1...</span>';
+      var sm={'open':L.open,'resolved':L.resolved,'pending':L.pending};
+      return sm[data.status]?'<div class="pv-info"><i class="ti ti-toggle-right" style="font-size:14px"></i> '+L.status_prefix+escHtml(sm[data.status])+'</div>':'<span class="pv-empty">'+L.select_status_ph+'</span>';
     case 'transfer_inbox':
-      if(data.inbox_id){var ib=inboxes.find(function(i){return String(i.id)===String(data.inbox_id)});if(ib)return '<div class="pv-info"><i class="ti ti-transfer" style="font-size:14px"></i> \u05EA\u05D9\u05D1\u05D4: '+escHtml(ib.name)+'</div>'}
-      return '<span class="pv-empty">\u05D1\u05D7\u05E8 \u05EA\u05D9\u05D1\u05D4...</span>';
+      if(data.inbox_id){var ib=inboxes.find(function(i){return String(i.id)===String(data.inbox_id)});if(ib)return '<div class="pv-info"><i class="ti ti-transfer" style="font-size:14px"></i> '+L.inbox_prefix+escHtml(ib.name)+'</div>'}
+      return '<span class="pv-empty">'+L.select_inbox_ph+'</span>';
     case 'wait_reply':
       var wr='<div class="pv-wait"><i class="ti ti-message-question" style="font-size:12px"></i> ';
-      wr+=data.variable?'\u05E9\u05DE\u05D5\u05E8 \u05D1: <b>{{'+escHtml(data.variable)+'}}</b>':'\u05DE\u05DE\u05EA\u05D9\u05DF \u05DC\u05EA\u05E9\u05D5\u05D1\u05D4';
+      wr+=data.variable?L.saved_in+'<b>{{'+escHtml(data.variable)+'}}</b>':L.waiting_reply;
       wr+='</div>';
-      if(data.timeout_seconds)wr+='<div class="pv-info" style="margin-top:4px"><i class="ti ti-clock" style="font-size:11px"></i> Timeout: '+data.timeout_seconds+' \u05E9\u05E0\u05D9\u05D5\u05EA</div>';
+      if(data.timeout_seconds)wr+='<div class="pv-info" style="margin-top:4px"><i class="ti ti-clock" style="font-size:11px"></i> Timeout: '+data.timeout_seconds+' '+L.seconds+'</div>';
       return wr;
     case 'api_action':
-      if(!data.url)return '<div class="pv-api"><i class="ti ti-cloud-computing" style="font-size:12px"></i> \u05D4\u05D2\u05D3\u05E8 URL...</div>';
+      if(!data.url)return '<div class="pv-api"><i class="ti ti-cloud-computing" style="font-size:12px"></i> '+L.set_url_ph+'</div>';
       var ah='<div class="pv-api"><span style="font-weight:700;font-size:10px;background:rgba(67,56,202,.15);padding:2px 6px;border-radius:4px">'+(data.method||'GET')+'</span> '+escHtml(data.url.length>35?data.url.substring(0,35)+'\u2026':data.url)+'</div>';
       if(data.save_response)ah+='<div class="pv-info" style="margin-top:3px"><i class="ti ti-variable" style="font-size:11px"></i> \u2192 {{'+escHtml(data.save_response)+'}}</div>';
       return ah;
@@ -1303,8 +1491,8 @@ function getSummaryHtml(type,data){
       var sa=parseInt(data.split_a)||50;var sb=100-sa;
       return '<div class="pv-split"><span style="font-weight:700;background:rgba(99,102,241,.15);padding:1px 8px;border-radius:10px;color:#6366f1">A: '+sa+'%</span> <span style="font-weight:700;background:rgba(168,85,247,.15);padding:1px 8px;border-radius:10px;color:#a855f7">B: '+sb+'%</span>'+(data.name?' <span style="opacity:.7">\u2014 '+escHtml(data.name)+'</span>':'')+'</div>';
     case 'goto_step':
-      if(!data.target_node)return '<div class="pv-goto"><i class="ti ti-arrow-back-up" style="font-size:12px"></i> \u05D1\u05D7\u05E8 \u05E6\u05D5\u05DE\u05EA \u05D9\u05E2\u05D3...</div>';
-      return '<div class="pv-goto"><i class="ti ti-arrow-back-up" style="font-size:14px"></i> \u05E7\u05E4\u05D5\u05E5 \u05DC\u05E6\u05D5\u05DE\u05EA #'+escHtml(data.target_node)+'</div>';
+      if(!data.target_node)return '<div class="pv-goto"><i class="ti ti-arrow-back-up" style="font-size:12px"></i> '+L.select_target_ph+'</div>';
+      return '<div class="pv-goto"><i class="ti ti-arrow-back-up" style="font-size:14px"></i> '+L.goto_node+escHtml(data.target_node)+'</div>';
     default:return '';
   }
 }
@@ -1322,11 +1510,11 @@ function updateNodeSummary(id){
   if(nd.name==='buttons'){
     var bls=el.querySelectorAll('.olb-btn-label[data-btn] span');
     var bd=[nd.data.btn1,nd.data.btn2,nd.data.btn3];
-    for(var bi=0;bi<bls.length;bi++){bls[bi].textContent=bd[bi]||('\u05DB\u05E4\u05EA\u05D5\u05E8 '+(bi+1))}
+    for(var bi=0;bi<bls.length;bi++){bls[bi].textContent=bd[bi]||(L.btn1.replace(/\d/,''+(bi+1)))}
   }else if(nd.name==='menu'){
     var ols=el.querySelectorAll('.olb-btn-label[data-opt] span');
     var od=[nd.data.opt1,nd.data.opt2,nd.data.opt3,nd.data.opt4,nd.data.opt5,nd.data.opt6];
-    for(var oi=0;oi<ols.length;oi++){ols[oi].textContent=od[oi]||('\u05D0\u05E4\u05E9\u05E8\u05D5\u05EA '+(oi+1))}
+    for(var oi=0;oi<ols.length;oi++){ols[oi].textContent=od[oi]||(L.opt+' '+(oi+1))}
   }else if(nd.name==='ab_split'){
     var pcts=el.querySelectorAll('.olb-pct');
     var sa=parseInt(nd.data.split_a)||50;
@@ -1345,28 +1533,28 @@ function updateAllSummaries(){
 function upgradeLoadedNodes(){
   var data=editor.export().drawflow.Home.data;
   var meta={
-    trigger:{icon:'ti-target',cat:'\u05D8\u05E8\u05D9\u05D2\u05E8',title:'\u05D4\u05D5\u05D3\u05E2\u05D4 \u05E0\u05DB\u05E0\u05E1\u05EA'},
-    message:{icon:'ti-message',cat:'\u05D4\u05D5\u05D3\u05E2\u05D4',title:'\u05E9\u05DC\u05D7 \u05D4\u05D5\u05D3\u05E2\u05D4'},
-    image:{icon:'ti-photo',cat:'\u05D4\u05D5\u05D3\u05E2\u05D4',title:'\u05E9\u05DC\u05D7 \u05EA\u05DE\u05D5\u05E0\u05D4'},
-    video:{icon:'ti-video',cat:'\u05D4\u05D5\u05D3\u05E2\u05D4',title:'\u05E9\u05DC\u05D7 \u05D5\u05D9\u05D3\u05D0\u05D5'},
-    buttons:{icon:'ti-click',cat:'\u05D4\u05D5\u05D3\u05E2\u05D4',title:'\u05DB\u05E4\u05EA\u05D5\u05E8\u05D9\u05DD'},
-    menu:{icon:'ti-list',cat:'\u05D4\u05D5\u05D3\u05E2\u05D4',title:'\u05EA\u05E4\u05E8\u05D9\u05D8'},
-    condition:{icon:'ti-git-branch',cat:'\u05DC\u05D5\u05D2\u05D9\u05E7\u05D4',title:'\u05EA\u05E0\u05D0\u05D9'},
-    delay:{icon:'ti-clock-pause',cat:'\u05DC\u05D5\u05D2\u05D9\u05E7\u05D4',title:'\u05D4\u05DE\u05EA\u05E0\u05D4'},
-    assign:{icon:'ti-user',cat:'\u05E4\u05E2\u05D5\u05DC\u05D4',title:'\u05D4\u05E7\u05E6\u05D4 \u05DC\u05E0\u05E6\u05D9\u05D2'},
-    add_label:{icon:'ti-tag',cat:'\u05E4\u05E2\u05D5\u05DC\u05D4',title:'\u05D4\u05D5\u05E1\u05E3 \u05EA\u05D2\u05D9\u05EA'},
-    remove_label:{icon:'ti-tag-off',cat:'\u05E4\u05E2\u05D5\u05DC\u05D4',title:'\u05D4\u05E1\u05E8 \u05EA\u05D2\u05D9\u05EA'},
-    set_attribute:{icon:'ti-pencil',cat:'\u05E4\u05E2\u05D5\u05DC\u05D4',title:'\u05E2\u05D3\u05DB\u05DF \u05DE\u05D0\u05E4\u05D9\u05D9\u05DF'},
-    close:{icon:'ti-circle-check',cat:'\u05E4\u05E2\u05D5\u05DC\u05D4',title:'\u05E1\u05D2\u05D5\u05E8 \u05E9\u05D9\u05D7\u05D4'},
-    webhook:{icon:'ti-webhook',cat:'\u05D0\u05D9\u05E0\u05D8\u05D2\u05E8\u05E6\u05D9\u05D4',title:'Webhook'},
-    note:{icon:'ti-note',cat:'\u05D4\u05E2\u05E8\u05D4',title:'\u05D4\u05E2\u05E8\u05D4 \u05E4\u05E0\u05D9\u05DE\u05D9\u05EA'},
-    set_priority:{icon:'ti-flag',cat:'\u05E4\u05E2\u05D5\u05DC\u05D4',title:'\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA \u05E9\u05D9\u05D7\u05D4'},
-    set_status:{icon:'ti-toggle-right',cat:'\u05E4\u05E2\u05D5\u05DC\u05D4',title:'\u05E1\u05D8\u05D8\u05D5\u05E1 \u05E9\u05D9\u05D7\u05D4'},
-    transfer_inbox:{icon:'ti-transfer',cat:'\u05E4\u05E2\u05D5\u05DC\u05D4',title:'\u05D4\u05E2\u05D1\u05E8 \u05EA\u05D9\u05D1\u05D4'},
-    wait_reply:{icon:'ti-message-question',cat:'\u05DC\u05D5\u05D2\u05D9\u05E7\u05D4',title:'\u05D4\u05DE\u05EA\u05DF \u05DC\u05EA\u05E9\u05D5\u05D1\u05D4'},
-    api_action:{icon:'ti-cloud-computing',cat:'\u05D0\u05D9\u05E0\u05D8\u05D2\u05E8\u05E6\u05D9\u05D4',title:'API Action'},
-    ab_split:{icon:'ti-arrows-split-2',cat:'\u05DC\u05D5\u05D2\u05D9\u05E7\u05D4',title:'A/B Split'},
-    goto_step:{icon:'ti-arrow-back-up',cat:'\u05DC\u05D5\u05D2\u05D9\u05E7\u05D4',title:'\u05E7\u05E4\u05D5\u05E5 \u05DC\u05E9\u05DC\u05D1'}
+    trigger:{icon:'ti-target',cat:L.trigger_cat,title:L.incoming_msg},
+    message:{icon:'ti-message',cat:L.message_cat,title:L.send_msg},
+    image:{icon:'ti-photo',cat:L.message_cat,title:L.send_img},
+    video:{icon:'ti-video',cat:L.message_cat,title:L.send_vid},
+    buttons:{icon:'ti-click',cat:L.message_cat,title:L.buttons_title},
+    menu:{icon:'ti-list',cat:L.message_cat,title:L.menu_title},
+    condition:{icon:'ti-git-branch',cat:L.logic_cat,title:L.condition_title},
+    delay:{icon:'ti-clock-pause',cat:L.logic_cat,title:L.delay_title},
+    assign:{icon:'ti-user',cat:L.action_cat,title:L.assign_title},
+    add_label:{icon:'ti-tag',cat:L.action_cat,title:L.add_label_title},
+    remove_label:{icon:'ti-tag-off',cat:L.action_cat,title:L.remove_label_title},
+    set_attribute:{icon:'ti-pencil',cat:L.action_cat,title:L.set_attr_title},
+    close:{icon:'ti-circle-check',cat:L.action_cat,title:L.close_title},
+    webhook:{icon:'ti-webhook',cat:L.integration_cat,title:'Webhook'},
+    note:{icon:'ti-note',cat:L.note_cat,title:L.note_title},
+    set_priority:{icon:'ti-flag',cat:L.action_cat,title:L.priority_title},
+    set_status:{icon:'ti-toggle-right',cat:L.action_cat,title:L.status_title},
+    transfer_inbox:{icon:'ti-transfer',cat:L.action_cat,title:L.transfer_title},
+    wait_reply:{icon:'ti-message-question',cat:L.logic_cat,title:L.wait_reply_title},
+    api_action:{icon:'ti-cloud-computing',cat:L.integration_cat,title:'API Action'},
+    ab_split:{icon:'ti-arrows-split-2',cat:L.logic_cat,title:'A/B Split'},
+    goto_step:{icon:'ti-arrow-back-up',cat:L.logic_cat,title:L.goto_title}
   };
   var singleTypes=['trigger','message','image','video','delay','assign','add_label','remove_label','set_attribute','webhook','set_priority','set_status','transfer_inbox'];
   for(var id in data){
@@ -1425,22 +1613,22 @@ function upgradeLoadedNodes(){
     }
     if(olb&&!olb.querySelector('.olb-next')&&!olb.querySelector('.olb-btn-label')){
       if(nd.name==='buttons'){
-        olb.innerHTML='<div class="olb-btn-label" data-btn="1"><i class="ti ti-arrow-left" style="font-size:10px"></i> <span>\u05DB\u05E4\u05EA\u05D5\u05E8 1</span></div><div class="olb-btn-label" data-btn="2"><i class="ti ti-arrow-left" style="font-size:10px"></i> <span>\u05DB\u05E4\u05EA\u05D5\u05E8 2</span></div><div class="olb-btn-label" data-btn="3"><i class="ti ti-arrow-left" style="font-size:10px"></i> <span>\u05DB\u05E4\u05EA\u05D5\u05E8 3</span></div>';
+        olb.innerHTML='<div class="olb-btn-label" data-btn="1"><i class="ti '+ARR+'" style="font-size:10px"></i> <span>'+L.btn1+'</span></div><div class="olb-btn-label" data-btn="2"><i class="ti '+ARR+'" style="font-size:10px"></i> <span>'+L.btn2+'</span></div><div class="olb-btn-label" data-btn="3"><i class="ti '+ARR+'" style="font-size:10px"></i> <span>'+L.btn3+'</span></div>';
       }else if(nd.name==='menu'){
-        var mh='';for(var oi=1;oi<=6;oi++)mh+='<div class="olb-btn-label" data-opt="'+oi+'"><i class="ti ti-arrow-left" style="font-size:10px"></i> <span>\u05D0\u05E4\u05E9\u05E8\u05D5\u05EA '+oi+'</span></div>';
+        var mh='';for(var oi=1;oi<=6;oi++)mh+='<div class="olb-btn-label" data-opt="'+oi+'"><i class="ti '+ARR+'" style="font-size:10px"></i> <span>'+L.opt+' '+oi+'</span></div>';
         olb.innerHTML=mh;
       }else if(nd.name==='condition'){
-        olb.innerHTML='<div><i class="ti ti-check" style="font-size:10px;color:#16A34A"></i> \u05DB\u05DF <i class="ti ti-arrow-left" style="font-size:10px"></i></div><div><i class="ti ti-x" style="font-size:10px;color:#DC2626"></i> \u05DC\u05D0 <i class="ti ti-arrow-left" style="font-size:10px"></i></div>';
+        olb.innerHTML='<div><i class="ti ti-check" style="font-size:10px;color:#16A34A"></i> '+L.yes+' <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><i class="ti ti-x" style="font-size:10px;color:#DC2626"></i> '+L.no_out+' <i class="ti '+ARR+'" style="font-size:10px"></i></div>';
       }else if(nd.name==='wait_reply'){
-        olb.innerHTML='<div><i class="ti ti-message-check" style="font-size:10px;color:#16A34A"></i> \u05EA\u05E9\u05D5\u05D1\u05D4 \u05D4\u05EA\u05E7\u05D1\u05DC\u05D4 <i class="ti ti-arrow-left" style="font-size:10px"></i></div><div><i class="ti ti-clock-x" style="font-size:10px;color:#DC2626"></i> Timeout <i class="ti ti-arrow-left" style="font-size:10px"></i></div>';
+        olb.innerHTML='<div><i class="ti ti-message-check" style="font-size:10px;color:#16A34A"></i> '+L.reply_received+' <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><i class="ti ti-clock-x" style="font-size:10px;color:#DC2626"></i> Timeout <i class="ti '+ARR+'" style="font-size:10px"></i></div>';
       }else if(nd.name==='api_action'){
-        olb.innerHTML='<div><i class="ti ti-check" style="font-size:10px;color:#16A34A"></i> \u05D4\u05E6\u05DC\u05D7\u05D4 <i class="ti ti-arrow-left" style="font-size:10px"></i></div><div><i class="ti ti-x" style="font-size:10px;color:#DC2626"></i> \u05E9\u05D2\u05D9\u05D0\u05D4 <i class="ti ti-arrow-left" style="font-size:10px"></i></div>';
+        olb.innerHTML='<div><i class="ti ti-check" style="font-size:10px;color:#16A34A"></i> '+L.success+' <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><i class="ti ti-x" style="font-size:10px;color:#DC2626"></i> '+L.error+' <i class="ti '+ARR+'" style="font-size:10px"></i></div>';
       }else if(nd.name==='ab_split'){
         var sa=parseInt(nd.data.split_a)||50;
-        olb.innerHTML='<div><span style="font-weight:600;color:#6366f1">A</span> <span class="olb-pct">'+sa+'%</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div><div><span style="font-weight:600;color:#a855f7">B</span> <span class="olb-pct">'+(100-sa)+'%</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div>';
+        olb.innerHTML='<div><span style="font-weight:600;color:#6366f1">A</span> <span class="olb-pct">'+sa+'%</span> <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><span style="font-weight:600;color:#a855f7">B</span> <span class="olb-pct">'+(100-sa)+'%</span> <i class="ti '+ARR+'" style="font-size:10px"></i></div>';
       }else{
         olb.className='olb olb-single';
-        olb.innerHTML='<div class="olb-next"><span>\u05D4\u05DE\u05E9\u05DA</span> <i class="ti ti-arrow-left" style="font-size:10px"></i></div>';
+        olb.innerHTML='<div class="olb-next"><span>'+L.next+'</span> <i class="ti '+ARR+'" style="font-size:10px"></i></div>';
       }
     }
   }
@@ -1697,21 +1885,21 @@ function downloadFlow(){
   var blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
   var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
-  toast('\u05E7\u05D5\u05D1\u05E5 \u05D9\u05D5\u05E6\u05D0 \u05D1\u05D4\u05E6\u05DC\u05D7\u05D4','ok');
+  toast(L.file_exported,'ok');
 }
 function importFlow(inp){
   var f=inp.files[0];if(!f)return;
-  if(!confirm('\u05D4\u05D9\u05D9\u05D1\u05D5\u05D0 \u05D9\u05D7\u05DC\u05D9\u05E3 \u05D0\u05EA \u05D4-flow \u05D4\u05E0\u05D5\u05DB\u05D7\u05D9. \u05DC\u05D4\u05DE\u05E9\u05D9\u05DA?')){inp.value='';return}
+  if(!confirm(L.import_confirm)){inp.value='';return}
   var r=new FileReader();
   r.onload=function(ev){
     try{
       var d=JSON.parse(ev.target.result);
-      if(!d.drawflow){toast('\u05E7\u05D5\u05D1\u05E5 \u05DC\u05D0 \u05EA\u05E7\u05D9\u05DF','err');return}
+      if(!d.drawflow){toast(L.invalid_file,'err');return}
       pushUndo();editor.import(d);
       setTimeout(function(){popSelects();updStats();addAllNodeActions();upgradeLoadedNodes();updateAllSummaries();addConnHitAreas()},200);
       markDirty();pushUndo();
-      toast('Flow \u05D9\u05D5\u05D1\u05D0 \u05D1\u05D4\u05E6\u05DC\u05D7\u05D4','ok');
-    }catch(ex){toast('\u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05E7\u05E8\u05D9\u05D0\u05EA \u05D4\u05E7\u05D5\u05D1\u05E5','err')}
+      toast(L.flow_imported,'ok');
+    }catch(ex){toast(L.file_read_err,'err')}
   };
   r.readAsText(f);inp.value='';
 }
@@ -1761,7 +1949,7 @@ function loadBot(id){
       var useDraft=false;
       try{
         var draft=localStorage.getItem('bot-draft-'+id);
-        if(draft){var dd=JSON.parse(draft);if(dd.ts&&d.updated_at&&dd.ts>new Date(d.updated_at).getTime()){var ago=(function(t){var m=Math.round((Date.now()-t)/60000);if(m<1)return '\u05DC\u05E4\u05E0\u05D9 \u05E8\u05D2\u05E2';if(m<60)return '\u05DC\u05E4\u05E0\u05D9 '+m+' \u05D3\u05E7\u05F3';var h=Math.round(m/60);if(h<24)return '\u05DC\u05E4\u05E0\u05D9 '+h+' \u05E9\u05E2\u05D5\u05EA';return '\u05DC\u05E4\u05E0\u05D9 '+Math.round(h/24)+' \u05D9\u05DE\u05D9\u05DD'})(dd.ts);if(confirm('\u05E0\u05DE\u05E6\u05D0\u05D4 \u05D8\u05D9\u05D5\u05D8\u05D4 \u05DE'+ago+'. \u05DC\u05E9\u05D7\u05D6\u05E8?')){d.flow=dd.flow;if(dd.name)document.getElementById('bname').value=dd.name;useDraft=true}else{localStorage.removeItem('bot-draft-'+id)}}}
+        if(draft){var dd=JSON.parse(draft);if(dd.ts&&d.updated_at&&dd.ts>new Date(d.updated_at).getTime()){var ago=(function(t){var m=Math.round((Date.now()-t)/60000);if(m<1)return L.ago_moments;if(m<60)return L.ago_min+m+L.ago_min_suffix;var h=Math.round(m/60);if(h<24)return L.ago_hours+h+L.ago_hours_suffix;return L.ago_days+Math.round(h/24)+L.ago_days_suffix})(dd.ts);if(confirm(L.draft_found+ago+L.draft_restore)){d.flow=dd.flow;if(dd.name)document.getElementById('bname').value=dd.name;useDraft=true}else{localStorage.removeItem('bot-draft-'+id)}}}
       }catch(ex){}
       if(d.flow){editor.import(d.flow);setTimeout(function(){popSelects();updStats();addAllNodeActions();upgradeLoadedNodes();updateAllSummaries();autoAlign()},200)}
       if(useDraft)markDirty();
@@ -1770,7 +1958,7 @@ function loadBot(id){
     })
     .catch(function(err){
       document.getElementById('canvas-loading').classList.add('done');
-      toast('\u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05D8\u05E2\u05D9\u05E0\u05EA \u05D4\u05D1\u05D5\u05D8','err');
+      toast(L.load_err,'err');
     });
 }
 
@@ -1809,8 +1997,8 @@ setInterval(function(){
   try{
     localStorage.setItem('bot-draft-'+BOT_ID,JSON.stringify({flow:editor.export(),name:document.getElementById('bname').value,ts:Date.now()}));
     var si=document.getElementById('save-ind');
-    if(si){si.textContent='\u05D8\u05D9\u05D5\u05D8\u05D4 \u05E0\u05E9\u05DE\u05E8\u05D4';si.className='save-ind saved';setTimeout(function(){if(hasUnsavedChanges){si.textContent='\u05E9\u05D9\u05E0\u05D5\u05D9\u05D9\u05DD \u05DC\u05D0 \u05E0\u05E9\u05DE\u05E8\u05D5';si.className='save-ind dirty'}},2000)}
-  }catch(ex){toast('localStorage \u05DE\u05DC\u05D0 \u2014 \u05E9\u05DE\u05D5\u05E8 \u05D9\u05D3\u05E0\u05D9\u05EA','err')}
+    if(si){si.textContent=L.draft_saved;si.className='save-ind saved';setTimeout(function(){if(hasUnsavedChanges){si.textContent=L.unsaved_changes;si.className='save-ind dirty'}},2000)}
+  }catch(ex){toast(L.ls_full,'err')}
 },30000);
 editor.on('nodeCreated',function(){markDirty();pushUndo()});
 editor.on('nodeRemoved',function(){markDirty();pushUndo()});
@@ -1959,7 +2147,7 @@ document.addEventListener('keydown',function(e){
     e.preventDefault();
     var cid=getSelectedNodeId();if(!cid)return;
     var cnd=editor.getNodeFromId(cid);
-    if(cnd){clipboard={name:cnd.name,data:JSON.parse(JSON.stringify(cnd.data)),pos_x:cnd.pos_x,pos_y:cnd.pos_y};toast('\u05D4\u05D5\u05E2\u05EA\u05E7','ok')}
+    if(cnd){clipboard={name:cnd.name,data:JSON.parse(JSON.stringify(cnd.data)),pos_x:cnd.pos_x,pos_y:cnd.pos_y};toast(L.copied,'ok')}
     return;
   }
   // Ctrl+V: Paste copied node
@@ -1971,7 +2159,7 @@ document.addEventListener('keydown',function(e){
       if(c){
         editor.addNode(clipboard.name,c.i,c.o,clipboard.pos_x+pOff,clipboard.pos_y+pOff,clipboard.name,JSON.parse(JSON.stringify(clipboard.data)),nHtml(clipboard.name));
         setTimeout(popSelects,150);markDirty();pushUndo();
-        toast('\u05D4\u05D5\u05D3\u05D1\u05E7','ok');
+        toast(L.pasted,'ok');
       }
     }
     return;
@@ -2060,7 +2248,7 @@ function duplicateNode(id){
   var newId=editor.addNode(nd.name,c.i,c.o,nd.pos_x+40,nd.pos_y+40,nd.name,newData,nHtml(nd.name));
   setTimeout(popSelects,150);
   markDirty();pushUndo();
-  toast('\u05E6\u05D5\u05DE\u05EA \u05E9\u05D5\u05DB\u05E4\u05DC','ok');
+  toast(L.node_duplicated,'ok');
   var newEl=document.getElementById('node-'+newId);
   if(newEl){newEl.classList.add('node-dup-pulse');setTimeout(function(){newEl.classList.remove('node-dup-pulse')},600)}
 }
@@ -2884,7 +3072,7 @@ setTimeout(queueMM,800);
 </script>
 </body></html>
     ENDHTML
-    html.gsub('__BOT_ID__', bid_js)
+    html.gsub('__BOT_ID__', bid_js).gsub('__LOCALE__', "\"#{locale}\"")
   end
 end
 

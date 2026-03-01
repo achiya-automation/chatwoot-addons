@@ -175,7 +175,7 @@ class CampaignReportMiddleware
   end
 
   def unauthorized_response
-    [302, {"location"=>"/auth/sign_in","content-type"=>"text/html; charset=utf-8"}, ["\u05DE\u05E4\u05E0\u05D4 \u05DC\u05D4\u05EA\u05D7\u05D1\u05E8\u05D5\u05EA..."]]
+    [302, {"location"=>"/auth/sign_in","content-type"=>"text/html; charset=utf-8"}, ["Redirecting..."]]
   end
 
   def not_found_response
@@ -385,7 +385,7 @@ class CampaignReportMiddleware
       ROW
     end.join
 
-    empty_html = "<tr><td colspan='8'><div class='empty-state'><p>\u05DC\u05D0 \u05E0\u05DE\u05E6\u05D0\u05D5 Campaigns</p></div></td></tr>"
+    empty_html = "<tr><td colspan='8'><div class='empty-state'><p>No campaigns found</p></div></td></tr>"
 
     <<~HTML
       <!DOCTYPE html>
@@ -418,29 +418,29 @@ class CampaignReportMiddleware
             <div class="stat-card" style="--stat-accent:#3B82F6;--stat-glow:rgba(59,130,246,.25)">
               <div class="stat-icon" style="background:rgba(59,130,246,.08);color:#60A5FA;border:1px solid rgba(59,130,246,.12)"><i class="ti ti-send"></i></div>
               <div class="stat-number" style="color:#60A5FA">#{total_sent}</div>
-              <div class="stat-label">Sent\u05D5</div>
+              <div class="stat-label">Sent</div>
             </div>
             <div class="stat-card" style="--stat-accent:#14B8A6;--stat-glow:rgba(20,184,166,.25)">
               <div class="stat-icon" style="background:rgba(20,184,166,.08);color:#5EEAD4;border:1px solid rgba(20,184,166,.12)"><i class="ti ti-checks"></i></div>
               <div class="stat-number" style="color:#5EEAD4">#{total_delivered}</div>
-              <div class="stat-label">Delivered\u05D5</div>
+              <div class="stat-label">Delivered</div>
               #{total_sent > 0 ? "<div class='stat-bar'><div class='stat-bar-fill' style='width:#{((total_delivered.to_f / total_sent) * 100).round}%;background:linear-gradient(90deg,#14B8A6,#5EEAD4)'></div></div>" : ""}
             </div>
             <div class="stat-card" style="--stat-accent:#8B5CF6;--stat-glow:rgba(139,92,246,.25)">
               <div class="stat-icon" style="background:rgba(139,92,246,.08);color:#C4B5FD;border:1px solid rgba(139,92,246,.12)"><i class="ti ti-eye"></i></div>
               <div class="stat-number" style="color:#C4B5FD">#{total_read}</div>
-              <div class="stat-label">Read\u05D5</div>
+              <div class="stat-label">Read</div>
               #{total_sent > 0 ? "<div class='stat-bar'><div class='stat-bar-fill' style='width:#{((total_read.to_f / total_sent) * 100).round}%;background:linear-gradient(90deg,#8B5CF6,#C4B5FD)'></div></div>" : ""}
             </div>
           </div>
 
           <div class="search-wrap">
             <i class="ti ti-search" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:14px;color:#696E77;pointer-events:none"></i>
-            <input type="text" id="campaign-search" placeholder="\u05D7\u05E4\u05E9 \u05E7\u05DE\u05E4\u05D9\u05D9\u05DF..." oninput="filterCampaigns(this.value)" style="padding-right:34px">
+            <input type="text" id="campaign-search" placeholder="Search campaigns..." oninput="filterCampaigns(this.value)" style="padding-right:34px">
             <span id="search-count" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:11px;color:#696E77"></span>
           </div>
 
-          <div class="section-title">\u05DB\u05DC \u05D4Campaigns</div>
+          <div class="section-title">All Campaigns</div>
           <div class="table-wrapper">
             <div class="table-scroll">
               <table id="campaign-table">
@@ -467,6 +467,10 @@ class CampaignReportMiddleware
         </div>
 
         <script>
+        var _locale='en';
+        (function(){try{var k=Object.keys(localStorage);for(var i=0;i<k.length;i++){if(k[i].indexOf('user:locale')!==-1||k[i].indexOf('cw_d_')!==-1){var v=localStorage.getItem(k[i]);if(typeof v==='string'&&v.length===2){_locale=v;break}}}if(_locale==='en'){for(var i=0;i<k.length;i++){if(k[i].indexOf('_locale')!==-1){var v=localStorage.getItem(k[i]);if(v&&v.length===2){_locale=v;break}}}}}catch(e){}})();
+        var _isHe=_locale==='he';
+        if(_isHe){document.documentElement.setAttribute('dir','rtl');document.documentElement.setAttribute('lang','he')}
         function filterCampaigns(q){
           q=q.trim().toLowerCase();
           var rows=document.querySelectorAll('#campaign-tbody tr[data-search]');
@@ -500,6 +504,20 @@ class CampaignReportMiddleware
           });
           for(var i=0;i<rows.length;i++){tbody.appendChild(rows[i])}
         }
+        (function(){if(!_isHe)return;
+          var h1=document.querySelector('.page-hdr h1');if(h1)h1.textContent='\u05D3\u05D5\u05D7 \u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD';
+          var sub=document.querySelector('.page-hdr .subtitle');if(sub)sub.textContent='\u05E0\u05D9\u05EA\u05D5\u05D7 \u05D1\u05D9\u05E6\u05D5\u05E2\u05D9 \u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9 WhatsApp';
+          var rb=document.querySelector('.refresh-btn');if(rb){var ic=rb.querySelector('.ti');rb.textContent=' \u05E8\u05E2\u05E0\u05DF';if(ic)rb.insertBefore(ic,rb.firstChild)}
+          var si=document.getElementById('campaign-search');if(si)si.placeholder='\u05D7\u05E4\u05E9 \u05E7\u05DE\u05E4\u05D9\u05D9\u05DF...';
+          var st=document.querySelector('.section-title');if(st)st.childNodes[0].textContent='\u05DB\u05DC \u05D4\u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD';
+          var labels=document.querySelectorAll('.stat-label');
+          var lmap={'Campaigns':'\u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD','Sent':'\u05E0\u05E9\u05DC\u05D7\u05D5','Delivered':'\u05E0\u05DE\u05E1\u05E8\u05D5','Read':'\u05E0\u05E7\u05E8\u05D0\u05D5'};
+          for(var i=0;i<labels.length;i++){var t=labels[i].textContent.trim();if(lmap[t])labels[i].textContent=lmap[t]}
+          var ths=document.querySelectorAll('#campaign-table thead th');
+          var thmap={'Campaign Name':'\u05E9\u05DD \u05E7\u05DE\u05E4\u05D9\u05D9\u05DF','Status':'\u05E1\u05D8\u05D8\u05D5\u05E1','Date':'\u05EA\u05D0\u05E8\u05D9\u05DA','Audience':'\u05E7\u05D4\u05DC','Sent':'\u05E0\u05E9\u05DC\u05D7\u05D5','Delivered':'\u05E0\u05DE\u05E1\u05E8\u05D5','Read':'\u05E0\u05E7\u05E8\u05D0\u05D5','Failed':'\u05E0\u05DB\u05E9\u05DC\u05D5'};
+          for(var i=0;i<ths.length;i++){var arr=ths[i].querySelector('.sort-arr');var txt=ths[i].textContent.trim();if(thmap[txt]){ths[i].textContent='';ths[i].appendChild(document.createTextNode(thmap[txt]+' '));if(arr)ths[i].appendChild(arr)}}
+          var ep=document.querySelector('.empty-state p');if(ep)ep.textContent='\u05DC\u05D0 \u05E0\u05DE\u05E6\u05D0\u05D5 \u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD';
+        })();
         </script>
       </body>
       </html>
@@ -526,13 +544,13 @@ class CampaignReportMiddleware
       { n: h(r[:contact_name]), p: h(r[:phone]), s: status_text_he(r[:status]), d: format_time(r[:created_at]), c: r[:conversation_id].to_s }
     end
     not_sent.each do |c|
-      export_data << { n: h(c[:name]), p: h(c[:phone] || "-"), s: "\u05DC\u05D0 Sent", d: "-", c: "-" }
+      export_data << { n: h(c[:name]), p: h(c[:phone] || "-"), s: "Not Sent", d: "-", c: "-" }
     end
     export_json = export_data.to_json
 
     attention_items = []
-    attention_items << "#{failed} Failed\u05D5" if failed > 0
-    attention_items << "#{not_sent.size} \u05DC\u05D0 Sent\u05D5" if not_sent.size > 0
+    attention_items << "#{failed} Failed" if failed > 0
+    attention_items << "#{not_sent.size} Not Sent" if not_sent.size > 0
 
     <<~HTML
       <!DOCTYPE html>
@@ -561,7 +579,7 @@ class CampaignReportMiddleware
             </div>
             <div class="hdr-actions">
               <button class="export-btn" onclick="exportCSV()"><i class="ti ti-file-spreadsheet"></i> Export Excel</button>
-              <a href="/campaign-report" class="refresh-btn"><i class="ti ti-arrow-right" style="font-size:16px"></i> \u05DB\u05DC \u05D4Campaigns</a>
+              <a href="/campaign-report" class="refresh-btn"><i class="ti ti-arrow-right" style="font-size:16px"></i> All Campaigns</a>
             </div>
           </div>
 
@@ -569,39 +587,39 @@ class CampaignReportMiddleware
             <div class="stat-card" style="--stat-accent:#3B82F6;--stat-glow:rgba(59,130,246,.25)">
               <div class="stat-icon" style="background:rgba(59,130,246,.08);color:#60A5FA;border:1px solid rgba(59,130,246,.12)"><i class="ti ti-send"></i></div>
               <div class="stat-number" style="color:#60A5FA">#{total}</div>
-              <div class="stat-label">Sent\u05D5</div>
+              <div class="stat-label">Sent</div>
             </div>
             <div class="stat-card" style="--stat-accent:#14B8A6;--stat-glow:rgba(20,184,166,.25)">
               <div class="stat-icon" style="background:rgba(20,184,166,.08);color:#5EEAD4;border:1px solid rgba(20,184,166,.12)"><i class="ti ti-checks"></i></div>
               <div class="stat-number" style="color:#5EEAD4">#{delivered}</div>
-              <div class="stat-label">Delivered\u05D5</div>
+              <div class="stat-label">Delivered</div>
               #{total > 0 ? "<div class='stat-pct'>#{pct_delivered}%</div><div class='stat-bar'><div class='stat-bar-fill' style='width:#{pct_delivered}%;background:linear-gradient(90deg,#14B8A6,#5EEAD4)'></div></div>" : ""}
             </div>
             <div class="stat-card" style="--stat-accent:#8B5CF6;--stat-glow:rgba(139,92,246,.25)">
               <div class="stat-icon" style="background:rgba(139,92,246,.08);color:#C4B5FD;border:1px solid rgba(139,92,246,.12)"><i class="ti ti-chevron-down"></i></div>
               <div class="stat-number" style="color:#C4B5FD">#{read_count}</div>
-              <div class="stat-label">Read\u05D5</div>
+              <div class="stat-label">Read</div>
               #{total > 0 ? "<div class='stat-pct' style='color:#C4B5FD'>#{pct_read}%</div><div class='stat-bar'><div class='stat-bar-fill' style='width:#{pct_read}%;background:linear-gradient(90deg,#8B5CF6,#C4B5FD)'></div></div>" : ""}
             </div>
             <div class="stat-card" style="--stat-accent:#EF4444;--stat-glow:rgba(239,68,68,.25)">
               <div class="stat-icon" style="background:rgba(239,68,68,.08);color:#FCA5A5;border:1px solid rgba(239,68,68,.12)"><i class="ti ti-x"></i></div>
               <div class="stat-number" style="color:#{failed > 0 ? '#FCA5A5' : 'var(--text-4)'}">#{failed}</div>
-              <div class="stat-label">Failed\u05D5</div>
+              <div class="stat-label">Failed</div>
             </div>
           </div>
 
           <div class="funnel">
             <div class="funnel-bar-wrap">
-              #{bar_read > 0 ? "<div class='funnel-seg' style='width:#{bar_read}%;background:#a29bfe'><span>#{read_count} Read\u05D5</span></div>" : ""}
-              #{(bar_delivered - bar_read) > 0 ? "<div class='funnel-seg' style='width:#{bar_delivered - bar_read}%;background:#2ecc71'><span>#{delivered - read_count} Delivered\u05D5</span></div>" : ""}
-              #{bar_failed > 0 ? "<div class='funnel-seg' style='width:#{bar_failed}%;background:#ff6b6b'><span>#{failed} Failed\u05D5</span></div>" : ""}
-              #{bar_not_sent > 0 ? "<div class='funnel-seg' style='width:#{bar_not_sent}%;background:#f0ad4e'><span>#{not_sent.size} \u05DC\u05D0 Sent\u05D5</span></div>" : ""}
+              #{bar_read > 0 ? "<div class='funnel-seg' style='width:#{bar_read}%;background:#a29bfe'><span>#{read_count} Read</span></div>" : ""}
+              #{(bar_delivered - bar_read) > 0 ? "<div class='funnel-seg' style='width:#{bar_delivered - bar_read}%;background:#2ecc71'><span>#{delivered - read_count} Delivered</span></div>" : ""}
+              #{bar_failed > 0 ? "<div class='funnel-seg' style='width:#{bar_failed}%;background:#ff6b6b'><span>#{failed} Failed</span></div>" : ""}
+              #{bar_not_sent > 0 ? "<div class='funnel-seg' style='width:#{bar_not_sent}%;background:#f0ad4e'><span>#{not_sent.size} Not Sent</span></div>" : ""}
             </div>
             <div class="funnel-labels">
-              <div class="funnel-label"><span class="dot" style="background:#a29bfe"></span> Read\u05D5 #{bar_read}%</div>
-              <div class="funnel-label"><span class="dot" style="background:#2ecc71"></span> Delivered\u05D5 #{bar_delivered}%</div>
-              #{bar_failed > 0 ? "<div class='funnel-label'><span class='dot' style='background:#ff6b6b'></span> Failed\u05D5 #{bar_failed}%</div>" : ""}
-              #{bar_not_sent > 0 ? "<div class='funnel-label'><span class='dot' style='background:#f0ad4e'></span> \u05DC\u05D0 Sent\u05D5 #{bar_not_sent}%</div>" : ""}
+              <div class="funnel-label"><span class="dot" style="background:#a29bfe"></span> Read #{bar_read}%</div>
+              <div class="funnel-label"><span class="dot" style="background:#2ecc71"></span> Delivered #{bar_delivered}%</div>
+              #{bar_failed > 0 ? "<div class='funnel-label'><span class='dot' style='background:#ff6b6b'></span> Failed #{bar_failed}%</div>" : ""}
+              #{bar_not_sent > 0 ? "<div class='funnel-label'><span class='dot' style='background:#f0ad4e'></span> Not Sent #{bar_not_sent}%</div>" : ""}
             </div>
           </div>
 
@@ -610,7 +628,7 @@ class CampaignReportMiddleware
           <div class="download-card">
             <div class="dl-icon"><i class="ti ti-table-export"></i></div>
             <h3>Download Full Report</h3>
-            <p>\u05DB\u05D5\u05DC\u05DC \u05E4\u05E8\u05D8\u05D9 \u05DB\u05DC \u05D0\u05E0\u05E9\u05D9 \u05D4\u05E7\u05E9\u05E8, Status \u05DE\u05E9\u05DC\u05D5\u05D7, \u05EA\u05D0\u05E8\u05D9\u05DB\u05D9\u05DD \u05D5\u05DE\u05D6\u05D4\u05D9 \u05E9\u05D9\u05D7\u05D4</p>
+            <p>Includes all contact details, delivery status, dates, and conversation IDs</p>
             <button class="dl-btn" onclick="exportCSV()"><i class="ti ti-download"></i> Download CSV</button>
           </div>
 
@@ -624,11 +642,15 @@ class CampaignReportMiddleware
         </div>
         </div>
         <script>
+        var _locale='en';
+        (function(){try{var k=Object.keys(localStorage);for(var i=0;i<k.length;i++){if(k[i].indexOf('user:locale')!==-1||k[i].indexOf('cw_d_')!==-1){var v=localStorage.getItem(k[i]);if(typeof v==='string'&&v.length===2){_locale=v;break}}}if(_locale==='en'){for(var i=0;i<k.length;i++){if(k[i].indexOf('_locale')!==-1){var v=localStorage.getItem(k[i]);if(v&&v.length===2){_locale=v;break}}}}}catch(e){}})();
+        var _isHe=_locale==='he';
+        if(_isHe){document.documentElement.setAttribute('dir','rtl');document.documentElement.setAttribute('lang','he')}
         var _exportData=#{export_json};
         function exportCSV(){
           if(!_exportData.length){alert('No data to export');return}
           var csv='\\uFEFF';
-          csv+='\u05E9\u05DD,\u05D8\u05DC\u05E4\u05D5\u05DF,Status,Date \u05E9\u05DC\u05D9\u05D7\u05D4,\u05DE\u05D6\u05D4\u05D4 \u05E9\u05D9\u05D7\u05D4\\n';
+          csv+=(_isHe?'\u05E9\u05DD,\u05D8\u05DC\u05E4\u05D5\u05DF,\u05E1\u05D8\u05D8\u05D5\u05E1,\u05EA\u05D0\u05E8\u05D9\u05DA \u05E9\u05DC\u05D9\u05D7\u05D4,\u05DE\u05D6\u05D4\u05D4 \u05E9\u05D9\u05D7\u05D4':'Name,Phone,Status,Send Date,Conversation ID')+'\\n';
           for(var i=0;i<_exportData.length;i++){
             var r=_exportData[i];
             csv+='"'+(r.n||'').replace(/"/g,'""')+'","'+(r.p||'').replace(/"/g,'""')+'","'+(r.s||'').replace(/"/g,'""')+'","'+(r.d||'').replace(/"/g,'""')+'","'+(r.c||'').replace(/"/g,'""')+'"\\n';
@@ -643,6 +665,26 @@ class CampaignReportMiddleware
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
         }
+        (function(){if(!_isHe)return;
+          var labels=document.querySelectorAll('.stat-label');
+          var lmap={'Sent':'\u05E0\u05E9\u05DC\u05D7\u05D5','Delivered':'\u05E0\u05DE\u05E1\u05E8\u05D5','Read':'\u05E0\u05E7\u05E8\u05D0\u05D5','Failed':'\u05E0\u05DB\u05E9\u05DC\u05D5'};
+          for(var i=0;i<labels.length;i++){var t=labels[i].textContent.trim();if(lmap[t])labels[i].textContent=lmap[t]}
+          var dc=document.querySelector('.download-card');
+          if(dc){var dh=dc.querySelector('h3');if(dh)dh.textContent='\u05D4\u05D5\u05E8\u05D3\u05EA \u05D3\u05D5\u05D7 \u05DE\u05DC\u05D0';var dp=dc.querySelector('p');if(dp)dp.textContent='\u05DB\u05D5\u05DC\u05DC \u05E4\u05E8\u05D8\u05D9 \u05DB\u05DC \u05D0\u05E0\u05E9\u05D9 \u05D4\u05E7\u05E9\u05E8, \u05E1\u05D8\u05D8\u05D5\u05E1 \u05DE\u05E9\u05DC\u05D5\u05D7, \u05EA\u05D0\u05E8\u05D9\u05DB\u05D9\u05DD \u05D5\u05DE\u05D6\u05D4\u05D9 \u05E9\u05D9\u05D7\u05D4';var db=dc.querySelector('.dl-btn');if(db){var dic=db.querySelector('.ti');db.textContent=' \u05D4\u05D5\u05E8\u05D3 CSV';if(dic)db.insertBefore(dic,db.firstChild)}}
+          var allLink=document.querySelector('.hdr-actions .refresh-btn');if(allLink){var aic=allLink.querySelector('.ti');allLink.textContent=' \u05DB\u05DC \u05D4\u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD';if(aic)allLink.insertBefore(aic,allLink.firstChild)}
+          var expBtn=document.querySelector('.hdr-actions .export-btn');if(expBtn){var eic=expBtn.querySelector('.ti');expBtn.textContent=' \u05D9\u05D9\u05E6\u05D5\u05D0 Excel';if(eic)expBtn.insertBefore(eic,expBtn.firstChild)}
+          var fsegs=document.querySelectorAll('.funnel-seg span');
+          var fmap={'Read':'\u05E0\u05E7\u05E8\u05D0\u05D5','Delivered':'\u05E0\u05DE\u05E1\u05E8\u05D5','Failed':'\u05E0\u05DB\u05E9\u05DC\u05D5','Not Sent':'\u05DC\u05D0 \u05E0\u05E9\u05DC\u05D7\u05D5'};
+          for(var i=0;i<fsegs.length;i++){var ft=fsegs[i].textContent.trim();for(var fk in fmap){if(ft.indexOf(fk)!==-1){fsegs[i].textContent=ft.replace(fk,fmap[fk]);break}}}
+          var flbls=document.querySelectorAll('.funnel-label');
+          for(var i=0;i<flbls.length;i++){var fn=flbls[i].childNodes;for(var j=0;j<fn.length;j++){if(fn[j].nodeType===3){var fv=fn[j].textContent.trim();for(var fk in fmap){if(fv.indexOf(fk)!==-1){fn[j].textContent=fv.replace(fk,fmap[fk]);break}}}}}
+          var ic=document.querySelector('.info-card h3');if(ic)ic.childNodes[0].textContent='\u05E4\u05E8\u05D8\u05D9 \u05EA\u05D1\u05E0\u05D9\u05EA';
+          var irows=document.querySelectorAll('.info-row strong');
+          var irmap={'Template:':'\u05EA\u05D1\u05E0\u05D9\u05EA:','Language:':'\u05E9\u05E4\u05D4:','Message:':'\u05D4\u05D5\u05D3\u05E2\u05D4:'};
+          for(var i=0;i<irows.length;i++){var ir=irows[i].textContent.trim();if(irmap[ir])irows[i].textContent=irmap[ir]}
+          var att=document.querySelector('.att-text');if(att){var as=att.querySelector('strong');if(as)as.textContent='\u05D3\u05D5\u05E8\u05E9 \u05EA\u05E9\u05D5\u05DE\u05EA \u05DC\u05D1:'}
+          var audSpan=document.querySelector('.subtitle');if(audSpan){var at=audSpan.textContent||'';audSpan.textContent=at.replace('Audience:','\u05E7\u05D4\u05DC:')}
+        })();
         </script>
       </body>
       </html>

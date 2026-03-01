@@ -102,6 +102,20 @@ class CustomNavWidgetMiddleware
         else if(p.indexOf('/campaign-report')===0)document.getElementById('nav-campaign').classList.add('active');
         else document.getElementById('nav-cw').classList.add('active');
       })();
+      // i18n
+      (function(){
+        var panel=document.querySelector('[data-custom-nav-panel]');
+        var loc='en';
+        try{var k=Object.keys(localStorage);for(var i=0;i<k.length;i++){if(k[i].indexOf('user:locale')!==-1||k[i].indexOf('cw_d_')!==-1){var v=localStorage.getItem(k[i]);if(typeof v==='string'&&v.length===2){loc=v;break}}}if(loc==='en'){for(var i=0;i<k.length;i++){if(k[i].indexOf('_locale')!==-1){var v=localStorage.getItem(k[i]);if(v&&v.length===2){loc=v;break}}}}}catch(e){}
+        if(loc!=='he')return;
+        var hdr=panel.querySelector('.cw-panel-hdr span');if(hdr)hdr.textContent='\u05DB\u05DC\u05D9 Chatwoot';
+        var items=panel.querySelectorAll('.cw-panel-item span');
+        if(items[0])items[0].textContent='\u05D1\u05D5\u05E0\u05D4 \u05D1\u05D5\u05D8\u05D9\u05DD';
+        if(items[1])items[1].textContent='\u05D3\u05D5\u05D7 \u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD';
+        var foot=panel.querySelector('.cw-panel-foot');if(foot)foot.textContent='\u05D4\u05E2\u05D1\u05E8 \u05E2\u05DB\u05D1\u05E8 \u05DC\u05E9\u05DE\u05D0\u05DC \u05DC\u05E4\u05EA\u05D9\u05D7\u05D4';
+        // Switch to RTL
+        panel.querySelectorAll('.cw-panel-hdr,.cw-panel-item,.cw-panel-foot').forEach(function(el){el.style.direction='rtl'});
+      })();
       </script>
     HTML
   end
