@@ -546,6 +546,13 @@ function upgradeLoadedNodes(){
     if(!el)continue;
     var m=meta[nd.name];
     if(!m)continue;
+    // If node has empty HTML (from template import), regenerate full HTML
+    var contentNode=el.querySelector('.drawflow_content_node');
+    if(contentNode&&!el.querySelector('.nh')){
+      contentNode.innerHTML=nHtml(nd.name);
+      if(nd.data){for(var key in nd.data){var inp=contentNode.querySelector('[df-'+key+']');if(inp)inp.value=nd.data[key]||''}}
+      continue;
+    }
     // Skip if already upgraded (has nh-text)
     if(el.querySelector('.nh-text'))continue;
     // 1. Upgrade header: add nh-text structure
