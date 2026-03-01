@@ -106,7 +106,7 @@ class CustomNavWidgetMiddleware
       (function(){
         var panel=document.querySelector('[data-custom-nav-panel]');
         var loc='en';
-        try{var k=Object.keys(localStorage);for(var i=0;i<k.length;i++){if(k[i].indexOf('user:locale')!==-1||k[i].indexOf('cw_d_')!==-1){var v=localStorage.getItem(k[i]);if(typeof v==='string'&&v.length===2){loc=v;break}}}if(loc==='en'){for(var i=0;i<k.length;i++){if(k[i].indexOf('_locale')!==-1){var v=localStorage.getItem(k[i]);if(v&&v.length===2){loc=v;break}}}}}catch(e){}
+        try{if(window.chatwootConfig&&window.chatwootConfig.selectedLocale){loc=window.chatwootConfig.selectedLocale}else{var h=document.documentElement.getAttribute('lang');if(h&&h.length>=2)loc=h.substring(0,2)}}catch(e){}
         if(loc!=='he')return;
         var hdr=panel.querySelector('.cw-panel-hdr span');if(hdr)hdr.textContent='\u05DB\u05DC\u05D9 Chatwoot';
         var items=panel.querySelectorAll('.cw-panel-item span');

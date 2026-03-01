@@ -64,7 +64,8 @@ class CampaignReportMiddleware
       }
     end
 
-    html = render_list_page(rows)
+    locale = begin; user.account_users.first&.account&.locale; rescue; nil end || 'en'
+    html = render_list_page(rows, locale)
     [200, hdrs, [html]]
   rescue StandardError => e
     Rails.logger.error "[CampaignReport] Error: #{e.message}"
@@ -98,7 +99,8 @@ class CampaignReportMiddleware
     sent_phones = contact_results.map { |r| r[:phone] }.compact
     not_sent = audience_contacts.reject { |c| sent_phones.include?(c[:phone]) }
 
-    html = render_detail_page(campaign, contact_results, not_sent)
+    locale = begin; user.account_users.first&.account&.locale; rescue; nil end || 'en'
+    html = render_detail_page(campaign, contact_results, not_sent, locale)
     [200, hdrs, [html]]
   rescue StandardError => e
     Rails.logger.error "[CampaignReport] Error: #{e.message}"
@@ -360,7 +362,7 @@ class CampaignReportMiddleware
     STYLE
   end
 
-  def render_list_page(rows)
+  def render_list_page(rows, locale='en')
     total_campaigns = rows.size
     total_sent = rows.sum { |r| r[:total_sent] }
     total_delivered = rows.sum { |r| r[:delivered] }
@@ -467,8 +469,7 @@ class CampaignReportMiddleware
         </div>
 
         <script>
-        var _locale='en';
-        (function(){try{var k=Object.keys(localStorage);for(var i=0;i<k.length;i++){if(k[i].indexOf('user:locale')!==-1||k[i].indexOf('cw_d_')!==-1){var v=localStorage.getItem(k[i]);if(typeof v==='string'&&v.length===2){_locale=v;break}}}if(_locale==='en'){for(var i=0;i<k.length;i++){if(k[i].indexOf('_locale')!==-1){var v=localStorage.getItem(k[i]);if(v&&v.length===2){_locale=v;break}}}}}catch(e){}})();
+        var _locale='#{locale}';
         var _isHe=_locale==='he';
         if(_isHe){document.documentElement.setAttribute('dir','rtl');document.documentElement.setAttribute('lang','he')}
         function filterCampaigns(q){
@@ -524,7 +525,7 @@ class CampaignReportMiddleware
     HTML
   end
 
-  def render_detail_page(campaign, contact_results, not_sent)
+  def render_detail_page(campaign, contact_results, not_sent, locale='en')
     total = contact_results.size
     delivered = contact_results.count { |r| r[:status].to_s == "delivered" || r[:status].to_s == "read" }
     read_count = contact_results.count { |r| r[:status].to_s == "read" }
@@ -642,8 +643,7 @@ class CampaignReportMiddleware
         </div>
         </div>
         <script>
-        var _locale='en';
-        (function(){try{var k=Object.keys(localStorage);for(var i=0;i<k.length;i++){if(k[i].indexOf('user:locale')!==-1||k[i].indexOf('cw_d_')!==-1){var v=localStorage.getItem(k[i]);if(typeof v==='string'&&v.length===2){_locale=v;break}}}if(_locale==='en'){for(var i=0;i<k.length;i++){if(k[i].indexOf('_locale')!==-1){var v=localStorage.getItem(k[i]);if(v&&v.length===2){_locale=v;break}}}}}catch(e){}})();
+        var _locale='#{locale}';
         var _isHe=_locale==='he';
         if(_isHe){document.documentElement.setAttribute('dir','rtl');document.documentElement.setAttribute('lang','he')}
         var _exportData=#{export_json};

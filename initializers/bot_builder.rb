@@ -154,7 +154,7 @@ class BotBuilderMiddleware
 
   def list_page(ac, user=nil)
     bots = BotFlowStore.all.select{|b| ac.include?(b['account_id'])}
-    locale = (user.respond_to?(:locale) ? user.locale : nil) || 'en'
+    locale = begin; user&.account_users&.first&.account&.locale; rescue; nil end || 'en'
     [200, sh.merge('Content-Type'=>'text/html; charset=utf-8'), [list_html(bots, locale)]]
   end
 
@@ -306,7 +306,6 @@ class BotBuilderMiddleware
     "<div id='toast' class='toast'></div>" \
     "<script>" \
     "var _locale='#{locale}';" \
-    "(function(){if(_locale&&_locale!=='en')return;try{var k=Object.keys(localStorage);for(var i=0;i<k.length;i++){if(k[i].indexOf('user:locale')!==-1||k[i].indexOf('cw_d_')!==-1){var v=localStorage.getItem(k[i]);if(typeof v==='string'&&v.length===2){_locale=v;break}}}if(!_locale||_locale==='en'){for(var i=0;i<k.length;i++){if(k[i].indexOf('_locale')!==-1){var v=localStorage.getItem(k[i]);if(v&&v.length===2){_locale=v;break}}}}}catch(e){}})();" \
     "var _isHe=_locale==='he';" \
     "if(_isHe){document.documentElement.setAttribute('dir','rtl');document.documentElement.setAttribute('lang','he')}" \
     "(function(){if(!_isHe)return;" \
@@ -385,7 +384,7 @@ class BotBuilderMiddleware
 
   def editor_html(bot_id, user=nil)
     bid_js = bot_id ? "\"#{e(bot_id)}\"" : 'null'
-    locale = (user.respond_to?(:locale) ? user.locale : nil) || 'en'
+    locale = begin; user&.account_users&.first&.account&.locale; rescue; nil end || 'en'
     # Use single-quoted heredoc so Ruby doesn't interpret backslashes
     # All Hebrew text is actual UTF-8, emojis use HTML entities
     html = <<~'ENDHTML'
