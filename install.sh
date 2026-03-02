@@ -13,10 +13,27 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# Parse flags
+AUTO_YES=false
+for arg in "$@"; do
+    case "$arg" in
+        -y|--yes) AUTO_YES=true ;;
+    esac
+done
+
+confirm() {
+    if [ "$AUTO_YES" = true ]; then
+        return 0
+    fi
+    read -p "$1 [y/N] " -n 1 -r
+    echo ""
+    [[ $REPLY =~ ^[Yy]$ ]]
+}
+
 print_header() {
     echo ""
     echo -e "${BLUE}${BOLD}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}${BOLD}║   Chatwoot Addons Installer v1.0         ║${NC}"
+    echo -e "${BLUE}${BOLD}║   Chatwoot Addons Installer v1.1         ║${NC}"
     echo -e "${BLUE}${BOLD}║   Bot Builder + Campaign Report          ║${NC}"
     echo -e "${BLUE}${BOLD}╚══════════════════════════════════════════╝${NC}"
     echo ""
@@ -60,7 +77,6 @@ detect_containers() {
     SIDEKIQ_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E 'chatwoot.*sidekiq|sidekiq.*chatwoot' | head -1)
 
     if [ -z "$RAILS_CONTAINER" ]; then
-        # Try common names
         for name in "chatwoot-rails-1" "chatwoot_rails_1" "chatwoot-rails" "rails"; do
             if docker ps --format '{{.Names}}' | grep -q "^${name}$"; then
                 RAILS_CONTAINER="$name"
@@ -76,6 +92,63 @@ detect_containers() {
                 break
             fi
         done
+    fi
+}
+
+# Detect CSP configuration in reverse proxy
+detect_csp() {
+    local CSP_NEEDS_UPDATE=false
+    local CSP_LOCATION=""
+
+    # Check Caddy
+    if command -v caddy &> /dev/null; then
+        local CADDYFILE="/etc/caddy/Caddyfile"
+        if [ -f "$CADDYFILE" ] && grep -q "Content-Security-Policy" "$CADDYFILE" 2>/dev/null; then
+            if ! grep -q "cdn.jsdelivr.net" "$CADDYFILE" 2>/dev/null; then
+                CSP_NEEDS_UPDATE=true
+                CSP_LOCATION="Caddy ($CADDYFILE)"
+            fi
+        fi
+    fi
+
+    # Check Nginx
+    for conf in /etc/nginx/sites-enabled/* /etc/nginx/conf.d/*.conf; do
+        if [ -f "$conf" ] && grep -q "Content-Security-Policy" "$conf" 2>/dev/null; then
+            if ! grep -q "cdn.jsdelivr.net" "$conf" 2>/dev/null; then
+                CSP_NEEDS_UPDATE=true
+                CSP_LOCATION="Nginx ($conf)"
+            fi
+        fi
+    done 2>/dev/null
+
+    # Check Apache
+    for conf in /etc/apache2/sites-enabled/*.conf /etc/httpd/conf.d/*.conf; do
+        if [ -f "$conf" ] && grep -q "Content-Security-Policy" "$conf" 2>/dev/null; then
+            if ! grep -q "cdn.jsdelivr.net" "$conf" 2>/dev/null; then
+                CSP_NEEDS_UPDATE=true
+                CSP_LOCATION="Apache ($conf)"
+            fi
+        fi
+    done 2>/dev/null
+
+    if [ "$CSP_NEEDS_UPDATE" = true ]; then
+        echo ""
+        print_warning "Content Security Policy (CSP) detected in ${CSP_LOCATION}"
+        echo ""
+        echo -e "${YELLOW}  The Bot Builder loads JavaScript/CSS from external CDNs.${NC}"
+        echo -e "${YELLOW}  Your CSP must allow these domains, or the editor will not load.${NC}"
+        echo ""
+        echo -e "  Add these domains to your CSP header:"
+        echo ""
+        echo -e "    ${BOLD}script-src${NC}: add ${BOLD}https://cdn.jsdelivr.net https://unpkg.com${NC}"
+        echo -e "    ${BOLD}style-src${NC}:  add ${BOLD}https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com${NC}"
+        echo ""
+        echo -e "  Example for ${BOLD}Caddy${NC}:"
+        echo "    Content-Security-Policy \"... script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com; ...\""
+        echo ""
+        echo -e "  Example for ${BOLD}Nginx${NC}:"
+        echo "    add_header Content-Security-Policy \"... script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com; ...\" always;"
+        echo ""
     fi
 }
 
@@ -148,64 +221,53 @@ if detect_compose; then
         echo "      - ${INITIALIZERS_DIR}/custom_nav_widget.rb:/app/config/initializers/custom_nav_widget.rb:ro"
         echo ""
 
-        read -p "Would you like to auto-patch your docker-compose.yaml? [y/N] " -n 1 -r
-        echo ""
-
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
+        if confirm "Would you like to auto-patch your docker-compose file?"; then
             print_step "Backing up docker-compose file..."
             cp "$COMPOSE_FILE" "${COMPOSE_FILE}.backup.$(date +%Y%m%d%H%M%S)"
             print_success "Backup created"
 
             print_step "Patching docker-compose file..."
 
-            # Add volume mounts to services that have 'volumes:' section
-            VOLUME_LINES="      - ${INITIALIZERS_DIR}/bot_builder.rb:/app/config/initializers/bot_builder.rb:ro\n      - ${INITIALIZERS_DIR}/campaign_report_dashboard.rb:/app/config/initializers/campaign_report_dashboard.rb:ro\n      - ${INITIALIZERS_DIR}/custom_nav_widget.rb:/app/config/initializers/custom_nav_widget.rb:ro"
+            # Use sed-based patching to preserve original YAML formatting
+            MOUNT1="${INITIALIZERS_DIR}/bot_builder.rb:/app/config/initializers/bot_builder.rb:ro"
+            MOUNT2="${INITIALIZERS_DIR}/campaign_report_dashboard.rb:/app/config/initializers/campaign_report_dashboard.rb:ro"
+            MOUNT3="${INITIALIZERS_DIR}/custom_nav_widget.rb:/app/config/initializers/custom_nav_widget.rb:ro"
 
-            # Use Python for reliable YAML patching
-            python3 - "$COMPOSE_FILE" "$INITIALIZERS_DIR" <<'PYEOF'
-import sys, yaml
+            # Detect indentation from existing volume lines
+            INDENT=$(grep -m1 '^\s*- .*:/app/' "$COMPOSE_FILE" | sed 's/\(^[[:space:]]*\)- .*/\1/' || echo "      ")
 
-compose_file = sys.argv[1]
-init_dir = sys.argv[2]
+            PATCHED=false
+            # For each service with chatwoot image, find its volumes section and append mounts
+            while IFS= read -r service_line; do
+                service_name=$(echo "$service_line" | sed 's/:.*//' | xargs)
+                # Find the last volume line for this service's volumes section
+                LAST_VOL_LINE=$(awk -v svc="  ${service_name}:" '
+                    $0 ~ svc {found=1; next}
+                    found && /^  [a-zA-Z]/ {found=0}
+                    found && /volumes:/ {invol=1; next}
+                    invol && /^[[:space:]]*- / {lastline=NR}
+                    invol && !/^[[:space:]]*- / && !/^[[:space:]]*$/ {invol=0}
+                    END {print lastline}
+                ' "$COMPOSE_FILE")
 
-with open(compose_file, 'r') as f:
-    data = yaml.safe_load(f)
+                if [ -n "$LAST_VOL_LINE" ] && [ "$LAST_VOL_LINE" -gt 0 ]; then
+                    sed -i "${LAST_VOL_LINE}a\\
+${INDENT}- ${MOUNT1}\\
+${INDENT}- ${MOUNT2}\\
+${INDENT}- ${MOUNT3}" "$COMPOSE_FILE"
+                    print_success "Patched service: ${service_name}"
+                    PATCHED=true
+                fi
+            done < <(grep -B20 'chatwoot/chatwoot' "$COMPOSE_FILE" | grep -E '^  [a-zA-Z_-]+:' | tail -10)
 
-mounts = [
-    f"{init_dir}/bot_builder.rb:/app/config/initializers/bot_builder.rb:ro",
-    f"{init_dir}/campaign_report_dashboard.rb:/app/config/initializers/campaign_report_dashboard.rb:ro",
-    f"{init_dir}/custom_nav_widget.rb:/app/config/initializers/custom_nav_widget.rb:ro"
-]
-
-services = data.get('services', {})
-patched = []
-
-for name, svc in services.items():
-    # Only patch Rails-like services (rails, sidekiq, worker)
-    image = svc.get('image', '')
-    command = str(svc.get('command', ''))
-    if 'chatwoot' in image or 'rails' in command or 'sidekiq' in command or 'worker' in command:
-        if 'volumes' not in svc:
-            svc['volumes'] = []
-        existing = [v for v in svc['volumes'] if isinstance(v, str)]
-        for mount in mounts:
-            if mount not in existing:
-                svc['volumes'].append(mount)
-        patched.append(name)
-
-with open(compose_file, 'w') as f:
-    yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
-
-for name in patched:
-    print(f"  Patched service: {name}")
-PYEOF
-
-            if [ $? -eq 0 ]; then
-                print_success "Docker compose patched successfully"
+            if [ "$PATCHED" = true ]; then
+                print_success "Docker compose patched successfully (original formatting preserved)"
             else
-                print_warning "Auto-patch failed. Please add the volume mounts manually."
+                print_warning "Auto-patch could not find services to patch. Please add the volume mounts manually."
             fi
         fi
+    else
+        print_success "Volume mounts already configured"
     fi
 else
     print_warning "Could not find docker-compose file. Please add volume mounts manually."
@@ -217,13 +279,14 @@ else
     echo ""
 fi
 
+# Check CSP configuration
+print_step "Checking Content Security Policy..."
+detect_csp
+
 # Restart containers
 print_step "Restarting Chatwoot containers..."
 
-read -p "Restart containers now? This will cause brief downtime. [y/N] " -n 1 -r
-echo ""
-
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+if confirm "Restart containers now? This will cause brief downtime."; then
     if [ -n "$COMPOSE_FILE" ]; then
         COMPOSE_DIR=$(dirname "$COMPOSE_FILE")
         cd "$COMPOSE_DIR"

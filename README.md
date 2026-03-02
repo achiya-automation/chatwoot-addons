@@ -83,15 +83,19 @@ Both are injected as Rack middleware via Docker volume mounts. They run alongsid
 git clone https://github.com/achiya-automation/chatwoot-addons.git
 cd chatwoot-addons
 
-# Run the installer
+# Run the installer (interactive)
 sudo bash install.sh
+
+# Or non-interactive (auto-approve all prompts)
+sudo bash install.sh --yes
 ```
 
 The installer will:
 1. Detect your Chatwoot Docker containers
 2. Copy addon files to the custom initializers directory
-3. Optionally patch your `docker-compose.yaml` with volume mounts
-4. Restart Chatwoot
+3. Optionally patch your `docker-compose.yaml`/`docker-compose.yml` with volume mounts
+4. Check for CSP (Content Security Policy) issues and show fix instructions
+5. Restart Chatwoot
 
 ### Manual Installation
 
@@ -108,7 +112,7 @@ cp initializers/campaign_report_dashboard.rb /opt/chatwoot/custom-initializers/
 cp initializers/custom_nav_widget.rb /opt/chatwoot/custom-initializers/
 ```
 
-**2. Add volume mounts** to your `docker-compose.yaml` for the `rails`, `sidekiq`, and `worker` services:
+**2. Add volume mounts** to your `docker-compose.yaml` (or `docker-compose.yml`) for the `rails`, `sidekiq`, and `worker` services:
 
 ```yaml
 volumes:
@@ -129,6 +133,54 @@ docker compose restart
 - Campaign Report: `https://your-chatwoot.com/campaign-report`
 
 Both require a logged-in Chatwoot session.
+
+### ⚠️ Content Security Policy (CSP)
+
+If your reverse proxy (Nginx, Caddy, Apache) sets a `Content-Security-Policy` header, you **must** allow the CDN domains used by the addons. Without this, the Bot Builder editor will not load.
+
+Add these domains to your CSP header:
+
+| Directive | Add these domains |
+|-----------|-------------------|
+| `script-src` | `https://cdn.jsdelivr.net https://unpkg.com` |
+| `style-src` | `https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com` |
+
+<details>
+<summary><strong>Caddy example</strong></summary>
+
+```
+header {
+    Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' wss: https:; frame-ancestors 'self'"
+}
+```
+
+After editing, reload Caddy: `sudo systemctl reload caddy`
+
+</details>
+
+<details>
+<summary><strong>Nginx example</strong></summary>
+
+```nginx
+add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' wss: https:; frame-ancestors 'self'" always;
+```
+
+After editing, reload Nginx: `sudo nginx -t && sudo systemctl reload nginx`
+
+</details>
+
+<details>
+<summary><strong>Apache example</strong></summary>
+
+```apache
+Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' wss: https:; frame-ancestors 'self'"
+```
+
+</details>
+
+> **Note:** If you don't have a CSP header configured, you can skip this step. The addons include automatic CDN fallback (jsdelivr → unpkg) for resilience.
+
+> **How to check:** Open your Chatwoot URL in a browser, open DevTools (F12) → Network tab → click the first request → check Response Headers for `Content-Security-Policy`.
 
 ## 🏗 Architecture
 

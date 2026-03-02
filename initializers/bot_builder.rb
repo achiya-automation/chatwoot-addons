@@ -222,7 +222,7 @@ class BotBuilderMiddleware
     "<!DOCTYPE html><html dir='ltr' lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>" \
     "<title>Bot Builder | Chatwoot</title>" \
     "<link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap' rel='stylesheet'>" \
-    "<link href='https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css' rel='stylesheet'>" \
+    "<link href='https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css' rel='stylesheet' onerror=\"this.onerror=null;this.href=this.href.replace('cdn.jsdelivr.net/npm','unpkg.com')\">" \
     "<style>" \
     ":root{--bg-app:#F8F9FB;--bg-card:#FFFFFF;--bg-surface:#FFFFFF;--border-weak:#E2E4E9;--border-strong:#D1D5DB;--text-12:#111827;--text-11:#4B5563;--text-10:#6B7280;--text-9:#9CA3AF;--btn-bg:#FFFFFF;--overlay:rgba(0,0,0,.08);--label-bg:#F3F4F6;--card-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.04);--card-hover-shadow:0 2px 8px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.06)}" \
     "body.dark{--bg-app:#0F0F14;--bg-card:#1A1B24;--bg-surface:#111118;--border-weak:rgba(255,255,255,.06);--border-strong:rgba(255,255,255,.1);--text-12:#F1F2F6;--text-11:#A1A6B4;--text-10:#6B7280;--text-9:#4B5563;--btn-bg:#1C1E28;--overlay:rgba(0,0,0,.4);--label-bg:#1C1E28;--card-shadow:0 2px 8px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.2);--card-hover-shadow:0 4px 12px rgba(0,0,0,.35),0 12px 36px rgba(0,0,0,.25)}" \
@@ -392,9 +392,9 @@ class BotBuilderMiddleware
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bot Editor | Chatwoot</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" rel="stylesheet" onerror="this.onerror=null;this.href=this.href.replace('cdn.jsdelivr.net/npm','unpkg.com')">
+<link href="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.css" rel="stylesheet" onerror="this.onerror=null;this.href=this.href.replace('cdn.jsdelivr.net/npm','unpkg.com')">
+<script src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js" onerror="var s=document.createElement('script');s.src=this.src.replace('cdn.jsdelivr.net/npm','unpkg.com');document.head.appendChild(s)"></script>
 <style>
 /* === THEME VARIABLES (Premium v2) === */
 :root{
@@ -1032,7 +1032,7 @@ body.dark .nb select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http
   <div class="ctx-item ctx-del" data-act="delete"><i class="ti ti-trash"></i> Delete<span class="ks">Del</span></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.js" onerror="var s=document.createElement('script');s.src=this.src.replace('cdn.jsdelivr.net/npm','unpkg.com');s.onload=function(){document.dispatchEvent(new Event('drawflow-ready'))};document.head.appendChild(s)"></script>
 <script>
 var BOT_ID = __BOT_ID__;
 var LOCALE = __LOCALE__;

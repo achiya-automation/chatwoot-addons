@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0] - 2026-03-02
+
+### Fixed
+- CDN resilience: added automatic fallback from jsdelivr to unpkg for all external scripts and stylesheets
+- Install script: replaced PyYAML-based docker-compose patching with sed-based approach to preserve original YAML formatting
+
+### Added
+- Install script: `--yes` / `-y` flag for non-interactive (CI/SSH) installations
+- Install script: automatic CSP (Content Security Policy) detection and fix instructions
+- README: comprehensive CSP configuration section with examples for Caddy, Nginx, and Apache
+
+### Changed
+- Install script version bumped to v1.1
+
 ## [1.0.0] - 2026-03-01
 
 ### Added
