@@ -116,13 +116,20 @@ class BotBuilderMiddleware
       end
     when %r{^/bot-builder/api/bots/(\w+)$}
       id=$1
-      return jr(BotFlowStore.find(id)||{error:1}) if req.get?
+      if req.get?
+        b=BotFlowStore.find(id); return jr({error:1}) unless b
+        return jr({error:'forbidden'},403) unless ac.include?(b['account_id'])
+        return jr(b)
+      end
       if req.request_method=='DELETE'
+        b=BotFlowStore.find(id); return jr({error:1}) unless b
+        return jr({error:'forbidden'},403) unless ac.include?(b['account_id'])
         BotFlowStore.delete(id); return jr({ok:1})
       end
     when %r{^/bot-builder/api/bots/(\w+)/toggle$}
       if req.post?
         b=BotFlowStore.find($1); return jr({error:1}) unless b
+        return jr({error:'forbidden'},403) unless ac.include?(b['account_id'])
         b['active']=!b['active']; return jr(BotFlowStore.save(b))
       end
     when '/bot-builder/api/inboxes'
@@ -362,11 +369,13 @@ class BotBuilderMiddleware
     "if(diff<604800){var dy=Math.floor(diff/86400);return isHe?'\\u05DC\\u05E4\\u05E0\\u05D9 '+dy+' \\u05D9\\u05DE\\u05D9\\u05DD':dy+'d ago'}" \
     "if(diff<2592000){var w=Math.floor(diff/604800);return isHe?'\\u05DC\\u05E4\\u05E0\\u05D9 '+w+' \\u05E9\\u05D1\\u05D5\\u05E2\\u05D5\\u05EA':w+'w ago'}" \
     "var mo=Math.floor(diff/2592000);return isHe?'\\u05DC\\u05E4\\u05E0\\u05D9 '+mo+' \\u05D7\\u05D5\\u05D3\\u05E9\\u05D9\\u05DD':mo+'mo ago'}" \
-    "document.querySelectorAll('.bc').forEach(function(card){" \
+    "function _updateRelTimes(){document.querySelectorAll('.bc').forEach(function(card){" \
     "var upd=card.getAttribute('data-updated');if(!upd)return;" \
     "var timeEl=card.querySelector('.bc-time');if(!timeEl)return;" \
     "timeEl.innerHTML='<i class=\"ti ti-clock\"></i> '+relativeTime(upd,_isHe);timeEl.title=upd;" \
-    "});" \
+    "})}" \
+    "_updateRelTimes();" \
+    "setInterval(_updateRelTimes,60000);" \
     "document.addEventListener('click',function(e){" \
     "if(e.target.closest('.bc-link'))return;" \
     "var t=e.target.closest('[data-tid]');if(t){e.preventDefault();e.stopPropagation();fetch('/bot-builder/api/bots/'+t.getAttribute('data-tid')+'/toggle',{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){if(r.ok)location.reload()});return}" \
@@ -418,8 +427,9 @@ class BotBuilderMiddleware
     "cards.forEach(function(c){grid.appendChild(c)});" \
     "}" \
     "if(sortEl){" \
-    "var sv=localStorage.getItem('bb-sort');if(sv){sortEl.value=sv;doSort(sv)}" \
-    "sortEl.addEventListener('change',function(){var v=this.value;localStorage.setItem('bb-sort',v);doSort(v)});" \
+    "var _bbSortKey='bb-sort-'+window.location.pathname.replace(/[^a-z0-9]/gi,'');" \
+    "var sv=localStorage.getItem(_bbSortKey);if(sv){sortEl.value=sv;doSort(sv)}" \
+    "sortEl.addEventListener('change',function(){var v=this.value;localStorage.setItem(_bbSortKey,v);doSort(v)});" \
     "}" \
     "</script></body></html>"
   end
@@ -979,9 +989,9 @@ body.dark .nb select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http
         <div class="dn dn-ye" draggable="true" data-node="condition" title="Condition"><i class="ti ti-git-branch"></i><span class="dn-label">Condition</span></div>
         <div class="dn dn-dl" draggable="true" data-node="delay" title="Delay"><i class="ti ti-clock-pause"></i><span class="dn-label">Delay</span></div>
         <div class="dn dn-nt" draggable="true" data-node="note" title="Internal Note"><i class="ti ti-note"></i><span class="dn-label">Internal Note</span></div>
-        <div class="dn dn-wr" draggable="true" data-node="wait_reply" title="Wait for Reply"><i class="ti ti-message-question"></i><span class="dn-label">Wait for Reply</span></div>
-        <div class="dn dn-ab" draggable="true" data-node="ab_split" title="A/B Split"><i class="ti ti-arrows-split-2"></i><span class="dn-label">A/B Split</span></div>
-        <div class="dn dn-go" draggable="true" data-node="goto_step" title="Go to Step"><i class="ti ti-arrow-back-up"></i><span class="dn-label">Go to Step</span></div>
+        <div class="dn dn-wr" draggable="true" data-node="wait_reply" title="Wait for Reply"><i class="ti ti-message-question"></i><span class="dn-label">Wait for Reply</span><span style="font-size:9px;background:rgba(202,138,4,.15);color:#CA8A04;padding:1px 5px;border-radius:4px;margin-left:auto">Soon</span></div>
+        <div class="dn dn-ab" draggable="true" data-node="ab_split" title="A/B Split"><i class="ti ti-arrows-split-2"></i><span class="dn-label">A/B Split</span><span style="font-size:9px;background:rgba(202,138,4,.15);color:#CA8A04;padding:1px 5px;border-radius:4px;margin-left:auto">Soon</span></div>
+        <div class="dn dn-go" draggable="true" data-node="goto_step" title="Go to Step"><i class="ti ti-arrow-back-up"></i><span class="dn-label">Go to Step</span><span style="font-size:9px;background:rgba(202,138,4,.15);color:#CA8A04;padding:1px 5px;border-radius:4px;margin-left:auto">Soon</span></div>
       </div>
       <div class="sec" style="--sec-color:#27ae60"><div class="sec-t" style="--sec-color:#27ae60"><span class="dn-label">Actions</span></div>
         <div class="dn dn-gr" draggable="true" data-node="assign" title="Assign to Agent"><i class="ti ti-user"></i><span class="dn-label">Assign to Agent</span></div>
@@ -995,7 +1005,7 @@ body.dark .nb select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http
       </div>
       <div class="sec" style="--sec-color:#3498db"><div class="sec-t" style="--sec-color:#3498db"><span class="dn-label">Integrations</span></div>
         <div class="dn dn-wb" draggable="true" data-node="webhook" title="Webhook"><i class="ti ti-webhook"></i><span class="dn-label">Webhook</span></div>
-        <div class="dn dn-api" draggable="true" data-node="api_action" title="API Action"><i class="ti ti-cloud-computing"></i><span class="dn-label">API Action</span></div>
+        <div class="dn dn-api" draggable="true" data-node="api_action" title="API Action"><i class="ti ti-cloud-computing"></i><span class="dn-label">API Action</span><span style="font-size:9px;background:rgba(202,138,4,.15);color:#CA8A04;padding:1px 5px;border-radius:4px;margin-left:auto">Soon</span></div>
       </div>
     </div>
   </div>
@@ -1500,10 +1510,10 @@ function nHtml(t){
     set_priority:'<div><div class="nh nh-sp"><i class="ti ti-flag"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.priority_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.priority_label+'</label><select df-priority><option value="">'+L.select+'</option><option value="0">'+L.low+'</option><option value="1">'+L.medium+'</option><option value="2">'+L.high+'</option><option value="3">'+L.urgent+'</option></select></div><div class="node-preview"></div>'+olbNext+'</div>',
     set_status:'<div><div class="nh nh-ss"><i class="ti ti-toggle-right"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.status_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.status_label+'</label><select df-status><option value="">'+L.select+'</option><option value="open">'+L.open+'</option><option value="resolved">'+L.resolved+'</option><option value="pending">'+L.pending+'</option></select></div><div class="node-preview"></div>'+olbNext+'</div>',
     transfer_inbox:'<div><div class="nh nh-ti"><i class="ti ti-transfer"></i><div class="nh-text"><span class="nh-cat">'+L.action_cat+'</span><span class="nh-title">'+L.transfer_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.inbox_label+'</label><select df-inbox_id class="ibsel"><option value="">'+L.select+'</option></select></div><div class="node-preview"></div>'+olbNext+'</div>',
-    wait_reply:'<div><div class="nh nh-wr"><i class="ti ti-message-question"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">'+L.wait_reply_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.save_var+'</label><input type="text" df-variable placeholder="reply_text" style="direction:ltr"><label>'+L.timeout_sec+'</label><input type="number" df-timeout_seconds value="300" min="10" max="86400"><label>'+L.timeout_msg+'</label><textarea df-timeout_message placeholder="'+L.no_reply+'" rows="2"></textarea></div><div class="node-preview"></div><div class="olb"><div><i class="ti ti-message-check" style="font-size:10px;color:#16A34A"></i> '+L.reply_received+' <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><i class="ti ti-clock-x" style="font-size:10px;color:#DC2626"></i> '+(isHe?'Timeout':' Timeout')+' <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
-    api_action:'<div><div class="nh nh-api"><i class="ti ti-cloud-computing"></i><div class="nh-text"><span class="nh-cat">'+L.integration_cat+'</span><span class="nh-title">API Action</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+(isHe?'\u05DE\u05EA\u05D5\u05D3\u05D4':'Method')+'</label><select df-method><option value="GET">GET</option><option value="POST">POST</option><option value="PUT">PUT</option><option value="PATCH">PATCH</option><option value="DELETE">DELETE</option></select><label>URL</label><input type="text" df-url placeholder="https://api.example.com/..." style="direction:ltr"><label>'+(isHe?'\u05DB\u05D5\u05EA\u05E8\u05D5\u05EA (JSON)':'Headers (JSON)')+'</label><textarea df-headers placeholder=\'{"Authorization":"Bearer ..."}\' rows="2" style="direction:ltr"></textarea><label>'+(isHe?'\u05D2\u05D5\u05E3 (JSON)':'Body (JSON)')+'</label><textarea df-body placeholder=\'{"key":"value"}\' rows="2" style="direction:ltr"></textarea><label>'+L.save_response+'</label><input type="text" df-save_response placeholder="api_result" style="direction:ltr"></div><div class="node-preview"></div><div class="olb"><div><i class="ti ti-check" style="font-size:10px;color:#16A34A"></i> '+L.success+' <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><i class="ti ti-x" style="font-size:10px;color:#DC2626"></i> '+L.error+' <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
-    ab_split:'<div><div class="nh nh-ab"><i class="ti ti-arrows-split-2"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">A/B Split</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.test_name+'</label><input type="text" df-name placeholder="'+L.test_ph+'"><label>'+L.split_pct+'</label><input type="number" df-split_a value="50" min="1" max="99"></div><div class="node-preview"></div><div class="olb"><div><span style="font-weight:600;color:#6366f1">A</span> <span class="olb-pct">50%</span> <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><span style="font-weight:600;color:#a855f7">B</span> <span class="olb-pct">50%</span> <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
-    goto_step:'<div><div class="nh nh-go"><i class="ti ti-arrow-back-up"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">'+L.goto_title+'</span></div>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.target_node+'</label><select df-target_node class="goto-sel"><option value="">'+L.select_node+'</option></select></div><div class="node-preview"></div></div>'
+    wait_reply:'<div><div class="nh nh-wr"><i class="ti ti-message-question"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">'+L.wait_reply_title+'</span></div><span style="font-size:9px;background:rgba(202,138,4,.15);color:#CA8A04;padding:1px 5px;border-radius:4px;white-space:nowrap">&#9888; Soon</span>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.save_var+'</label><input type="text" df-variable placeholder="reply_text" style="direction:ltr"><label>'+L.timeout_sec+'</label><input type="number" df-timeout_seconds value="300" min="10" max="86400"><label>'+L.timeout_msg+'</label><textarea df-timeout_message placeholder="'+L.no_reply+'" rows="2"></textarea></div><div class="node-preview"></div><div class="olb"><div><i class="ti ti-message-check" style="font-size:10px;color:#16A34A"></i> '+L.reply_received+' <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><i class="ti ti-clock-x" style="font-size:10px;color:#DC2626"></i> '+(isHe?'Timeout':' Timeout')+' <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
+    api_action:'<div><div class="nh nh-api"><i class="ti ti-cloud-computing"></i><div class="nh-text"><span class="nh-cat">'+L.integration_cat+'</span><span class="nh-title">API Action</span></div><span style="font-size:9px;background:rgba(202,138,4,.15);color:#CA8A04;padding:1px 5px;border-radius:4px;white-space:nowrap">&#9888; Soon</span>'+tgl+'</div><div class="nb nb-collapsible"><label>'+(isHe?'\u05DE\u05EA\u05D5\u05D3\u05D4':'Method')+'</label><select df-method><option value="GET">GET</option><option value="POST">POST</option><option value="PUT">PUT</option><option value="PATCH">PATCH</option><option value="DELETE">DELETE</option></select><label>URL</label><input type="text" df-url placeholder="https://api.example.com/..." style="direction:ltr"><label>'+(isHe?'\u05DB\u05D5\u05EA\u05E8\u05D5\u05EA (JSON)':'Headers (JSON)')+'</label><textarea df-headers placeholder=\'{"Authorization":"Bearer ..."}\' rows="2" style="direction:ltr"></textarea><label>'+(isHe?'\u05D2\u05D5\u05E3 (JSON)':'Body (JSON)')+'</label><textarea df-body placeholder=\'{"key":"value"}\' rows="2" style="direction:ltr"></textarea><label>'+L.save_response+'</label><input type="text" df-save_response placeholder="api_result" style="direction:ltr"></div><div class="node-preview"></div><div class="olb"><div><i class="ti ti-check" style="font-size:10px;color:#16A34A"></i> '+L.success+' <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><i class="ti ti-x" style="font-size:10px;color:#DC2626"></i> '+L.error+' <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
+    ab_split:'<div><div class="nh nh-ab"><i class="ti ti-arrows-split-2"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">A/B Split</span></div><span style="font-size:9px;background:rgba(202,138,4,.15);color:#CA8A04;padding:1px 5px;border-radius:4px;white-space:nowrap">&#9888; Soon</span>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.test_name+'</label><input type="text" df-name placeholder="'+L.test_ph+'"><label>'+L.split_pct+'</label><input type="number" df-split_a value="50" min="1" max="99"></div><div class="node-preview"></div><div class="olb"><div><span style="font-weight:600;color:#6366f1">A</span> <span class="olb-pct">50%</span> <i class="ti '+ARR+'" style="font-size:10px"></i></div><div><span style="font-weight:600;color:#a855f7">B</span> <span class="olb-pct">50%</span> <i class="ti '+ARR+'" style="font-size:10px"></i></div></div></div>',
+    goto_step:'<div><div class="nh nh-go"><i class="ti ti-arrow-back-up"></i><div class="nh-text"><span class="nh-cat">'+L.logic_cat+'</span><span class="nh-title">'+L.goto_title+'</span></div><span style="font-size:9px;background:rgba(202,138,4,.15);color:#CA8A04;padding:1px 5px;border-radius:4px;white-space:nowrap">&#9888; Soon</span>'+tgl+'</div><div class="nb nb-collapsible"><label>'+L.target_node+'</label><select df-target_node class="goto-sel"><option value="">'+L.select_node+'</option></select></div><div class="node-preview"></div></div>'
   };
   return h[t]||'<div>???</div>';
 }
@@ -1530,9 +1540,12 @@ function toggleNodeCollapse(btn){
   if(nodeEl){
     var nid=nodeEl.id;
     var done=false;
+    // Clear any previous interval on this element to prevent leaks
+    if(nodeEl._collapseIv){clearInterval(nodeEl._collapseIv);nodeEl._collapseIv=null}
     // Continuous updates during transition for smooth wire following
     var iv=setInterval(function(){editor.updateConnectionNodes(nid)},30);
-    var finish=function(){if(done)return;done=true;clearInterval(iv);editor.updateConnectionNodes(nid)};
+    nodeEl._collapseIv=iv;
+    var finish=function(){if(done)return;done=true;clearInterval(iv);nodeEl._collapseIv=null;editor.updateConnectionNodes(nid)};
     nb.addEventListener('transitionend',function handler(e){
       if(e.propertyName==='max-height'){nb.removeEventListener('transitionend',handler);finish()}
     });
@@ -2032,10 +2045,9 @@ function importFlow(inp){
     try{
       var d=JSON.parse(ev.target.result);
       if(!d.drawflow){toast(L.invalid_file,'err');return}
-      pushUndo();
-      isUndoing=true; // Suppress pushUndo from nodeCreated events during import
+      pushUndo(); // capture pre-import state
       editor.import(d);
-      setTimeout(function(){isUndoing=false;popSelects();updStats();addAllNodeActions();upgradeLoadedNodes();updateAllSummaries();addConnHitAreas();pushUndo()},200);
+      setTimeout(function(){popSelects();updStats();addAllNodeActions();upgradeLoadedNodes();updateAllSummaries();addConnHitAreas();pushUndo()},200);
       markDirty();
       toast(L.flow_imported,'ok');
     }catch(ex){toast(L.file_read_err,'err')}
@@ -2074,6 +2086,7 @@ document.getElementById('savebtn').addEventListener('click',function(){
       document.getElementById('st-u').textContent=isHe?'\u05D4\u05E8\u05D2\u05E2':'Just now';
       toast(isHe?'\u05D4\u05D1\u05D5\u05D8 \u05E0\u05E9\u05DE\u05E8 \u05D1\u05D4\u05E6\u05DC\u05D7\u05D4!':'Bot saved successfully!','ok');markSaved();
       if(BOT_ID)try{localStorage.removeItem('bot-draft-'+BOT_ID)}catch(ex){}
+      try{localStorage.removeItem('bb-draft-new')}catch(ex){}
     }).catch(function(err){toast(err&&err.name==='AbortError'?(isHe?'\u05D4\u05E9\u05DE\u05D9\u05E8\u05D4 \u05E0\u05DB\u05E9\u05DC\u05D4 \u2014 timeout. \u05D4\u05D8\u05D9\u05D5\u05D8\u05D4 \u05E0\u05E9\u05DE\u05E8\u05D4 \u05DE\u05E7\u05D5\u05DE\u05D9\u05EA':'Save failed \u2014 timeout. Draft preserved locally.'):(isHe?'\u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05E9\u05DE\u05D9\u05E8\u05D4 \u2014 \u05D4\u05D8\u05D9\u05D5\u05D8\u05D4 \u05E0\u05E9\u05DE\u05E8\u05D4 \u05DE\u05E7\u05D5\u05DE\u05D9\u05EA':'Error saving \u2014 draft preserved locally'),'err')})
     .finally(function(){saving=false;btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> '+(isHe?'\u05E9\u05DE\u05D5\u05E8':'Save')});
 });
@@ -2137,7 +2150,12 @@ function markSaved(){
 window.addEventListener('beforeunload',function(e){if(hasUnsavedChanges){e.preventDefault();e.returnValue=''}});
 // Auto-save draft to localStorage every 30s
 setInterval(function(){
-  if(!hasUnsavedChanges||!BOT_ID)return;
+  if(!hasUnsavedChanges)return;
+  if(!BOT_ID){
+    // Save draft for new unsaved bots
+    try{localStorage.setItem('bb-draft-new',JSON.stringify({flow:editor.export(),name:document.getElementById('bname').value,ts:Date.now()}))}catch(ex){}
+    return;
+  }
   try{
     localStorage.setItem('bot-draft-'+BOT_ID,JSON.stringify({flow:editor.export(),name:document.getElementById('bname').value,ts:Date.now()}));
     var si=document.getElementById('save-ind');
@@ -2209,6 +2227,7 @@ dfEl.addEventListener('wheel',function(){
 });
 
 // Add invisible wider hit-area paths to connections for easier clicking
+// Uses event delegation to avoid listener accumulation
 function addConnHitAreas(){
   var paths=dfEl.querySelectorAll('.connection .main-path');
   for(var i=0;i<paths.length;i++){
@@ -2218,12 +2237,18 @@ function addConnHitAreas(){
     hp.setAttribute('class','hit-path');
     hp.style.cssText='stroke-width:16;stroke:transparent;fill:none;pointer-events:stroke;cursor:pointer;opacity:0';
     p.parentNode.insertBefore(hp,p);
-    hp.addEventListener('click',function(ev){
-      var mp=this.nextElementSibling;
+  }
+  // Set up event delegation once
+  if(!dfEl._connClickHandler){
+    dfEl._connClickHandler=function(e){
+      var hp=e.target;
+      if(!hp.classList||!hp.classList.contains('hit-path'))return;
+      var mp=hp.nextElementSibling;
       if(mp&&mp.classList.contains('main-path')){
-        mp.dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:ev.clientX,clientY:ev.clientY}));
+        mp.dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:e.clientX,clientY:e.clientY}));
       }
-    });
+    };
+    dfEl.addEventListener('click',dfEl._connClickHandler);
   }
 }
 // Run on load + after undo/redo
@@ -2387,9 +2412,20 @@ function getSelectedNodeId(){
   return null;
 }
 
+function countNodeConnections(nid){
+  var d=editor.export().drawflow.Home.data;var nd=d[nid];if(!nd)return 0;
+  var cnt=0;
+  for(var o in nd.outputs){cnt+=(nd.outputs[o].connections||[]).length}
+  for(var i in nd.inputs){cnt+=(nd.inputs[i].connections||[]).length}
+  return cnt;
+}
 function deleteSelected(){
   var id=getSelectedNodeId();
-  if(id){deselectConn();editor.removeNodeId('node-'+id);selectedNodeId=null;hideNodeProps()}
+  if(id){
+    var conns=countNodeConnections(id);
+    if(conns>2&&!confirm(isHe?'\u05DC\u05DE\u05D7\u05D5\u05E7 \u05E6\u05D5\u05DE\u05EA \u05E2\u05DD '+conns+' \u05D7\u05D9\u05D1\u05D5\u05E8\u05D9\u05DD?':'Delete node with '+conns+' connections?'))return;
+    deselectConn();editor.removeNodeId('node-'+id);selectedNodeId=null;hideNodeProps()
+  }
 }
 
 function duplicateSelected(){
@@ -2661,7 +2697,7 @@ function deselectAll(){
   hideNodeProps();
   selectedNodeType=null;clearNodeSelection();
 }
-function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 
 // ===== CONTEXT MENU =====
 var ctxMenu=document.getElementById('ctx-menu');
@@ -2819,6 +2855,9 @@ function _doAutoAlign(){
   var data=editor.export();
   var d=data.drawflow.Home.data;
   var keys=Object.keys(d);if(!keys.length)return;
+  // Capture positions before alignment to detect actual changes
+  var _preAlignPos={};
+  for(var pi=0;pi<keys.length;pi++){_preAlignPos[keys[pi]]={x:d[keys[pi]].pos_x,y:d[keys[pi]].pos_y}}
 
   // Build undirected adjacency for component detection
   var adj={};
@@ -3003,7 +3042,14 @@ function _doAutoAlign(){
     fitToScreen();
   },500);
 
-  markDirty();
+  // Only mark dirty if positions actually changed
+  var _postData=editor.export().drawflow.Home.data;
+  var _posChanged=false;
+  for(var pci=0;pci<keys.length;pci++){
+    var _pre=_preAlignPos[keys[pci]];
+    if(_pre&&(_pre.x!==_postData[keys[pci]].pos_x||_pre.y!==_postData[keys[pci]].pos_y)){_posChanged=true;break}
+  }
+  if(_posChanged)markDirty();
   toast(isHe?'\u05D4\u05E0\u05D5\u05D3\u05D9\u05DD \u05E1\u05D5\u05D3\u05E8\u05D5':'Nodes aligned','ok');
 }
 
@@ -3259,6 +3305,9 @@ var mmCtx=mmCanvas?mmCanvas.getContext('2d'):null;
 var mmColors={trigger:'#ff6b35',message:'#6366F1',image:'#2ecc71',video:'#6c5ce7',buttons:'#00b894',menu:'#9b59b6',condition:'#f1c40f',delay:'#8e44ad',assign:'#27ae60',add_label:'#00b894',remove_label:'#00b894',set_attribute:'#e67e22',close:'#e74c3c',webhook:'#3498db',note:'#95a5a6',set_priority:'#f1c40f',set_status:'#6366F1',transfer_inbox:'#9b59b6'};
 function updateMinimap(){
   if(!mmCtx)return;
+  // Sync canvas resolution with CSS layout size
+  var _cw=mmCanvas.offsetWidth,_ch=mmCanvas.offsetHeight;
+  if(_cw>0&&_ch>0&&(mmCanvas.width!==_cw||mmCanvas.height!==_ch)){mmCanvas.width=_cw;mmCanvas.height=_ch}
   var d=editor.export().drawflow.Home.data;
   var keys=Object.keys(d);
   mmCtx.clearRect(0,0,mmCanvas.width,mmCanvas.height);
@@ -3310,6 +3359,21 @@ if(mmCanvas){
 // ===== INIT =====
 loadMeta().then(function(){
   if(BOT_ID)return loadBot(BOT_ID);
+  // New bot: check for unsaved draft
+  if(!BOT_ID){
+    try{
+      var draft=localStorage.getItem('bb-draft-new');
+      if(draft){
+        var dd=JSON.parse(draft);
+        if(confirm(isHe?'\u05E0\u05DE\u05E6\u05D0 \u05D8\u05D9\u05D5\u05D8\u05D4 \u05E9\u05DC\u05D0 \u05E0\u05E9\u05DE\u05E8\u05D4. \u05DC\u05E9\u05D7\u05D6\u05E8?':'Unsaved draft found. Restore?')){
+          if(dd.flow){editor.import(dd.flow);setTimeout(function(){popSelects();updStats();addAllNodeActions();upgradeLoadedNodes();updateAllSummaries();addConnHitAreas()},200)}
+          if(dd.name)document.getElementById('bname').value=dd.name;
+          markDirty();
+        }
+        localStorage.removeItem('bb-draft-new');
+      }
+    }catch(ex){}
+  }
 }).then(function(){
   var cl=document.getElementById('canvas-loading');if(cl)cl.classList.add('done');
   updUndoState();
@@ -3648,6 +3712,14 @@ Rails.application.config.after_initialize do
             conv.update!(inbox_id:ib.id) if ib
           end
           run(n,fd,conv,bot,'output_1',depth)
+        else
+          Rails.logger.warn("[BotEngine] Unknown/unimplemented node type: #{n['name']} in bot #{bot['id']}")
+          # Follow first output connection to continue flow
+          first_out = n.dig('outputs','output_1','connections')
+          if first_out&.any?
+            nx = fd[first_out.first['node']]
+            exec_node(nx, fd, conv, bot, depth+1) if nx
+          end
         end
       end
 
@@ -3693,6 +3765,10 @@ Rails.application.config.after_initialize do
 
       def img(conv, url, cap)
         return if url.to_s.strip.empty?
+        if BotEngine.ssrf_blocked?(url)
+          Rails.logger.warn("[BotEngine] SSRF blocked image download: #{url}")
+          return
+        end
         m=conv.messages.create!(message_type: :outgoing, content:interp(cap.to_s,conv), account_id:conv.account_id, inbox_id:conv.inbox_id, content_attributes:{'bot_response'=>true})
         begin
           f=Down.download(url, max_size:10*1024*1024)
@@ -3703,6 +3779,10 @@ Rails.application.config.after_initialize do
 
       def vid(conv, url, cap)
         return if url.to_s.strip.empty?
+        if BotEngine.ssrf_blocked?(url)
+          Rails.logger.warn("[BotEngine] SSRF blocked video download: #{url}")
+          return
+        end
         m=conv.messages.create!(message_type: :outgoing, content:interp(cap.to_s,conv), account_id:conv.account_id, inbox_id:conv.inbox_id, content_attributes:{'bot_response'=>true})
         begin
           f=Down.download(url, max_size:40*1024*1024)

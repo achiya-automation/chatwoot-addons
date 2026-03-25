@@ -51,11 +51,11 @@ class CustomNavWidgetMiddleware
       .cw-panel{position:fixed;left:0;top:0;width:220px;height:100vh;background:#FEFEFE;border-right:1px solid #E8E9ED;z-index:99998;transform:translateX(-220px);transition:transform 280ms cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;padding:0;font-family:'Inter',-apple-system,system-ui,sans-serif;box-shadow:4px 0 24px rgba(0,0,0,.06),12px 0 40px rgba(0,0,0,.03)}
       .cw-panel:focus-within{transform:translateX(0)}
       .cw-panel.open{transform:translateX(0)}
-      .cw-panel-hdr{padding:18px 16px 14px;border-bottom:1px solid #E8E9ED;display:flex;align-items:center;gap:10px;direction:ltr}
+      .cw-panel-hdr{padding:18px 16px 14px;border-bottom:1px solid #E8E9ED;display:flex;align-items:center;gap:10px}
       .cw-panel-hdr svg{width:20px;height:20px;flex-shrink:0}
       .cw-panel-hdr span{font-size:13px;font-weight:600;color:#60646C;letter-spacing:-.01em}
       .cw-panel-nav{flex:1;padding:8px 0;overflow-y:auto}
-      .cw-panel-item{display:flex;align-items:center;gap:12px;padding:10px 16px;color:#60646C;text-decoration:none;font-size:14px;font-weight:500;transition:background .15s,color .15s,border-color .15s;direction:ltr;border-left:3px solid transparent;position:relative;outline:none}
+      .cw-panel-item{display:flex;align-items:center;gap:12px;padding:10px 16px;color:#60646C;text-decoration:none;font-size:14px;font-weight:500;transition:background .15s,color .15s,border-color .15s;border-left:3px solid transparent;position:relative;outline:none}
       .cw-panel-item:hover,.cw-panel-item:focus-visible{background:rgba(99,102,241,.04);color:#1C2024}
       .cw-panel-item:focus-visible{outline:2px solid #6366F1;outline-offset:-2px;border-radius:4px}
       .cw-panel-item.active{color:#6366F1;background:rgba(99,102,241,.08);border-left-color:transparent;font-weight:600}
@@ -63,7 +63,11 @@ class CustomNavWidgetMiddleware
       .cw-panel-item.active::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:linear-gradient(180deg,#6366F1,#818CF8)}
       .cw-panel-item svg{width:18px;height:18px;fill:currentColor;flex-shrink:0}
       .cw-panel-sep{height:1px;background:linear-gradient(90deg,transparent,#E8E9ED 20%,#E8E9ED 80%,transparent);margin:6px 16px}
-      .cw-panel-foot{padding:12px 16px;border-top:1px solid #E8E9ED;font-size:11px;color:#8B8D98;direction:ltr}
+      .cw-panel-foot{padding:12px 16px;border-top:1px solid #E8E9ED;font-size:11px;color:#8B8D98}
+      /* RTL overrides */
+      .cw-panel[dir="rtl"] .cw-panel-item{border-left:none;border-right:3px solid transparent}
+      .cw-panel[dir="rtl"] .cw-panel-item.active{border-right-color:transparent}
+      .cw-panel[dir="rtl"] .cw-panel-item.active::before{left:auto;right:0;border-radius:3px 0 0 3px}
       .cw-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:99996;pointer-events:none;transition:background 280ms ease}
       .cw-backdrop.active{background:rgba(0,0,0,.08);pointer-events:auto}
       /* Dark mode overrides */
@@ -100,7 +104,7 @@ class CustomNavWidgetMiddleware
             <span>Chatwoot</span>
           </a>
         </div>
-        <div class="cw-panel-foot">hover left edge to open</div>
+        <div class="cw-panel-foot">העבר עכבר לשמאל לפתיחה</div>
       </nav>
       <div class="cw-backdrop" data-custom-nav-backdrop></div>
       <script data-custom-nav-script>
@@ -144,19 +148,51 @@ class CustomNavWidgetMiddleware
         else if(p.indexOf('/campaign-report')===0)document.getElementById('nav-campaign').classList.add('active');
         else document.getElementById('nav-cw').classList.add('active');
       })();
-      // i18n
+      // i18n — multi-method locale detection + reusable applyI18n
       (function(){
         var panel=document.querySelector('[data-custom-nav-panel]');
-        var loc='en';
-        try{if(window.chatwootConfig&&window.chatwootConfig.selectedLocale){loc=window.chatwootConfig.selectedLocale}else{var h=document.documentElement.getAttribute('lang');if(h&&h.length>=2)loc=h.substring(0,2)}}catch(e){}
-        if(loc!=='he')return;
-        var hdr=panel.querySelector('.cw-panel-hdr span');if(hdr)hdr.textContent='\u05DB\u05DC\u05D9 Chatwoot';
-        var items=panel.querySelectorAll('.cw-panel-item span');
-        if(items[0])items[0].textContent='\u05D1\u05D5\u05E0\u05D4 \u05D1\u05D5\u05D8\u05D9\u05DD';
-        if(items[1])items[1].textContent='\u05D3\u05D5\u05D7 \u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD';
-        var foot=panel.querySelector('.cw-panel-foot');if(foot)foot.textContent='\u05D4\u05E2\u05D1\u05E8 \u05E2\u05DB\u05D1\u05E8 \u05DC\u05E9\u05DE\u05D0\u05DC \u05DC\u05E4\u05EA\u05D9\u05D7\u05D4';
-        // Switch to RTL
-        panel.querySelectorAll('.cw-panel-hdr,.cw-panel-item,.cw-panel-foot').forEach(function(el){el.style.direction='rtl'});
+        var loc='he';
+        try{
+          var htmlLang=document.documentElement.getAttribute('lang');
+          if(htmlLang)loc=htmlLang.substring(0,2);
+          if(window.chatwootConfig&&window.chatwootConfig.selectedLocale){
+            loc=window.chatwootConfig.selectedLocale.substring(0,2);
+          }
+          var keys=Object.keys(localStorage);
+          for(var i=0;i<keys.length;i++){
+            if(keys[i].indexOf('user:locale')!==-1||keys[i].indexOf('LOCALE')!==-1){
+              var v=localStorage.getItem(keys[i]);
+              if(v&&v.length<=5){loc=v.substring(0,2);break;}
+            }
+          }
+        }catch(e){}
+        function applyI18n(locale){
+          var isHe=(locale==='he');
+          var hdr=panel.querySelector('.cw-panel-hdr span');
+          if(hdr)hdr.textContent=isHe?'\u05DB\u05DC\u05D9 Chatwoot':'Chatwoot Tools';
+          var items=panel.querySelectorAll('.cw-panel-item span');
+          if(items[0])items[0].textContent=isHe?'\u05D1\u05D5\u05E0\u05D4 \u05D1\u05D5\u05D8\u05D9\u05DD':'Bot Builder';
+          if(items[1])items[1].textContent=isHe?'\u05D3\u05D5\u05D7 \u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD':'Campaign Report';
+          if(items[2])items[2].textContent=isHe?'Chatwoot':'Chatwoot';
+          var foot=panel.querySelector('.cw-panel-foot');
+          if(foot)foot.textContent=isHe?'\u05D4\u05E2\u05D1\u05E8 \u05E2\u05DB\u05D1\u05E8 \u05DC\u05E9\u05DE\u05D0\u05DC \u05DC\u05E4\u05EA\u05D9\u05D7\u05D4':'hover left edge to open';
+          panel.setAttribute('dir',isHe?'rtl':'ltr');
+          panel.querySelectorAll('.cw-panel-hdr,.cw-panel-item,.cw-panel-foot').forEach(function(el){el.style.direction=isHe?'rtl':'ltr'});
+        }
+        applyI18n(loc);
+        var observer=new MutationObserver(function(mutations){
+          mutations.forEach(function(m){
+            if(m.attributeName==='lang'){
+              var newLang=document.documentElement.getAttribute('lang');
+              if(newLang){newLang=newLang.substring(0,2);}
+              if(newLang&&newLang!==loc){
+                loc=newLang;
+                applyI18n(loc);
+              }
+            }
+          });
+        });
+        observer.observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
       })();
       </script>
     HTML

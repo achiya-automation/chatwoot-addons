@@ -51,19 +51,36 @@ class CampaignReportMiddleware
 
     account_ids = user.account_users.pluck(:account_id)
 
+    # Server-side filtering
+    status_filter = request.params['status']
+    search_query = request.params['q']
+
+    base_campaigns = Campaign.where(account_id: account_ids)
+    base_campaigns = base_campaigns.where(campaign_status: status_filter) if status_filter.present? && status_filter != 'all'
+    base_campaigns = base_campaigns.where("title ILIKE ?", "%#{ActiveRecord::Base.sanitize_sql_like(search_query)}%") if search_query.present?
+
     # Pagination
     page = [(request.params['page'].to_i), 1].max
     per_page = 25
-    total_count = Campaign.where(account_id: account_ids).count
+    total_count = base_campaigns.count
     total_pages = [(total_count.to_f / per_page).ceil, 1].max
     page = [page, total_pages].min
 
-    campaigns = Campaign.where(account_id: account_ids)
-                        .order(created_at: :desc)
-                        .offset((page - 1) * per_page)
-                        .limit(per_page)
+    campaigns = base_campaigns.order(created_at: :desc)
+                              .offset((page - 1) * per_page)
+                              .limit(per_page)
 
-    # Batch message stats to avoid N+1 queries (scoped to account)
+    # Compute global totals BEFORE pagination (across all filtered campaigns)
+    all_filtered_ids = base_campaigns.pluck(:id)
+    all_stats = batch_campaign_stats(all_filtered_ids, account_ids)
+    global_totals = {
+      sent: all_stats.values.sum { |s| s[:total] },
+      delivered: all_stats.values.sum { |s| s[:delivered] },
+      read: all_stats.values.sum { |s| s[:read] },
+      failed: all_stats.values.sum { |s| s[:failed] }
+    }
+
+    # Batch message stats for current page (scoped to account)
     campaign_ids = campaigns.map(&:id)
     msg_stats = batch_campaign_stats(campaign_ids, account_ids)
 
@@ -82,7 +99,7 @@ class CampaignReportMiddleware
     end
 
     locale = safe_locale(user)
-    html = render_list_page(rows, locale, page, total_pages, total_count)
+    html = render_list_page(rows, locale, page, total_pages, total_count, global_totals, status_filter, search_query)
     [200, hdrs, [html]]
   rescue StandardError => e
     Rails.logger.error "[CampaignReport] Error: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}"
@@ -132,8 +149,7 @@ class CampaignReportMiddleware
   def campaign_messages(campaign_id, account_ids = nil)
     scope = Message.joins(:conversation)
     scope = scope.where(conversations: { account_id: account_ids }) if account_ids
-    scope.where("messages.content_attributes::text LIKE ?", "%campaign_id%")
-         .where("messages.content_attributes::text LIKE ?", "%#{campaign_id.to_i}%")
+    scope.where("messages.content_attributes @> ?", { campaign_id: campaign_id.to_i }.to_json)
   end
 
   # Batch query: get stats for all campaigns at once (scoped to account)
@@ -145,10 +161,8 @@ class CampaignReportMiddleware
     # Base query scoped to account
     base = Message.joins(:conversation)
     base = base.where(conversations: { account_id: account_ids }) if account_ids
-    messages = base.where("messages.content_attributes::text LIKE ?", "%campaign_id%")
-
     campaign_ids.each do |cid|
-      msgs = messages.where("messages.content_attributes::text LIKE ?", "%#{cid.to_i}%")
+      msgs = base.where("messages.content_attributes @> ?", { campaign_id: cid.to_i }.to_json)
       stats[cid][:total] = msgs.count
       stats[cid][:delivered] = msgs.where(status: [:delivered, :read]).count
       stats[cid][:read] = msgs.where(status: :read).count
@@ -162,12 +176,13 @@ class CampaignReportMiddleware
 
   def campaign_audience_size(campaign)
     return 0 if campaign.audience.blank?
+    label_ids = campaign.audience.select { |s| s["type"] == "Label" }.map { |s| s["id"] }
+    return 0 if label_ids.empty?
+    labels = Label.where(id: label_ids).index_by(&:id)
     count = 0
-    campaign.audience.each do |segment|
-      if segment["type"] == "Label"
-        label = Label.find_by(id: segment["id"])
-        count += campaign.account.contacts.tagged_with(label.title).count if label
-      end
+    label_ids.each do |lid|
+      label = labels[lid]
+      count += campaign.account.contacts.tagged_with(label.title).count if label
     end
     count
   end
@@ -188,9 +203,12 @@ class CampaignReportMiddleware
     contacts
   end
 
-  def pagination_html(page, total_pages)
+  def pagination_html(page, total_pages, status_filter=nil, search_query=nil)
+    extra_params = ''
+    extra_params += "&status=#{CGI.escape(status_filter)}" if status_filter.present? && status_filter != 'all'
+    extra_params += "&q=#{CGI.escape(search_query)}" if search_query.present?
     html = '<div class="pagination">'
-    html += "<a href='/campaign-report?page=#{page - 1}' class='pg-btn#{page <= 1 ? ' disabled' : ''}' aria-label='Previous page'><i class='ti ti-chevron-left' style='font-size:14px'></i></a>"
+    html += "<a href='/campaign-report?page=#{page - 1}#{extra_params}' class='pg-btn#{page <= 1 ? ' disabled' : ''}' aria-label='Previous page'><i class='ti ti-chevron-left' style='font-size:14px'></i></a>"
     # Show page numbers with ellipsis
     pages = []
     if total_pages <= 7
@@ -206,10 +224,10 @@ class CampaignReportMiddleware
       if pg == '...'
         html += "<span class='pg-info'>&hellip;</span>"
       else
-        html += "<a href='/campaign-report?page=#{pg}' class='pg-btn#{pg == page ? ' active' : ''}'>#{pg}</a>"
+        html += "<a href='/campaign-report?page=#{pg}#{extra_params}' class='pg-btn#{pg == page ? ' active' : ''}'>#{pg}</a>"
       end
     end
-    html += "<a href='/campaign-report?page=#{page + 1}' class='pg-btn#{page >= total_pages ? ' disabled' : ''}' aria-label='Next page'><i class='ti ti-chevron-right' style='font-size:14px'></i></a>"
+    html += "<a href='/campaign-report?page=#{page + 1}#{extra_params}' class='pg-btn#{page >= total_pages ? ' disabled' : ''}' aria-label='Next page'><i class='ti ti-chevron-right' style='font-size:14px'></i></a>"
     html += "<span class='pg-info'>Page #{page} of #{total_pages}</span>"
     html += '</div>'
     html
@@ -375,7 +393,8 @@ class CampaignReportMiddleware
 
         /* Status badge */
         .campaign-status{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:-.01em}
-        .cs-failed{background:rgba(239,68,68,.1);color:#FCA5A5}
+        .cs-failed{background:rgba(239,68,68,.1);color:#DC2626}
+        body.dark .cs-failed{color:#FCA5A5}
         .cs-completed{background:rgba(46,204,113,.1);color:#2ecc71}
         .cs-active{background:var(--accent-bg);color:var(--accent)}
         .cs-scheduled{background:rgba(240,173,78,.1);color:#f0ad4e}
@@ -476,12 +495,14 @@ class CampaignReportMiddleware
     STYLE
   end
 
-  def render_list_page(rows, locale='en', page=1, total_pages=1, total_count=0)
+  def render_list_page(rows, locale='en', page=1, total_pages=1, total_count=0, global_totals={}, status_filter=nil, search_query=nil)
     total_campaigns = total_count
-    total_sent = rows.sum { |r| r[:total_sent] }
-    total_delivered = rows.sum { |r| r[:delivered] }
-    total_read = rows.sum { |r| r[:read] }
-    total_failed = rows.sum { |r| r[:failed] }
+    total_sent = global_totals[:sent] || rows.sum { |r| r[:total_sent] }
+    total_delivered = global_totals[:delivered] || rows.sum { |r| r[:delivered] }
+    total_read = global_totals[:read] || rows.sum { |r| r[:read] }
+    total_failed = global_totals[:failed] || rows.sum { |r| r[:failed] }
+    active_status = status_filter.present? && status_filter != 'all' ? status_filter : 'all'
+    safe_search = h(search_query.to_s)
 
     campaign_rows = rows.map do |r|
       c = r[:campaign]
@@ -554,16 +575,17 @@ class CampaignReportMiddleware
           </div>
 
           <div class="filter-bar">
-            <div class="search-wrap" style="margin-bottom:0;flex:1;min-width:200px;max-width:360px">
+            <form class="search-wrap" style="margin-bottom:0;flex:1;min-width:200px;max-width:360px" method="get" action="/campaign-report">
               <i class="ti ti-search" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:14px;color:#696E77;pointer-events:none"></i>
-              <input type="text" id="campaign-search" placeholder="Search campaigns..." style="padding-right:34px">
+              <input type="text" id="campaign-search" name="q" value="#{safe_search}" placeholder="Search campaigns..." style="padding-right:34px">
+              #{"<input type='hidden' name='status' value='#{h(status_filter)}'>" if status_filter.present? && status_filter != 'all'}
               <span id="search-count" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:11px;color:#696E77"></span>
-            </div>
+            </form>
             <div class="filter-chips">
-              <button class="fchip active" data-status="all">All<span class="chip-count"></span></button>
-              <button class="fchip" data-status="completed">Completed<span class="chip-count"></span></button>
-              <button class="fchip" data-status="active">Active<span class="chip-count"></span></button>
-              <button class="fchip" data-status="scheduled">Scheduled<span class="chip-count"></span></button>
+              <a class="fchip#{active_status == 'all' ? ' active' : ''}" href="/campaign-report?status=all#{"&q=#{CGI.escape(search_query.to_s)}" if search_query.present?}">All</a>
+              <a class="fchip#{active_status == 'completed' ? ' active' : ''}" href="/campaign-report?status=completed#{"&q=#{CGI.escape(search_query.to_s)}" if search_query.present?}">Completed</a>
+              <a class="fchip#{active_status == 'active' ? ' active' : ''}" href="/campaign-report?status=active#{"&q=#{CGI.escape(search_query.to_s)}" if search_query.present?}">Active</a>
+              <a class="fchip#{active_status == 'scheduled' ? ' active' : ''}" href="/campaign-report?status=scheduled#{"&q=#{CGI.escape(search_query.to_s)}" if search_query.present?}">Scheduled</a>
             </div>
             <button class="list-export-btn" onclick="exportListCSV()"><i class="ti ti-file-spreadsheet"></i> CSV</button>
           </div>
@@ -592,7 +614,7 @@ class CampaignReportMiddleware
             </div>
           </div>
 
-          #{total_pages > 1 ? pagination_html(page, total_pages) : ""}
+          #{total_pages > 1 ? pagination_html(page, total_pages, status_filter, search_query) : ""}
 
         </div>
         </div>
@@ -608,26 +630,13 @@ class CampaignReportMiddleware
         var searchEl=document.getElementById('campaign-search');
         if(searchEl){searchEl.addEventListener('input',function(){clearTimeout(_searchTimer);var v=this.value;_searchTimer=setTimeout(function(){filterCampaigns(v)},200)})}
 
-        // Status filter
+        // Status filter is now server-side; _activeStatus kept for client-side search compatibility
         var _activeStatus='all';
-        var chips=document.querySelectorAll('.fchip');
-        function updateChipCounts(){
-          var rows=document.querySelectorAll('#campaign-tbody tr[data-search]');
-          var counts={all:0,completed:0,active:0,scheduled:0};
-          for(var i=0;i<rows.length;i++){var s=rows[i].getAttribute('data-status')||'';counts.all++;if(counts[s]!==undefined)counts[s]++}
-          chips.forEach(function(c){var st=c.getAttribute('data-status');var cnt=counts[st]||0;var sp=c.querySelector('.chip-count');if(sp)sp.textContent=' ('+cnt+')'})
-        }
-        updateChipCounts();
         filterCampaigns('');
-        chips.forEach(function(c){c.addEventListener('click',function(){
-          chips.forEach(function(x){x.classList.remove('active')});
-          this.classList.add('active');
-          _activeStatus=this.getAttribute('data-status');
-          filterCampaigns(searchEl?searchEl.value:'');
-        })});
 
         function filterCampaigns(q){
           q=(q||'').trim().toLowerCase();
+          var tbody=document.getElementById('campaign-tbody');
           var rows=document.querySelectorAll('#campaign-tbody tr[data-search]');
           var vis=0,total=rows.length;
           for(var i=0;i<rows.length;i++){
@@ -638,6 +647,18 @@ class CampaignReportMiddleware
             var show=matchSearch&&matchStatus;
             rows[i].style.display=show?'':'none';
             if(show)vis++;
+          }
+          var emptyRow=document.getElementById('empty-filter-row');
+          if(vis===0&&total>0){
+            if(!emptyRow){
+              emptyRow=document.createElement('tr');
+              emptyRow.id='empty-filter-row';
+              emptyRow.innerHTML='<td colspan="8" style="text-align:center;padding:32px;color:var(--text-3)">'+ (_isHe?'\u05DC\u05D0 \u05E0\u05DE\u05E6\u05D0\u05D5 \u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD \u05EA\u05D5\u05D0\u05DE\u05D9\u05DD':'No campaigns match this filter')+'</td>';
+              tbody.appendChild(emptyRow);
+            }
+            emptyRow.style.display='';
+          }else{
+            if(emptyRow)emptyRow.style.display='none';
           }
           var cnt=document.getElementById('search-count');
           if(cnt)cnt.textContent=(q||_activeStatus!=='all')?vis+' / '+total:'';
@@ -726,7 +747,7 @@ class CampaignReportMiddleware
           }
           var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
           var url=URL.createObjectURL(blob);
-          var a=document.createElement('a');a.href=url;a.download='campaigns-report.csv';
+          var a=document.createElement('a');a.href=url;a.download='campaigns-report-'+new Date().toISOString().slice(0,10)+'.csv';
           document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
           setTimeout(function(){if(btn)btn.classList.remove('loading-btn')},800);
         }
@@ -753,10 +774,10 @@ class CampaignReportMiddleware
 
     # Build JSON data for CSV export
     export_data = contact_results.map do |r|
-      { n: h(r[:contact_name]), p: h(r[:phone]), s: status_label(r[:status]), d: format_time(r[:created_at]), c: r[:conversation_id].to_s }
+      { n: r[:contact_name].to_s, p: r[:phone].to_s, s: status_label(r[:status]), d: format_time(r[:created_at]), c: r[:conversation_id].to_s }
     end
     not_sent.each do |c|
-      export_data << { n: h(c[:name]), p: h(c[:phone] || "-"), s: "Not Sent", d: "-", c: "-" }
+      export_data << { n: c[:name].to_s, p: (c[:phone] || "-").to_s, s: "Not Sent", d: "-", c: "-" }
     end
     # Escape </script> to prevent XSS when embedding in <script> tag
     export_json = export_data.to_json.gsub('</', '<\/')
@@ -868,7 +889,7 @@ class CampaignReportMiddleware
           var url=URL.createObjectURL(blob);
           var a=document.createElement('a');
           a.href=url;
-          a.download='campaign-report-#{campaign.id}.csv';
+          a.download='campaign-'+('#{h(campaign.title)}'.replace(/[^a-zA-Z0-9\u0590-\u05FF]/g,'-')||'report')+'-'+new Date().toISOString().slice(0,10)+'.csv';
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
