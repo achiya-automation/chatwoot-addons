@@ -276,10 +276,10 @@ class CampaignReportMiddleware
 
   def nav_html(active)
     '<nav class="app-nav">' \
-    "<a href='/bot-builder'#{active=='bot' ? " class='active'" : ''} title='Bot Builder'><i class='ti ti-robot'></i></a>" \
-    "<a href='/campaign-report'#{active=='report' ? " class='active'" : ''} title='Campaign Report'><i class='ti ti-chart-bar'></i></a>" \
+    "<a href='/bot-builder'#{active=='bot' ? " class='active'" : ''} title='Bot Builder'><i class='ti ti-robot'></i><span class='nav-label'>Bot Builder</span></a>" \
+    "<a href='/campaign-report'#{active=='report' ? " class='active'" : ''} title='Campaign Report'><i class='ti ti-chart-bar'></i><span class='nav-label'>Campaigns</span></a>" \
     '<div class="nav-sp"></div>' \
-    "<a href='/app' title='Chatwoot'><i class='ti ti-layout-dashboard'></i></a>" \
+    "<a href='/app' title='Chatwoot'><i class='ti ti-layout-dashboard'></i><span class='nav-label'>Chatwoot</span></a>" \
     '</nav>'
   end
 
@@ -320,24 +320,30 @@ class CampaignReportMiddleware
         ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}::-webkit-scrollbar-thumb:hover{background:var(--text-3)}
         body{font-family:'Inter',-apple-system,system-ui,sans-serif;background:var(--bg-app);color:var(--text-1);line-height:1.65;margin:0;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 
-        /* App shell */
+        /* === APP SHELL === */
         .app-shell{display:flex;min-height:100vh}
-        .app-nav{width:56px;background:var(--nav-bg);border-right:1px solid var(--nav-border);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px;flex-shrink:0;position:sticky;top:0;height:100vh}
-        .app-nav a{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--nav-text);text-decoration:none;transition:background .15s,color .15s,box-shadow .2s;font-size:0;position:relative}
-        .app-nav a:hover{background:rgba(99,102,241,.04);color:var(--text-1)}
+
+        /* === NAV SIDEBAR — Wider with labels (matches Bot Builder) === */
+        .app-nav{width:200px;background:var(--nav-bg);border-right:1px solid var(--nav-border);display:flex;flex-direction:column;padding:16px 10px;gap:2px;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+        .app-nav a{height:40px;border-radius:10px;display:flex;align-items:center;gap:10px;padding:0 12px;color:var(--nav-text);text-decoration:none;transition:background .15s,color .15s,box-shadow .2s;font-size:13px;font-weight:500;position:relative;white-space:nowrap}
+        .app-nav a:hover{background:rgba(99,102,241,.04);color:var(--text-1);text-decoration:none}
         .app-nav a.active{color:var(--accent);background:var(--accent-bg);box-shadow:0 0 12px var(--glow-accent)}
         .app-nav a.active::before{content:'';position:absolute;left:-1px;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:linear-gradient(180deg,#6366F1,#818CF8)}
+        [dir="rtl"] .app-nav a.active::before{left:auto;right:-1px;border-radius:3px 0 0 3px}
         .app-nav .nav-sp{flex:1}
-        .app-nav .ti{font-size:20px}
+        .app-nav .ti{font-size:20px;flex-shrink:0}
+        .app-nav .nav-label{font-size:13px;font-weight:500;letter-spacing:-.01em}
 
         /* Layout */
         .app-main{flex:1;overflow-y:auto;min-width:0}
         .container{max-width:1200px;margin:0 auto;padding:32px 48px}
 
-        /* Page header */
+        /* === PAGE HEADER — Accent bar === */
         .page-hdr{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:28px}
-        .page-hdr h1{font-size:22px;font-weight:700;letter-spacing:-.03em;color:var(--text-1)}
-        .page-hdr .subtitle{color:var(--text-3);font-size:13px;margin-top:4px;letter-spacing:-.01em}
+        .page-hdr h1{font-size:22px;font-weight:700;letter-spacing:-.03em;color:var(--text-1);display:flex;align-items:center;gap:10px}
+        .page-hdr h1::before{content:'';width:4px;height:28px;background:linear-gradient(180deg,var(--accent),#818CF8);border-radius:2px;flex-shrink:0}
+        .page-hdr .subtitle{color:var(--text-3);font-size:13px;margin-top:4px;letter-spacing:-.01em;padding-left:14px}
+        [dir="rtl"] .page-hdr .subtitle{padding-left:0;padding-right:14px}
         .page-hdr .refresh-btn{background:var(--glass-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--glass-border);border-radius:10px;padding:8px 16px;color:var(--text-2);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:background .15s,color .15s,border-color .15s,box-shadow .2s;text-decoration:none;display:inline-flex;align-items:center;gap:6px;height:38px}
         .page-hdr .refresh-btn:hover{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-border);box-shadow:0 0 12px var(--glow-accent);text-decoration:none}
 
@@ -348,15 +354,18 @@ class CampaignReportMiddleware
         .search-wrap input:hover{outline-color:var(--border-strong)}
         .search-wrap input::placeholder{color:var(--text-4)}
 
-        /* === STAT CARDS - Premium glass === */
-        .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px}
-        .stat-card{background:var(--bg-card);border:1px solid var(--border-weak);border-radius:16px;padding:20px 22px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;box-shadow:var(--card-shadow)}
-        .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0;background:var(--stat-accent,var(--accent));opacity:.6;transition:opacity .2s}
+        /* === STAT CARDS — Animated counters + progress bars === */
+        .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+        .stat-card{position:relative;overflow:hidden;border-radius:14px;padding:24px;border:1px solid var(--border-weak);background:var(--bg-card);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;box-shadow:var(--card-shadow)}
+        .stat-card::after{content:'';position:absolute;bottom:0;left:0;height:3px;border-radius:0 0 14px 14px;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+        .stat-card:nth-child(1)::after{width:100%;background:var(--accent)}
+        .stat-card:nth-child(2)::after{width:var(--sent-pct,0%);background:#60A5FA}
+        .stat-card:nth-child(3)::after{width:var(--del-pct,0%);background:#5EEAD4}
+        .stat-card:nth-child(4)::after{width:var(--read-pct,0%);background:#C4B5FD}
         .stat-card:hover{border-color:var(--accent-border);box-shadow:var(--card-hover-shadow),0 0 20px var(--glow-accent);transform:translateY(-3px)}
-        .stat-card:hover::before{opacity:1}
-        .stat-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:17px;transition:box-shadow .2s}
-        .stat-card:hover .stat-icon{box-shadow:0 0 12px var(--stat-glow,rgba(99,102,241,.2))}
-        .stat-number{font-size:30px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.03em;transition:color .2s}
+        .stat-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:20px;transition:box-shadow .2s}
+        .stat-card:hover .stat-icon{box-shadow:0 0 16px var(--stat-glow,rgba(99,102,241,.2))}
+        .stat-number{font-size:32px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.03em;transition:color .2s}
         .stat-label{font-size:10px;color:var(--text-4);margin-top:8px;font-weight:600;text-transform:uppercase;letter-spacing:.6px}
         .stat-pct{font-size:12px;color:var(--accent);margin-top:4px;font-weight:600;letter-spacing:-.01em}
         .stat-bar{height:3px;background:var(--bar-bg);border-radius:2px;margin-top:10px;overflow:hidden}
@@ -367,50 +376,61 @@ class CampaignReportMiddleware
         [dir="rtl"] .section-title{border-left:none;padding-left:0;border-right:3px solid var(--accent);padding-right:10px}
         .section-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border-weak),transparent)}
 
-        /* === TABLE - Premium === */
+        /* === TABLE — Premium with sticky blur header === */
         .table-wrapper{background:var(--table-bg);border:1px solid var(--border-weak);border-radius:16px;overflow:hidden;margin-bottom:28px;box-shadow:var(--card-shadow);transition:box-shadow .3s}
         .table-scroll{max-height:600px;overflow-y:auto}
         table{width:100%;border-collapse:collapse;border-spacing:0;font-size:13px}
-        thead{position:sticky;top:0;z-index:2;background:var(--table-bg)}
-        th{padding:14px 16px;text-align:left;font-weight:600;font-size:11px;color:var(--text-4);border-bottom:1px solid var(--border-weak);cursor:pointer;user-select:none;transition:color .15s;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
-        th:hover{color:var(--text-1)}
+        thead th{position:sticky;top:0;background:var(--bg-surface);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:10;border-bottom:2px solid var(--border-strong);padding:14px 16px;text-align:left;font-weight:600;font-size:11px;color:var(--text-4);cursor:pointer;user-select:none;transition:color .15s;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
+        thead th:hover{color:var(--text-1)}
         th .sort-arr{font-size:10px;margin-left:3px;opacity:.7}
         th.sorted{color:var(--accent)}
         th.sorted .sort-arr{opacity:1}
+        /* Numeric columns right-aligned */
+        th.col-num,td.col-num{text-align:right}
         td{padding:14px 16px;border-bottom:1px solid var(--border-weak);font-size:13px;font-variant-numeric:tabular-nums}
-        tbody tr{transition:background .15s,transform .15s}
+        tbody tr{transition:background .15s}
         tbody tr:nth-child(even){background:rgba(0,0,0,.015)}
         body.dark tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
         tbody tr:hover{background:var(--table-hover)}
-        tbody tr.clickable:hover{background:rgba(99,102,241,.06)}
-        body.dark tbody tr.clickable:hover{background:rgba(99,102,241,.08)}
+        tbody tr.clickable{cursor:pointer;position:relative;transition:background .15s}
+        tbody tr.clickable:hover{background:rgba(99,102,241,.04)}
+        tbody tr.clickable:hover::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:3px;background:var(--accent);border-radius:0 2px 2px 0}
+        [dir="rtl"] tbody tr.clickable:hover::before{left:auto;right:0;border-radius:2px 0 0 2px}
+        body.dark tbody tr.clickable:hover{background:rgba(99,102,241,.06)}
         tbody tr:last-child td{border-bottom:none}
-        tbody tr.clickable{cursor:pointer;position:relative}
         tbody tr.clickable:active{transform:scale(.998)}
-        .clickable:hover td:first-child{padding-left:14px;transition:padding .15s}
         .clickable:hover td:last-child{position:relative}
-        .clickable:hover td:last-child::after{content:'\203A';font-size:18px;color:var(--accent);position:absolute;right:8px;top:50%;transform:translateY(-50%)}
+        .clickable:hover td:last-child::after{content:'\\203A';font-size:18px;color:var(--accent);position:absolute;right:8px;top:50%;transform:translateY(-50%)}
+        [dir="rtl"] .clickable:hover td:last-child::after{right:auto;left:8px;content:'\\2039'}
 
-        /* Status badge */
-        .campaign-status{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:-.01em}
+        /* === STATUS BADGES — Pill with icon === */
+        .campaign-status{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.02em}
         .cs-failed{background:rgba(239,68,68,.1);color:#DC2626}
         body.dark .cs-failed{color:#FCA5A5}
         .cs-completed{background:rgba(46,204,113,.1);color:#2ecc71}
+        body.dark .cs-completed{background:rgba(46,204,113,.08);color:#6EE7B7}
         .cs-active{background:var(--accent-bg);color:var(--accent)}
-        .cs-scheduled{background:rgba(240,173,78,.1);color:#f0ad4e}
+        .cs-scheduled{background:rgba(240,173,78,.1);color:#D97706}
+        body.dark .cs-scheduled{color:#FCD34D}
 
         /* Links */
         a{color:var(--accent);text-decoration:none;font-weight:500}
         a:hover{text-decoration:underline;text-underline-offset:3px}
 
-        /* Info card */
-        .info-card{background:var(--bg-card);border:1px solid var(--border-weak);border-left:3px solid var(--accent);border-radius:16px;padding:24px;box-shadow:var(--card-shadow)}
-        [dir="rtl"] .info-card{border-left:1px solid var(--border-weak);border-right:3px solid var(--accent)}
+        /* === INFO GRID — Campaign metadata in card grid === */
+        .info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:28px}
+        .info-card{background:var(--bg-card);border:1px solid var(--border-weak);border-radius:14px;padding:24px;box-shadow:var(--card-shadow);position:relative;overflow:hidden}
+        .info-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),#818CF8);opacity:.5}
         .info-card h3{font-size:10px;font-weight:700;margin-bottom:14px;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:8px}
+        .info-card h3 .ti{font-size:14px;color:var(--accent)}
         .info-card h3::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border-weak),transparent)}
         .info-row{display:flex;gap:12px;margin-bottom:10px;font-size:13px;align-items:baseline}
         .info-row strong{color:var(--text-4);min-width:90px;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.3px;flex-shrink:0}
         .info-val{color:var(--text-1);word-break:break-word;line-height:1.5}
+
+        /* Template message card — code-block style */
+        .template-msg{background:var(--bg-surface);border:1px solid var(--border-weak);border-radius:10px;padding:14px 18px;font-size:13px;color:var(--text-2);line-height:1.7;white-space:pre-wrap;word-break:break-word;position:relative;margin-top:8px}
+        .template-msg::before{content:'MESSAGE';position:absolute;top:-9px;left:12px;background:var(--bg-card);padding:0 6px;font-size:9px;font-weight:700;color:var(--text-4);letter-spacing:.8px}
 
         /* Empty state */
         .empty-state{text-align:center;padding:60px 20px;color:var(--text-4)}
@@ -424,19 +444,24 @@ class CampaignReportMiddleware
         .export-btn .ti{font-size:15px}
         .hdr-actions{display:flex;gap:8px;align-items:center}
 
-        /* === FUNNEL - Gradient bars === */
-        .funnel{margin-bottom:28px}
-        .funnel-bar-wrap{background:var(--bg-card);border:1px solid var(--border-weak);border-radius:12px;overflow:hidden;height:32px;display:flex;box-shadow:var(--card-shadow)}
-        .funnel-seg{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:white;transition:width 1s cubic-bezier(.4,0,.2,1);min-width:40px;overflow:visible;letter-spacing:-.01em;position:relative}
-        .funnel-seg span{white-space:nowrap;padding:0 8px}
+        /* === FUNNEL — Rounded segments with gaps === */
+        .funnel{margin-bottom:28px;background:var(--bg-card);border:1px solid var(--border-weak);border-radius:14px;padding:20px 24px;box-shadow:var(--card-shadow)}
+        .funnel-title{font-size:10px;font-weight:700;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+        .funnel-title .ti{font-size:14px;color:var(--accent)}
+        .funnel-bar-wrap{display:flex;gap:3px;height:40px;align-items:stretch}
+        .funnel-seg{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:white;transition:width 1.2s cubic-bezier(.4,0,.2,1),flex .8s ease;border-radius:8px;min-width:0;overflow:visible;letter-spacing:-.01em;position:relative;cursor:default}
+        .funnel-seg span{white-space:nowrap;padding:0 8px;text-shadow:0 1px 2px rgba(0,0,0,.2)}
         .funnel-seg.seg-tiny span{font-size:0}
-        .funnel-seg.seg-tiny:hover span{font-size:10px;position:absolute;background:rgba(0,0,0,.85);color:#fff;padding:2px 8px;border-radius:6px;z-index:5;white-space:nowrap;top:-28px;left:50%;transform:translateX(-50%);pointer-events:none}
-        .funnel-seg.seg-empty{min-width:4px!important;flex:0 0 4px}
+        .funnel-seg:hover .funnel-tooltip{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+        .funnel-tooltip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%) translateY(4px);background:var(--bg-card);border:1px solid var(--border-weak);color:var(--text-1);padding:6px 12px;border-radius:8px;font-size:12px;white-space:nowrap;z-index:20;box-shadow:0 4px 12px rgba(0,0,0,.15);pointer-events:none;opacity:0;visibility:hidden;transition:opacity .15s,transform .15s,visibility .15s}
+        .funnel-tooltip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--border-weak)}
+        .funnel-seg.seg-empty{min-width:6px!important;flex:0 0 6px;opacity:.4;border-radius:4px}
         .funnel-seg.seg-empty span{font-size:0}
-        .funnel-seg.seg-empty:hover span{font-size:10px;position:absolute;background:rgba(0,0,0,.85);color:#fff;padding:2px 8px;border-radius:6px;z-index:5;white-space:nowrap;top:-28px;left:50%;transform:translateX(-50%);pointer-events:none}
-        .funnel-labels{display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--text-4);padding:0 2px}
-        .funnel-label{display:flex;align-items:center;gap:5px;font-weight:500}
-        .funnel-label .dot{width:8px;height:8px;border-radius:3px;flex-shrink:0}
+        .funnel-labels{display:flex;gap:20px;margin-top:14px;font-size:12px;color:var(--text-3);padding:0 2px;flex-wrap:wrap}
+        .funnel-label{display:flex;align-items:center;gap:6px;font-weight:500}
+        .funnel-label .dot{width:10px;height:10px;border-radius:4px;flex-shrink:0}
+        .funnel-label .fl-count{font-weight:700;color:var(--text-1)}
+        .funnel-label .fl-pct{color:var(--text-4);font-size:11px}
 
         /* Attention box */
         .attention-box{background:rgba(229,70,102,.04);border:1px solid rgba(229,70,102,.12);border-radius:14px;padding:14px 20px;margin-bottom:24px;display:flex;align-items:center;gap:12px}
@@ -446,12 +471,13 @@ class CampaignReportMiddleware
 
         /* === ANIMATE ON LOAD === */
         @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-        .stat-card,.table-wrapper,.funnel,.info-card,.attention-box{animation:fadeUp .4s ease-out both}
+        @keyframes slideInBottom{from{width:0}to{width:var(--target-w,100%)}}
+        .stat-card,.table-wrapper,.funnel,.info-card,.info-grid,.attention-box{animation:fadeUp .4s ease-out both}
         .stat-card:nth-child(1){animation-delay:.05s}.stat-card:nth-child(2){animation-delay:.1s}.stat-card:nth-child(3){animation-delay:.15s}.stat-card:nth-child(4){animation-delay:.2s}
         .table-wrapper{animation-delay:.25s}.funnel{animation-delay:.2s}
 
-        /* === FILTER CHIPS === */
-        .filter-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+        /* === FILTER BAR — Enclosed in card === */
+        .filter-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;padding:12px 16px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border-weak);box-shadow:var(--card-shadow)}
         .filter-chips{display:flex;gap:4px}
         .fchip{padding:6px 14px;border-radius:20px;border:1px solid var(--border-weak);background:transparent;color:var(--text-3);font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;transition:border-color .15s,color .15s,background .15s}
         .fchip:hover{border-color:var(--border-strong);color:var(--text-2)}
@@ -465,9 +491,6 @@ class CampaignReportMiddleware
         .pg-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
         .pg-btn.disabled{opacity:.4;pointer-events:none}
         .pg-info{font-size:12px;color:var(--text-4);margin:0 8px}
-
-        /* === COUNTER ANIMATION === */
-        .stat-number{font-size:30px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.03em;transition:color .2s}
 
         /* === LIST CSV EXPORT === */
         .list-export-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;background:transparent;border:1px solid var(--border-weak);color:var(--text-3);font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;margin-left:auto}
@@ -483,14 +506,16 @@ class CampaignReportMiddleware
         .loading-btn::after{content:'';display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;margin-left:6px}
         @keyframes spin{to{transform:rotate(360deg)}}
 
-        /* Breadcrumb */
-        .breadcrumb{font-size:12px;color:var(--text-3);margin-bottom:12px;display:flex;align-items:center;gap:6px}
-        .breadcrumb a{color:var(--accent);text-decoration:none}
+        /* === BREADCRUMB — Visual with icons === */
+        .breadcrumb{font-size:12px;color:var(--text-3);margin-bottom:16px;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-card);border:1px solid var(--border-weak);border-radius:10px;width:fit-content}
+        .breadcrumb a{color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+        .breadcrumb a .ti{font-size:14px}
         .breadcrumb a:hover{text-decoration:underline}
-        .bc-sep{opacity:.4}
+        .bc-sep{opacity:.3;font-size:14px}
 
-        @media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr);gap:8px}th,td{padding:10px 8px;font-size:11px}.container{padding:16px}.app-nav{width:48px}.app-nav .ti{font-size:18px}.filter-bar{flex-direction:column;align-items:stretch}.pagination{flex-wrap:wrap}.col-audience,.col-failed{display:none}}
-        @media(prefers-reduced-motion:reduce){.stat-card,.table-wrapper,.funnel,.info-card,.attention-box{animation:none}}
+        /* Responsive */
+        @media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr);gap:8px}th,td{padding:10px 8px;font-size:11px}.container{padding:16px}.app-nav{width:56px}.app-nav .nav-label{display:none}.app-nav a{justify-content:center;padding:0}.filter-bar{flex-direction:column;align-items:stretch;padding:10px}.pagination{flex-wrap:wrap}.col-audience,.col-failed{display:none}.info-grid{grid-template-columns:1fr}.funnel-labels{gap:10px}}
+        @media(prefers-reduced-motion:reduce){.stat-card,.table-wrapper,.funnel,.info-card,.info-grid,.attention-box{animation:none}.stat-card::after{transition:none}.funnel-seg{transition:none}}
       </style>
     STYLE
   end
@@ -514,16 +539,16 @@ class CampaignReportMiddleware
           <td><strong style="color:var(--text-1)">#{h(c.title)}</strong></td>
           <td><span class="campaign-status cs-#{c.campaign_status}">#{campaign_status_label(c.campaign_status)}</span></td>
           <td style="color:var(--text-3)">#{format_time(c.scheduled_at)}</td>
-          <td class="col-audience" style="color:var(--text-3)">#{r[:audience_size]}</td>
-          <td>#{r[:total_sent]}</td>
-          <td>#{r[:delivered]} <small style="color:var(--text-4)">(#{pct_delivered}%)</small></td>
-          <td>#{r[:read]} <small style="color:var(--text-4)">(#{pct_read}%)</small></td>
-          <td class="col-failed">#{r[:failed] > 0 ? "<span style='color:#ff6b6b;font-weight:600'>#{r[:failed]}</span>" : "<span style='color:#2E2D32'>0</span>"}</td>
+          <td class="col-audience col-num" style="color:var(--text-3)">#{r[:audience_size]}</td>
+          <td class="col-num">#{r[:total_sent]}</td>
+          <td class="col-num">#{r[:delivered]} <small style="color:var(--text-4)">(#{pct_delivered}%)</small></td>
+          <td class="col-num">#{r[:read]} <small style="color:var(--text-4)">(#{pct_read}%)</small></td>
+          <td class="col-failed col-num">#{r[:failed] > 0 ? "<span style='color:#ff6b6b;font-weight:600'>#{r[:failed]}</span>" : "<span style='color:var(--text-4)'>0</span>"}</td>
         </tr>
       ROW
     end.join
 
-    summary_row = rows.any? ? "<tr class='summary-row'><td><strong>Total</strong></td><td></td><td></td><td class='col-audience'></td><td>#{total_sent}</td><td>#{total_delivered}</td><td>#{total_read}</td><td class='col-failed'>#{total_failed}</td></tr>" : ""
+    summary_row = rows.any? ? "<tr class='summary-row'><td><strong>Total</strong></td><td></td><td></td><td class='col-audience col-num'></td><td class='col-num'>#{total_sent}</td><td class='col-num'>#{total_delivered}</td><td class='col-num'>#{total_read}</td><td class='col-failed col-num'>#{total_failed}</td></tr>" : ""
 
     empty_html = "<tr><td colspan='8'><div class='empty-state'><p>No campaigns found</p></div></td></tr>"
 
@@ -549,28 +574,28 @@ class CampaignReportMiddleware
             </div>
             <a href="/campaign-report" class="refresh-btn"><i class="ti ti-refresh" style="font-size:15px"></i> Refresh</a>
           </div>
-          <div class="stats-grid">
+          <div class="stats-grid" id="stats-grid">
             <div class="stat-card" style="--stat-accent:#6366F1;--stat-glow:rgba(99,102,241,.25)">
-              <div class="stat-icon" style="background:rgba(99,102,241,.08);color:#6366F1;border:1px solid rgba(99,102,241,.12)"><i class="ti ti-speakerphone"></i></div>
-              <div class="stat-number" style="color:var(--accent)">#{total_campaigns}</div>
+              <div class="stat-icon" style="background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(99,102,241,.04));color:#6366F1;border:1px solid rgba(99,102,241,.15)"><i class="ti ti-speakerphone"></i></div>
+              <div class="stat-number" data-target="#{total_campaigns}" style="color:var(--accent)">#{total_campaigns}</div>
               <div class="stat-label">Campaigns</div>
             </div>
-            <div class="stat-card" style="--stat-accent:#3B82F6;--stat-glow:rgba(59,130,246,.25)">
-              <div class="stat-icon" style="background:rgba(59,130,246,.08);color:#60A5FA;border:1px solid rgba(59,130,246,.12)"><i class="ti ti-send"></i></div>
-              <div class="stat-number" style="color:#60A5FA">#{total_sent}</div>
+            <div class="stat-card" style="--stat-accent:#3B82F6;--stat-glow:rgba(59,130,246,.25);--sent-pct:#{total_sent > 0 ? '100' : '0'}%">
+              <div class="stat-icon" style="background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(59,130,246,.04));color:#60A5FA;border:1px solid rgba(59,130,246,.15)"><i class="ti ti-send"></i></div>
+              <div class="stat-number" data-target="#{total_sent}" style="color:#60A5FA">#{total_sent}</div>
               <div class="stat-label">Sent</div>
             </div>
-            <div class="stat-card" style="--stat-accent:#14B8A6;--stat-glow:rgba(20,184,166,.25)">
-              <div class="stat-icon" style="background:rgba(20,184,166,.08);color:#5EEAD4;border:1px solid rgba(20,184,166,.12)"><i class="ti ti-checks"></i></div>
-              <div class="stat-number" style="color:#5EEAD4">#{total_delivered}</div>
+            <div class="stat-card" style="--stat-accent:#14B8A6;--stat-glow:rgba(20,184,166,.25);--del-pct:#{total_sent > 0 ? ((total_delivered.to_f / total_sent) * 100).round : 0}%">
+              <div class="stat-icon" style="background:linear-gradient(135deg,rgba(20,184,166,.12),rgba(20,184,166,.04));color:#5EEAD4;border:1px solid rgba(20,184,166,.15)"><i class="ti ti-checks"></i></div>
+              <div class="stat-number" data-target="#{total_delivered}" style="color:#5EEAD4">#{total_delivered}</div>
               <div class="stat-label">Delivered</div>
-              #{total_sent > 0 ? "<div class='stat-bar'><div class='stat-bar-fill' style='width:#{((total_delivered.to_f / total_sent) * 100).round}%;background:linear-gradient(90deg,#14B8A6,#5EEAD4)'></div></div>" : ""}
+              #{total_sent > 0 ? "<div class='stat-pct'>#{((total_delivered.to_f / total_sent) * 100).round}%</div>" : ""}
             </div>
-            <div class="stat-card" style="--stat-accent:#8B5CF6;--stat-glow:rgba(139,92,246,.25)">
-              <div class="stat-icon" style="background:rgba(139,92,246,.08);color:#C4B5FD;border:1px solid rgba(139,92,246,.12)"><i class="ti ti-eye"></i></div>
-              <div class="stat-number" style="color:#C4B5FD">#{total_read}</div>
+            <div class="stat-card" style="--stat-accent:#8B5CF6;--stat-glow:rgba(139,92,246,.25);--read-pct:#{total_sent > 0 ? ((total_read.to_f / total_sent) * 100).round : 0}%">
+              <div class="stat-icon" style="background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(139,92,246,.04));color:#C4B5FD;border:1px solid rgba(139,92,246,.15)"><i class="ti ti-eye"></i></div>
+              <div class="stat-number" data-target="#{total_read}" style="color:#C4B5FD">#{total_read}</div>
               <div class="stat-label">Read</div>
-              #{total_sent > 0 ? "<div class='stat-bar'><div class='stat-bar-fill' style='width:#{((total_read.to_f / total_sent) * 100).round}%;background:linear-gradient(90deg,#8B5CF6,#C4B5FD)'></div></div>" : ""}
+              #{total_sent > 0 ? "<div class='stat-pct' style='color:#C4B5FD'>#{((total_read.to_f / total_sent) * 100).round}%</div>" : ""}
             </div>
           </div>
 
@@ -599,11 +624,11 @@ class CampaignReportMiddleware
                     <th data-col="0" onclick="sortTable(0,'str')">Campaign Name <span class="sort-arr"></span></th>
                     <th>Status</th>
                     <th data-col="2" onclick="sortTable(2,'num')">Date <span class="sort-arr"></span></th>
-                    <th class="col-audience">Audience</th>
-                    <th data-col="4" onclick="sortTable(4,'num')">Sent <span class="sort-arr"></span></th>
-                    <th data-col="5" onclick="sortTable(5,'num')">Delivered <span class="sort-arr"></span></th>
-                    <th data-col="6" onclick="sortTable(6,'num')">Read <span class="sort-arr"></span></th>
-                    <th class="col-failed" data-col="7" onclick="sortTable(7,'num')">Failed <span class="sort-arr"></span></th>
+                    <th class="col-audience col-num">Audience</th>
+                    <th class="col-num" data-col="4" onclick="sortTable(4,'num')">Sent <span class="sort-arr"></span></th>
+                    <th class="col-num" data-col="5" onclick="sortTable(5,'num')">Delivered <span class="sort-arr"></span></th>
+                    <th class="col-num" data-col="6" onclick="sortTable(6,'num')">Read <span class="sort-arr"></span></th>
+                    <th class="col-failed col-num" data-col="7" onclick="sortTable(7,'num')">Failed <span class="sort-arr"></span></th>
                   </tr>
                 </thead>
                 <tbody id="campaign-tbody">
@@ -708,26 +733,33 @@ class CampaignReportMiddleware
           var leb=document.querySelector('.list-export-btn');if(leb){var lic=leb.querySelector('.ti');leb.textContent=' CSV';if(lic)leb.insertBefore(lic,leb.firstChild)}
           // Pagination i18n
           var pinfo=document.querySelector('.pg-info');if(pinfo){var pt=pinfo.textContent;pinfo.textContent=pt.replace('of','\u05DE\u05EA\u05D5\u05DA').replace('Page','\u05E2\u05DE\u05D5\u05D3')}
+          // Nav labels i18n
+          var navLabels=document.querySelectorAll('.nav-label');
+          var nlmap={'Bot Builder':'\u05D1\u05D5\u05D8 \u05D1\u05D9\u05DC\u05D3\u05E8','Campaigns':'\u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD','Chatwoot':'\u05E6\u05F3\u05D0\u05D8\u05D5\u05D5\u05D8'};
+          for(var i=0;i<navLabels.length;i++){var nt=navLabels[i].textContent.trim();if(nlmap[nt])navLabels[i].textContent=nlmap[nt]}
         })();
 
-        // Counter animation on load
-        (function(){
+        // Animated counter — easeOutCubic on all .stat-number elements
+        function animateCounter(el,target){
+          var start=0;var duration=600;var startTime=null;
+          function step(timestamp){
+            if(!startTime)startTime=timestamp;
+            var progress=Math.min((timestamp-startTime)/duration,1);
+            var eased=1-Math.pow(1-progress,3);
+            el.textContent=Math.floor(eased*target).toLocaleString();
+            if(progress<1)requestAnimationFrame(step);
+          }
+          requestAnimationFrame(step);
+        }
+        document.addEventListener('DOMContentLoaded',function(){
           var nums=document.querySelectorAll('.stat-number');
-          nums.forEach(function(el){
-            var target=parseInt(el.textContent)||0;
-            if(target<=0)return;
-            el.textContent='0';
-            var duration=800,start=null;
-            function step(ts){
-              if(!start)start=ts;
-              var progress=Math.min((ts-start)/duration,1);
-              var eased=1-Math.pow(1-progress,3);
-              el.textContent=Math.round(eased*target).toLocaleString();
-              if(progress<1)requestAnimationFrame(step);
-            }
-            requestAnimationFrame(step);
-          });
-        })();
+          for(var i=0;i<nums.length;i++){
+            var target=parseInt(nums[i].getAttribute('data-target')||nums[i].textContent)||0;
+            if(target<=0)continue;
+            nums[i].textContent='0';
+            animateCounter(nums[i],target);
+          }
+        });
 
         // CSV export from list
         function csvSafeL(v){var s=String(v||'');return /^[=+\-@\t\r]/.test(s)?("'"+s):s}
@@ -801,7 +833,7 @@ class CampaignReportMiddleware
         #{nav_html('report')}
         <div class="app-main">
         <div class="container">
-          <nav class="breadcrumb"><a href="/campaign-report">All Campaigns</a> <span class="bc-sep">/</span> <span>#{h(campaign.title)}</span></nav>
+          <nav class="breadcrumb"><a href="/campaign-report"><i class="ti ti-chart-bar"></i> All Campaigns</a> <span class="bc-sep"><i class="ti ti-chevron-right"></i></span> <span>#{h(campaign.title)}</span></nav>
           <div class="page-hdr" style="direction:ltr">
             <div>
               <h1>#{h(campaign.title)}</h1>
@@ -818,53 +850,63 @@ class CampaignReportMiddleware
             </div>
           </div>
 
-          <div class="stats-grid">
-            <div class="stat-card" style="--stat-accent:#3B82F6;--stat-glow:rgba(59,130,246,.25)">
-              <div class="stat-icon" style="background:rgba(59,130,246,.08);color:#60A5FA;border:1px solid rgba(59,130,246,.12)"><i class="ti ti-send"></i></div>
-              <div class="stat-number" style="color:#60A5FA">#{total}</div>
+          <div class="stats-grid" id="stats-grid">
+            <div class="stat-card" style="--stat-accent:#3B82F6;--stat-glow:rgba(59,130,246,.25);--sent-pct:100%">
+              <div class="stat-icon" style="background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(59,130,246,.04));color:#60A5FA;border:1px solid rgba(59,130,246,.15)"><i class="ti ti-send"></i></div>
+              <div class="stat-number" data-target="#{total}" style="color:#60A5FA">#{total}</div>
               <div class="stat-label">Sent</div>
             </div>
-            <div class="stat-card" style="--stat-accent:#14B8A6;--stat-glow:rgba(20,184,166,.25)">
-              <div class="stat-icon" style="background:rgba(20,184,166,.08);color:#5EEAD4;border:1px solid rgba(20,184,166,.12)"><i class="ti ti-checks"></i></div>
-              <div class="stat-number" style="color:#5EEAD4">#{delivered}</div>
+            <div class="stat-card" style="--stat-accent:#14B8A6;--stat-glow:rgba(20,184,166,.25);--del-pct:#{total > 0 ? ((delivered.to_f / total) * 100).round : 0}%">
+              <div class="stat-icon" style="background:linear-gradient(135deg,rgba(20,184,166,.12),rgba(20,184,166,.04));color:#5EEAD4;border:1px solid rgba(20,184,166,.15)"><i class="ti ti-checks"></i></div>
+              <div class="stat-number" data-target="#{delivered}" style="color:#5EEAD4">#{delivered}</div>
               <div class="stat-label">Delivered</div>
-              #{total > 0 ? "<div class='stat-pct'>#{pct_delivered}%</div><div class='stat-bar'><div class='stat-bar-fill' style='width:#{pct_delivered}%;background:linear-gradient(90deg,#14B8A6,#5EEAD4)'></div></div>" : ""}
+              #{total > 0 ? "<div class='stat-pct'>#{pct_delivered}%</div>" : ""}
             </div>
-            <div class="stat-card" style="--stat-accent:#8B5CF6;--stat-glow:rgba(139,92,246,.25)">
-              <div class="stat-icon" style="background:rgba(139,92,246,.08);color:#C4B5FD;border:1px solid rgba(139,92,246,.12)"><i class="ti ti-eye"></i></div>
-              <div class="stat-number" style="color:#C4B5FD">#{read_count}</div>
+            <div class="stat-card" style="--stat-accent:#8B5CF6;--stat-glow:rgba(139,92,246,.25);--read-pct:#{total > 0 ? ((read_count.to_f / total) * 100).round : 0}%">
+              <div class="stat-icon" style="background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(139,92,246,.04));color:#C4B5FD;border:1px solid rgba(139,92,246,.15)"><i class="ti ti-eye"></i></div>
+              <div class="stat-number" data-target="#{read_count}" style="color:#C4B5FD">#{read_count}</div>
               <div class="stat-label">Read</div>
-              #{total > 0 ? "<div class='stat-pct' style='color:#C4B5FD'>#{pct_read}%</div><div class='stat-bar'><div class='stat-bar-fill' style='width:#{pct_read}%;background:linear-gradient(90deg,#8B5CF6,#C4B5FD)'></div></div>" : ""}
+              #{total > 0 ? "<div class='stat-pct' style='color:#C4B5FD'>#{pct_read}%</div>" : ""}
             </div>
             <div class="stat-card" style="--stat-accent:#EF4444;--stat-glow:rgba(239,68,68,.25)">
-              <div class="stat-icon" style="background:rgba(239,68,68,.08);color:#FCA5A5;border:1px solid rgba(239,68,68,.12)"><i class="ti ti-x"></i></div>
-              <div class="stat-number" style="color:#{failed > 0 ? '#FCA5A5' : 'var(--text-4)'}">#{failed}</div>
+              <div class="stat-icon" style="background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(239,68,68,.04));color:#FCA5A5;border:1px solid rgba(239,68,68,.15)"><i class="ti ti-x"></i></div>
+              <div class="stat-number" data-target="#{failed}" style="color:#{failed > 0 ? '#FCA5A5' : 'var(--text-4)'}">#{failed}</div>
               <div class="stat-label">Failed</div>
             </div>
           </div>
 
           <div class="funnel">
+            <div class="funnel-title"><i class="ti ti-chart-funnel"></i> Delivery Funnel</div>
             <div class="funnel-bar-wrap">
-              <div class='funnel-seg#{bar_read > 0 ? (bar_read < 5 ? ' seg-tiny' : '') : ' seg-empty'}' style='#{bar_read > 0 ? "width:#{bar_read}%" : 'min-width:4px;opacity:.3'};background:#a29bfe' title='#{read_count} (#{bar_read}%)'><span>#{read_count} Read</span></div>
-              <div class='funnel-seg#{(bar_delivered - bar_read) > 0 ? ((bar_delivered - bar_read) < 5 ? ' seg-tiny' : '') : ' seg-empty'}' style='#{(bar_delivered - bar_read) > 0 ? "width:#{bar_delivered - bar_read}%" : 'min-width:4px;opacity:.3'};background:#2ecc71' title='#{delivered - read_count} (#{(bar_delivered - bar_read).round(1)}%)'><span>#{delivered - read_count} Delivered</span></div>
-              <div class='funnel-seg#{bar_failed > 0 ? (bar_failed < 5 ? ' seg-tiny' : '') : ' seg-empty'}' style='#{bar_failed > 0 ? "width:#{bar_failed}%" : 'min-width:4px;opacity:.3'};background:#ff6b6b' title='#{failed} (#{bar_failed}%)'><span>#{failed} Failed</span></div>
-              <div class='funnel-seg#{bar_not_sent > 0 ? (bar_not_sent < 5 ? ' seg-tiny' : '') : ' seg-empty'}' style='#{bar_not_sent > 0 ? "width:#{bar_not_sent}%" : 'min-width:4px;opacity:.3'};background:#f0ad4e' title='#{not_sent.size} (#{bar_not_sent}%)'><span>#{not_sent.size} Not Sent</span></div>
+              <div class='funnel-seg#{bar_read > 0 ? (bar_read < 5 ? ' seg-tiny' : '') : ' seg-empty'}' style='#{bar_read > 0 ? "flex:#{bar_read}" : ''};background:linear-gradient(135deg,#8B5CF6,#a29bfe)'><span>#{read_count} Read</span><div class="funnel-tooltip">#{read_count} Read (#{bar_read}%)</div></div>
+              <div class='funnel-seg#{(bar_delivered - bar_read) > 0 ? ((bar_delivered - bar_read) < 5 ? ' seg-tiny' : '') : ' seg-empty'}' style='#{(bar_delivered - bar_read) > 0 ? "flex:#{bar_delivered - bar_read}" : ''};background:linear-gradient(135deg,#10B981,#34D399)'><span>#{delivered - read_count} Delivered</span><div class="funnel-tooltip">#{delivered - read_count} Delivered (#{(bar_delivered - bar_read).round(1)}%)</div></div>
+              <div class='funnel-seg#{bar_failed > 0 ? (bar_failed < 5 ? ' seg-tiny' : '') : ' seg-empty'}' style='#{bar_failed > 0 ? "flex:#{bar_failed}" : ''};background:linear-gradient(135deg,#EF4444,#F87171)'><span>#{failed} Failed</span><div class="funnel-tooltip">#{failed} Failed (#{bar_failed}%)</div></div>
+              <div class='funnel-seg#{bar_not_sent > 0 ? (bar_not_sent < 5 ? ' seg-tiny' : '') : ' seg-empty'}' style='#{bar_not_sent > 0 ? "flex:#{bar_not_sent}" : ''};background:linear-gradient(135deg,#D97706,#FBBF24)'><span>#{not_sent.size} Not Sent</span><div class="funnel-tooltip">#{not_sent.size} Not Sent (#{bar_not_sent}%)</div></div>
             </div>
             <div class="funnel-labels">
-              <div class="funnel-label"><span class="dot" style="background:#a29bfe"></span> Read #{bar_read}%</div>
-              <div class="funnel-label"><span class="dot" style="background:#2ecc71"></span> Delivered #{bar_delivered}%</div>
-              <div class="funnel-label"><span class="dot" style="background:#ff6b6b"></span> Failed #{bar_failed}%</div>
-              <div class="funnel-label"><span class="dot" style="background:#f0ad4e"></span> Not Sent #{bar_not_sent}%</div>
+              <div class="funnel-label"><span class="dot" style="background:#a29bfe"></span> Read <span class="fl-count">#{read_count}</span> <span class="fl-pct">(#{bar_read}%)</span></div>
+              <div class="funnel-label"><span class="dot" style="background:#34D399"></span> Delivered <span class="fl-count">#{delivered - read_count}</span> <span class="fl-pct">(#{(bar_delivered - bar_read).round(1)}%)</span></div>
+              <div class="funnel-label"><span class="dot" style="background:#F87171"></span> Failed <span class="fl-count">#{failed}</span> <span class="fl-pct">(#{bar_failed}%)</span></div>
+              <div class="funnel-label"><span class="dot" style="background:#FBBF24"></span> Not Sent <span class="fl-count">#{not_sent.size}</span> <span class="fl-pct">(#{bar_not_sent}%)</span></div>
             </div>
           </div>
 
           #{attention_items.any? ? "<div class='attention-box'><div class='att-icon'><i class='ti ti-alert-triangle'></i></div><div class='att-text'><strong>Needs Attention:</strong> #{attention_items.join(', ')}</div></div>" : ""}
 
-          <div class="info-card">
-            <h3>Template Details</h3>
-            <div class="info-row"><strong>Template:</strong> <span class="info-val">#{h(campaign.template_params&.dig('name') || '-')}</span></div>
-            <div class="info-row"><strong>Language:</strong> <span class="info-val">#{h(campaign.template_params&.dig('language') || '-')}</span></div>
-            <div class="info-row"><strong>Message:</strong> <span class="info-val">#{h(campaign.message || '-')}</span></div>
+          <div class="info-grid">
+            <div class="info-card">
+              <h3><i class="ti ti-info-circle"></i> Campaign Info</h3>
+              <div class="info-row"><strong>ID:</strong> <span class="info-val">##{campaign.id}</span></div>
+              <div class="info-row"><strong>Status:</strong> <span class="info-val"><span class="campaign-status cs-#{campaign.campaign_status}">#{campaign_status_label(campaign.campaign_status)}</span></span></div>
+              <div class="info-row"><strong>Scheduled:</strong> <span class="info-val">#{format_time(campaign.scheduled_at)}</span></div>
+              <div class="info-row"><strong>Audience:</strong> <span class="info-val">#{all_count} contacts</span></div>
+            </div>
+            <div class="info-card">
+              <h3><i class="ti ti-template"></i> Template Details</h3>
+              <div class="info-row"><strong>Template:</strong> <span class="info-val">#{h(campaign.template_params&.dig('name') || '-')}</span></div>
+              <div class="info-row"><strong>Language:</strong> <span class="info-val">#{h(campaign.template_params&.dig('language') || '-')}</span></div>
+              <div class="template-msg">#{h(campaign.message || '-')}</div>
+            </div>
           </div>
         </div>
         </div>
@@ -874,6 +916,29 @@ class CampaignReportMiddleware
         var _isHe=_locale==='he';
         if(_isHe){document.documentElement.setAttribute('dir','rtl');document.documentElement.setAttribute('lang','he')}
         var _exportData=#{export_json};
+
+        // Animated counter — easeOutCubic
+        function animateCounter(el,target){
+          var start=0;var duration=600;var startTime=null;
+          function step(timestamp){
+            if(!startTime)startTime=timestamp;
+            var progress=Math.min((timestamp-startTime)/duration,1);
+            var eased=1-Math.pow(1-progress,3);
+            el.textContent=Math.floor(eased*target).toLocaleString();
+            if(progress<1)requestAnimationFrame(step);
+          }
+          requestAnimationFrame(step);
+        }
+        document.addEventListener('DOMContentLoaded',function(){
+          var nums=document.querySelectorAll('.stat-number');
+          for(var i=0;i<nums.length;i++){
+            var target=parseInt(nums[i].getAttribute('data-target')||nums[i].textContent)||0;
+            if(target<=0)continue;
+            nums[i].textContent='0';
+            animateCounter(nums[i],target);
+          }
+        });
+
         function exportCSV(){
           var btn=document.getElementById('export-btn');
           if(!_exportData.length){alert('No data to export');return}
@@ -902,19 +967,30 @@ class CampaignReportMiddleware
           for(var i=0;i<labels.length;i++){var t=labels[i].textContent.trim();if(lmap[t])labels[i].textContent=lmap[t]}
           var allLink=document.querySelector('.hdr-actions .refresh-btn');if(allLink){var aic=allLink.querySelector('.ti');allLink.textContent=' \u05DB\u05DC \u05D4\u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD';if(aic)allLink.insertBefore(aic,allLink.firstChild)}
           var expBtn=document.querySelector('.hdr-actions .export-btn');if(expBtn){var eic=expBtn.querySelector('.ti');expBtn.textContent=' \u05D9\u05D9\u05E6\u05D5\u05D0 CSV';if(eic)expBtn.insertBefore(eic,expBtn.firstChild)}
-          var bc=document.querySelector('.breadcrumb');if(bc){var bca=bc.querySelector('a');if(bca)bca.textContent='\u05DB\u05DC \u05D4\u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD'}
-          var fsegs=document.querySelectorAll('.funnel-seg span');
+          var bc=document.querySelector('.breadcrumb a');if(bc){var bci=bc.querySelector('.ti');bc.textContent=' \u05DB\u05DC \u05D4\u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD';if(bci)bc.insertBefore(bci,bc.firstChild)}
+          var fsegs=document.querySelectorAll('.funnel-seg > span');
           var fmap={'Read':'\u05E0\u05E7\u05E8\u05D0\u05D5','Delivered':'\u05E0\u05DE\u05E1\u05E8\u05D5','Failed':'\u05E0\u05DB\u05E9\u05DC\u05D5','Not Sent':'\u05DC\u05D0 \u05E0\u05E9\u05DC\u05D7\u05D5'};
           for(var i=0;i<fsegs.length;i++){var ft=fsegs[i].textContent.trim();for(var fk in fmap){if(ft.indexOf(fk)!==-1){fsegs[i].textContent=ft.replace(fk,fmap[fk]);break}}}
+          // Translate funnel tooltips
+          var ftips=document.querySelectorAll('.funnel-tooltip');
+          for(var i=0;i<ftips.length;i++){var ft=ftips[i].textContent;for(var fk in fmap){if(ft.indexOf(fk)!==-1){ftips[i].textContent=ft.replace(fk,fmap[fk]);break}}}
           var flbls=document.querySelectorAll('.funnel-label');
           for(var i=0;i<flbls.length;i++){var fn=flbls[i].childNodes;for(var j=0;j<fn.length;j++){if(fn[j].nodeType===3){var fv=fn[j].textContent.trim();for(var fk in fmap){if(fv.indexOf(fk)!==-1){fn[j].textContent=fv.replace(fk,fmap[fk]);break}}}}}
-          var ic=document.querySelector('.info-card h3');if(ic)ic.childNodes[0].textContent='\u05E4\u05E8\u05D8\u05D9 \u05EA\u05D1\u05E0\u05D9\u05EA';
+          var ft=document.querySelector('.funnel-title');if(ft){var fti=ft.querySelector('.ti');ft.textContent=' \u05DE\u05E9\u05E4\u05DA \u05D4\u05DE\u05E1\u05E8\u05D4';if(fti)ft.insertBefore(fti,ft.firstChild)}
+          // Info card headers i18n
+          var icHeaders=document.querySelectorAll('.info-card h3');
+          var hmap={'Campaign Info':'\u05E4\u05E8\u05D8\u05D9 \u05E7\u05DE\u05E4\u05D9\u05D9\u05DF','Template Details':'\u05E4\u05E8\u05D8\u05D9 \u05EA\u05D1\u05E0\u05D9\u05EA'};
+          for(var i=0;i<icHeaders.length;i++){var nodes=icHeaders[i].childNodes;for(var j=0;j<nodes.length;j++){if(nodes[j].nodeType===3){var ht=nodes[j].textContent.trim();if(hmap[ht])nodes[j].textContent=' '+hmap[ht]}}}
           var irows=document.querySelectorAll('.info-row strong');
-          var irmap={'Template:':'\u05EA\u05D1\u05E0\u05D9\u05EA:','Language:':'\u05E9\u05E4\u05D4:','Message:':'\u05D4\u05D5\u05D3\u05E2\u05D4:'};
+          var irmap={'ID:':'#:','Status:':'\u05E1\u05D8\u05D8\u05D5\u05E1:','Scheduled:':'\u05EA\u05D0\u05E8\u05D9\u05DA:','Audience:':'\u05E7\u05D4\u05DC:','Template:':'\u05EA\u05D1\u05E0\u05D9\u05EA:','Language:':'\u05E9\u05E4\u05D4:'};
           for(var i=0;i<irows.length;i++){var ir=irows[i].textContent.trim();if(irmap[ir])irows[i].textContent=irmap[ir]}
+          var tmsg=document.querySelector('.template-msg');if(tmsg&&tmsg.style){/* Keep template-msg::before in CSS */}
           var att=document.querySelector('.att-text');if(att){var as=att.querySelector('strong');if(as)as.textContent='\u05D3\u05D5\u05E8\u05E9 \u05EA\u05E9\u05D5\u05DE\u05EA \u05DC\u05D1:';var atn=att.childNodes;for(var ai=0;ai<atn.length;ai++){if(atn[ai].nodeType===3){var av=atn[ai].textContent;av=av.replace(/Failed/g,'\u05E0\u05DB\u05E9\u05DC\u05D5');av=av.replace(/Not Sent/g,'\u05DC\u05D0 \u05E0\u05E9\u05DC\u05D7\u05D5');atn[ai].textContent=av}}}
-          var fts=document.querySelectorAll('.funnel-seg');for(var i=0;i<fts.length;i++){var tt=fts[i].getAttribute('title')||'';for(var fk in fmap){if(tt.indexOf(fk)!==-1){fts[i].setAttribute('title',tt.replace(fk,fmap[fk]))}}}
-          var audSpan=document.querySelector('.subtitle');if(audSpan){var at=audSpan.textContent||'';audSpan.textContent=at.replace('Audience:','\u05E7\u05D4\u05DC:')}
+          var audSpan=document.querySelector('.subtitle');if(audSpan){var at=audSpan.textContent||'';audSpan.textContent=at.replace('Audience:','\u05E7\u05D4\u05DC:').replace('contacts','\u05D0\u05E0\u05E9\u05D9 \u05E7\u05E9\u05E8')}
+          // Nav labels i18n
+          var navLabels=document.querySelectorAll('.nav-label');
+          var nlmap={'Bot Builder':'\u05D1\u05D5\u05D8 \u05D1\u05D9\u05DC\u05D3\u05E8','Campaigns':'\u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD','Chatwoot':'\u05E6\u05F3\u05D0\u05D8\u05D5\u05D5\u05D8'};
+          for(var i=0;i<navLabels.length;i++){var nt=navLabels[i].textContent.trim();if(nlmap[nt])navLabels[i].textContent=nlmap[nt]}
         })();
         </script>
       </body>
