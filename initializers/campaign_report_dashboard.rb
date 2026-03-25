@@ -233,9 +233,10 @@ class CampaignReportMiddleware
 
   def campaign_status_label(status)
     case status.to_s
-    when "completed" then "Completed"
-    when "active" then "Active"
-    when "scheduled" then "Scheduled"
+    when "completed" then "<i class='ti ti-check' style='font-size:11px'></i> Completed"
+    when "active" then "<i class='ti ti-point-filled' style='font-size:11px'></i> Active"
+    when "scheduled" then "<i class='ti ti-clock' style='font-size:11px'></i> Scheduled"
+    when "failed" then "<i class='ti ti-x' style='font-size:11px'></i> Failed"
     else status.to_s end
   end
 
@@ -354,19 +355,22 @@ class CampaignReportMiddleware
         thead{position:sticky;top:0;z-index:2;background:var(--table-bg)}
         th{padding:14px 16px;text-align:left;font-weight:600;font-size:11px;color:var(--text-4);border-bottom:1px solid var(--border-weak);cursor:pointer;user-select:none;transition:color .15s;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
         th:hover{color:var(--text-1)}
-        th .sort-arr{font-size:8px;margin-left:3px;opacity:.4}
+        th .sort-arr{font-size:10px;margin-left:3px;opacity:.7}
         th.sorted{color:var(--accent)}
         th.sorted .sort-arr{opacity:1}
         td{padding:14px 16px;border-bottom:1px solid var(--border-weak);font-size:13px;font-variant-numeric:tabular-nums}
         tbody tr{transition:background .15s,transform .15s}
         tbody tr:hover{background:var(--table-hover)}
         tbody tr:last-child td{border-bottom:none}
-        tbody tr.clickable{cursor:pointer}
+        tbody tr.clickable{cursor:pointer;position:relative}
         tbody tr.clickable:active{transform:scale(.998)}
+        .clickable:hover td:first-child{padding-left:14px;transition:padding .15s}
+        .clickable:hover td:last-child{position:relative}
+        .clickable:hover td:last-child::after{content:'\203A';font-size:18px;color:var(--accent);position:absolute;right:8px;top:50%;transform:translateY(-50%)}
 
         /* Status badge */
-        .campaign-status{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:-.01em}
-        .campaign-status::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.6}
+        .campaign-status{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:-.01em}
+        .cs-failed{background:rgba(239,68,68,.1);color:#FCA5A5}
         .cs-completed{background:rgba(46,204,113,.1);color:#2ecc71}
         .cs-active{background:var(--accent-bg);color:var(--accent)}
         .cs-scheduled{background:rgba(240,173,78,.1);color:#f0ad4e}
@@ -397,8 +401,10 @@ class CampaignReportMiddleware
         /* === FUNNEL - Gradient bars === */
         .funnel{margin-bottom:28px}
         .funnel-bar-wrap{background:var(--bg-card);border:1px solid var(--border-weak);border-radius:12px;overflow:hidden;height:32px;display:flex;box-shadow:var(--card-shadow)}
-        .funnel-seg{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:white;transition:width 1s cubic-bezier(.4,0,.2,1);min-width:0;overflow:hidden;letter-spacing:-.01em}
+        .funnel-seg{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:white;transition:width 1s cubic-bezier(.4,0,.2,1);min-width:40px;overflow:visible;letter-spacing:-.01em;position:relative}
         .funnel-seg span{white-space:nowrap;padding:0 8px}
+        .funnel-seg.seg-tiny span{font-size:0}
+        .funnel-seg.seg-tiny:hover span{font-size:10px;position:absolute;background:rgba(0,0,0,.85);color:#fff;padding:2px 8px;border-radius:6px;z-index:5;white-space:nowrap;top:-28px;left:50%;transform:translateX(-50%);pointer-events:none}
         .funnel-labels{display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--text-4);padding:0 2px}
         .funnel-label{display:flex;align-items:center;gap:5px;font-weight:500}
         .funnel-label .dot{width:8px;height:8px;border-radius:3px;flex-shrink:0}
@@ -409,24 +415,11 @@ class CampaignReportMiddleware
         .attention-box .att-text{flex:1;font-size:13px;color:var(--text-2)}
         .attention-box .att-text strong{color:#FCA5A5;font-weight:600}
 
-        /* === DOWNLOAD CARD === */
-        .download-card{background:var(--bg-card);border:1px solid var(--border-weak);border-radius:16px;padding:32px;text-align:center;margin-bottom:28px;box-shadow:var(--card-shadow);transition:border-color .2s,box-shadow .3s,transform .2s;position:relative;overflow:hidden}
-        .download-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% -20%,var(--glow-accent),transparent 70%);pointer-events:none}
-        .download-card:hover{border-color:var(--accent-border);box-shadow:var(--card-hover-shadow);transform:translateY(-1px)}
-        .download-card .dl-icon{width:52px;height:52px;border-radius:14px;background:var(--accent-bg);border:1px solid var(--accent-border);color:var(--accent);display:inline-flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:14px;position:relative;transition:box-shadow .2s}
-        .download-card:hover .dl-icon{box-shadow:0 0 20px var(--glow-accent)}
-        .download-card h3{font-size:15px;font-weight:700;letter-spacing:-.02em;color:var(--text-1);margin-bottom:4px;position:relative}
-        .download-card p{font-size:13px;color:var(--text-4);margin-bottom:18px;position:relative}
-        .download-card .dl-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 28px;border-radius:10px;background:linear-gradient(135deg,#6366F1 0%,#4F46E5 100%);border:none;color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:box-shadow .2s,transform .15s;box-shadow:0 2px 8px rgba(99,102,241,.3),0 0 0 1px rgba(99,102,241,.1);position:relative;letter-spacing:-.01em}
-        .download-card .dl-btn:hover{box-shadow:0 4px 16px rgba(99,102,241,.4),0 0 0 1px rgba(99,102,241,.2);text-decoration:none;color:#fff;transform:translateY(-1px)}
-        .download-card .dl-btn:active{transform:scale(.97) translateY(0)}
-        .download-card .dl-btn .ti{font-size:17px}
-
         /* === ANIMATE ON LOAD === */
         @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-        .stat-card,.table-wrapper,.funnel,.download-card,.info-card,.attention-box{animation:fadeUp .4s ease-out both}
+        .stat-card,.table-wrapper,.funnel,.info-card,.attention-box{animation:fadeUp .4s ease-out both}
         .stat-card:nth-child(1){animation-delay:.05s}.stat-card:nth-child(2){animation-delay:.1s}.stat-card:nth-child(3){animation-delay:.15s}.stat-card:nth-child(4){animation-delay:.2s}
-        .table-wrapper{animation-delay:.25s}.funnel{animation-delay:.2s}.download-card{animation-delay:.3s}
+        .table-wrapper{animation-delay:.25s}.funnel{animation-delay:.2s}
 
         /* === FILTER CHIPS === */
         .filter-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
@@ -456,8 +449,19 @@ class CampaignReportMiddleware
         .summary-row td{font-weight:600;color:var(--text-1);background:var(--bg-surface);border-top:2px solid var(--border-strong)}
         .summary-row:hover td{background:var(--bg-surface)}
 
-        @media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr);gap:8px}th,td{padding:8px 10px;font-size:11px}.container{padding:16px}.app-nav{width:48px}.app-nav .ti{font-size:18px}.download-card{padding:20px}.filter-bar{flex-direction:column;align-items:stretch}.pagination{flex-wrap:wrap}}
-        @media(prefers-reduced-motion:reduce){.stat-card,.table-wrapper,.funnel,.download-card,.info-card,.attention-box{animation:none}}
+        /* Loading button */
+        .loading-btn{opacity:.7;pointer-events:none}
+        .loading-btn::after{content:'';display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;margin-left:6px}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* Breadcrumb */
+        .breadcrumb{font-size:12px;color:var(--text-3);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+        .breadcrumb a{color:var(--accent);text-decoration:none}
+        .breadcrumb a:hover{text-decoration:underline}
+        .bc-sep{opacity:.4}
+
+        @media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr);gap:8px}th,td{padding:10px 8px;font-size:11px}.container{padding:16px}.app-nav{width:48px}.app-nav .ti{font-size:18px}.filter-bar{flex-direction:column;align-items:stretch}.pagination{flex-wrap:wrap}.col-audience,.col-failed{display:none}}
+        @media(prefers-reduced-motion:reduce){.stat-card,.table-wrapper,.funnel,.info-card,.attention-box{animation:none}}
       </style>
     STYLE
   end
@@ -467,6 +471,7 @@ class CampaignReportMiddleware
     total_sent = rows.sum { |r| r[:total_sent] }
     total_delivered = rows.sum { |r| r[:delivered] }
     total_read = rows.sum { |r| r[:read] }
+    total_failed = rows.sum { |r| r[:failed] }
 
     campaign_rows = rows.map do |r|
       c = r[:campaign]
@@ -478,14 +483,16 @@ class CampaignReportMiddleware
           <td><strong style="color:var(--text-1)">#{h(c.title)}</strong></td>
           <td><span class="campaign-status cs-#{c.campaign_status}">#{campaign_status_label(c.campaign_status)}</span></td>
           <td style="color:var(--text-3)">#{format_time(c.scheduled_at)}</td>
-          <td style="color:var(--text-3)">#{r[:audience_size]}</td>
+          <td class="col-audience" style="color:var(--text-3)">#{r[:audience_size]}</td>
           <td>#{r[:total_sent]}</td>
           <td>#{r[:delivered]} <small style="color:var(--text-4)">(#{pct_delivered}%)</small></td>
           <td>#{r[:read]} <small style="color:var(--text-4)">(#{pct_read}%)</small></td>
-          <td>#{r[:failed] > 0 ? "<span style='color:#ff6b6b;font-weight:600'>#{r[:failed]}</span>" : "<span style='color:#2E2D32'>0</span>"}</td>
+          <td class="col-failed">#{r[:failed] > 0 ? "<span style='color:#ff6b6b;font-weight:600'>#{r[:failed]}</span>" : "<span style='color:#2E2D32'>0</span>"}</td>
         </tr>
       ROW
     end.join
+
+    summary_row = rows.any? ? "<tr class='summary-row'><td><strong>Total</strong></td><td></td><td></td><td class='col-audience'></td><td>#{total_sent}</td><td>#{total_delivered}</td><td>#{total_read}</td><td class='col-failed'>#{total_failed}</td></tr>" : ""
 
     empty_html = "<tr><td colspan='8'><div class='empty-state'><p>No campaigns found</p></div></td></tr>"
 
@@ -560,15 +567,16 @@ class CampaignReportMiddleware
                     <th data-col="0" onclick="sortTable(0,'str')">Campaign Name <span class="sort-arr"></span></th>
                     <th>Status</th>
                     <th data-col="2" onclick="sortTable(2,'num')">Date <span class="sort-arr"></span></th>
-                    <th>Audience</th>
+                    <th class="col-audience">Audience</th>
                     <th data-col="4" onclick="sortTable(4,'num')">Sent <span class="sort-arr"></span></th>
                     <th data-col="5" onclick="sortTable(5,'num')">Delivered <span class="sort-arr"></span></th>
                     <th data-col="6" onclick="sortTable(6,'num')">Read <span class="sort-arr"></span></th>
-                    <th data-col="7" onclick="sortTable(7,'num')">Failed <span class="sort-arr"></span></th>
+                    <th class="col-failed" data-col="7" onclick="sortTable(7,'num')">Failed <span class="sort-arr"></span></th>
                   </tr>
                 </thead>
                 <tbody id="campaign-tbody">
                   #{campaign_rows.empty? ? empty_html : campaign_rows}
+                  #{summary_row}
                 </tbody>
               </table>
             </div>
@@ -689,8 +697,10 @@ class CampaignReportMiddleware
         // CSV export from list
         function csvSafeL(v){var s=String(v||'');return /^[=+\-@\t\r]/.test(s)?("'"+s):s}
         function exportListCSV(){
+          var btn=document.querySelector('.list-export-btn');
           var rows=document.querySelectorAll('#campaign-tbody tr[data-search]');
           if(!rows.length){alert('No data');return}
+          if(btn)btn.classList.add('loading-btn');
           var csv='\uFEFF';
           csv+=(_isHe?'\u05E9\u05DD \u05E7\u05DE\u05E4\u05D9\u05D9\u05DF,\u05E1\u05D8\u05D8\u05D5\u05E1,\u05EA\u05D0\u05E8\u05D9\u05DA,\u05E7\u05D4\u05DC,\u05E0\u05E9\u05DC\u05D7\u05D5,\u05E0\u05DE\u05E1\u05E8\u05D5,\u05E0\u05E7\u05E8\u05D0\u05D5,\u05E0\u05DB\u05E9\u05DC\u05D5':'Campaign,Status,Date,Audience,Sent,Delivered,Read,Failed')+'\\n';
           for(var i=0;i<rows.length;i++){
@@ -704,6 +714,7 @@ class CampaignReportMiddleware
           var url=URL.createObjectURL(blob);
           var a=document.createElement('a');a.href=url;a.download='campaigns-report.csv';
           document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+          setTimeout(function(){if(btn)btn.classList.remove('loading-btn')},800);
         }
         </script>
       </body>
@@ -755,6 +766,7 @@ class CampaignReportMiddleware
         #{nav_html('report')}
         <div class="app-main">
         <div class="container">
+          <nav class="breadcrumb"><a href="/campaign-report">All Campaigns</a> <span class="bc-sep">/</span> <span>#{h(campaign.title)}</span></nav>
           <div class="page-hdr" style="direction:ltr">
             <div>
               <h1>#{h(campaign.title)}</h1>
@@ -766,7 +778,7 @@ class CampaignReportMiddleware
               </div>
             </div>
             <div class="hdr-actions">
-              <button class="export-btn" onclick="exportCSV()"><i class="ti ti-file-spreadsheet"></i> Export Excel</button>
+              <button class="export-btn" id="export-btn" onclick="exportCSV()"><i class="ti ti-file-spreadsheet"></i> Export CSV</button>
               <a href="/campaign-report" class="refresh-btn"><i class="ti ti-arrow-right" style="font-size:16px"></i> All Campaigns</a>
             </div>
           </div>
@@ -798,10 +810,10 @@ class CampaignReportMiddleware
 
           <div class="funnel">
             <div class="funnel-bar-wrap">
-              #{bar_read > 0 ? "<div class='funnel-seg' style='width:#{bar_read}%;background:#a29bfe'><span>#{read_count} Read</span></div>" : ""}
-              #{(bar_delivered - bar_read) > 0 ? "<div class='funnel-seg' style='width:#{bar_delivered - bar_read}%;background:#2ecc71'><span>#{delivered - read_count} Delivered</span></div>" : ""}
-              #{bar_failed > 0 ? "<div class='funnel-seg' style='width:#{bar_failed}%;background:#ff6b6b'><span>#{failed} Failed</span></div>" : ""}
-              #{bar_not_sent > 0 ? "<div class='funnel-seg' style='width:#{bar_not_sent}%;background:#f0ad4e'><span>#{not_sent.size} Not Sent</span></div>" : ""}
+              #{bar_read > 0 ? "<div class='funnel-seg#{bar_read < 5 ? ' seg-tiny' : ''}' style='width:#{bar_read}%;background:#a29bfe'><span>#{read_count} Read</span></div>" : ""}
+              #{(bar_delivered - bar_read) > 0 ? "<div class='funnel-seg#{(bar_delivered - bar_read) < 5 ? ' seg-tiny' : ''}' style='width:#{bar_delivered - bar_read}%;background:#2ecc71'><span>#{delivered - read_count} Delivered</span></div>" : ""}
+              #{bar_failed > 0 ? "<div class='funnel-seg#{bar_failed < 5 ? ' seg-tiny' : ''}' style='width:#{bar_failed}%;background:#ff6b6b'><span>#{failed} Failed</span></div>" : ""}
+              #{bar_not_sent > 0 ? "<div class='funnel-seg#{bar_not_sent < 5 ? ' seg-tiny' : ''}' style='width:#{bar_not_sent}%;background:#f0ad4e'><span>#{not_sent.size} Not Sent</span></div>" : ""}
             </div>
             <div class="funnel-labels">
               <div class="funnel-label"><span class="dot" style="background:#a29bfe"></span> Read #{bar_read}%</div>
@@ -812,13 +824,6 @@ class CampaignReportMiddleware
           </div>
 
           #{attention_items.any? ? "<div class='attention-box'><div class='att-icon'><i class='ti ti-alert-triangle'></i></div><div class='att-text'><strong>Needs Attention:</strong> #{attention_items.join(', ')}</div></div>" : ""}
-
-          <div class="download-card">
-            <div class="dl-icon"><i class="ti ti-table-export"></i></div>
-            <h3>Download Full Report</h3>
-            <p>Includes all contact details, delivery status, dates, and conversation IDs</p>
-            <button class="dl-btn" onclick="exportCSV()"><i class="ti ti-download"></i> Download CSV</button>
-          </div>
 
           <div class="info-card">
             <h3>Template Details</h3>
@@ -835,7 +840,9 @@ class CampaignReportMiddleware
         if(_isHe){document.documentElement.setAttribute('dir','rtl');document.documentElement.setAttribute('lang','he')}
         var _exportData=#{export_json};
         function exportCSV(){
+          var btn=document.getElementById('export-btn');
           if(!_exportData.length){alert('No data to export');return}
+          if(btn)btn.classList.add('loading-btn');
           function csvSafe(v){var s=String(v||'');return /^[=+\\-@\\t\\r]/.test(s)?("'"+s):s}
           var csv='\\uFEFF';
           csv+=(_isHe?'\u05E9\u05DD,\u05D8\u05DC\u05E4\u05D5\u05DF,\u05E1\u05D8\u05D8\u05D5\u05E1,\u05EA\u05D0\u05E8\u05D9\u05DA \u05E9\u05DC\u05D9\u05D7\u05D4,\u05DE\u05D6\u05D4\u05D4 \u05E9\u05D9\u05D7\u05D4':'Name,Phone,Status,Send Date,Conversation ID')+'\\n';
@@ -852,15 +859,15 @@ class CampaignReportMiddleware
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
+          setTimeout(function(){if(btn)btn.classList.remove('loading-btn')},800);
         }
         (function(){if(!_isHe)return;
           var labels=document.querySelectorAll('.stat-label');
           var lmap={'Sent':'\u05E0\u05E9\u05DC\u05D7\u05D5','Delivered':'\u05E0\u05DE\u05E1\u05E8\u05D5','Read':'\u05E0\u05E7\u05E8\u05D0\u05D5','Failed':'\u05E0\u05DB\u05E9\u05DC\u05D5'};
           for(var i=0;i<labels.length;i++){var t=labels[i].textContent.trim();if(lmap[t])labels[i].textContent=lmap[t]}
-          var dc=document.querySelector('.download-card');
-          if(dc){var dh=dc.querySelector('h3');if(dh)dh.textContent='\u05D4\u05D5\u05E8\u05D3\u05EA \u05D3\u05D5\u05D7 \u05DE\u05DC\u05D0';var dp=dc.querySelector('p');if(dp)dp.textContent='\u05DB\u05D5\u05DC\u05DC \u05E4\u05E8\u05D8\u05D9 \u05DB\u05DC \u05D0\u05E0\u05E9\u05D9 \u05D4\u05E7\u05E9\u05E8, \u05E1\u05D8\u05D8\u05D5\u05E1 \u05DE\u05E9\u05DC\u05D5\u05D7, \u05EA\u05D0\u05E8\u05D9\u05DB\u05D9\u05DD \u05D5\u05DE\u05D6\u05D4\u05D9 \u05E9\u05D9\u05D7\u05D4';var db=dc.querySelector('.dl-btn');if(db){var dic=db.querySelector('.ti');db.textContent=' \u05D4\u05D5\u05E8\u05D3 CSV';if(dic)db.insertBefore(dic,db.firstChild)}}
           var allLink=document.querySelector('.hdr-actions .refresh-btn');if(allLink){var aic=allLink.querySelector('.ti');allLink.textContent=' \u05DB\u05DC \u05D4\u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD';if(aic)allLink.insertBefore(aic,allLink.firstChild)}
-          var expBtn=document.querySelector('.hdr-actions .export-btn');if(expBtn){var eic=expBtn.querySelector('.ti');expBtn.textContent=' \u05D9\u05D9\u05E6\u05D5\u05D0 Excel';if(eic)expBtn.insertBefore(eic,expBtn.firstChild)}
+          var expBtn=document.querySelector('.hdr-actions .export-btn');if(expBtn){var eic=expBtn.querySelector('.ti');expBtn.textContent=' \u05D9\u05D9\u05E6\u05D5\u05D0 CSV';if(eic)expBtn.insertBefore(eic,expBtn.firstChild)}
+          var bc=document.querySelector('.breadcrumb');if(bc){var bca=bc.querySelector('a');if(bca)bca.textContent='\u05DB\u05DC \u05D4\u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD'}
           var fsegs=document.querySelectorAll('.funnel-seg span');
           var fmap={'Read':'\u05E0\u05E7\u05E8\u05D0\u05D5','Delivered':'\u05E0\u05DE\u05E1\u05E8\u05D5','Failed':'\u05E0\u05DB\u05E9\u05DC\u05D5','Not Sent':'\u05DC\u05D0 \u05E0\u05E9\u05DC\u05D7\u05D5'};
           for(var i=0;i<fsegs.length;i++){var ft=fsegs[i].textContent.trim();for(var fk in fmap){if(ft.indexOf(fk)!==-1){fsegs[i].textContent=ft.replace(fk,fmap[fk]);break}}}

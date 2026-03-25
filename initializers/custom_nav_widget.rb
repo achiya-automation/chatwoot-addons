@@ -2,7 +2,7 @@
 
 # ============================================================
 # Custom Navigation Overlay for Chatwoot
-# Hidden ghost edge (6px) on left - hover reveals 200px panel
+# Hidden ghost edge (12px) on left - hover reveals 220px panel
 # Access to: Bot Builder, Campaign Report, Chatwoot Dashboard
 # Themed to match Chatwoot dark/light mode (body.dark class)
 # Created: 2026-02-18 | Updated: 2026-02-22
@@ -43,7 +43,11 @@ class CustomNavWidgetMiddleware
   def nav_overlay_html
     <<~'HTML'
       <style data-custom-nav-style>
-      .cw-ghost{position:fixed;left:0;top:0;width:8px;height:100vh;z-index:99997;cursor:pointer}
+      .cw-ghost{position:fixed;left:0;top:0;width:12px;height:100vh;z-index:99997;cursor:pointer}
+      .cw-ghost::after{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:2px;height:40px;background:linear-gradient(180deg,transparent,rgba(99,102,241,.3),transparent);border-radius:2px;opacity:0;animation:ghost-hint 3s ease-in-out 2s 2}
+      .cw-ghost:hover::after{opacity:.6;animation:none}
+      .cw-ghost:focus::before{content:'Navigation';position:absolute;left:16px;top:50%;transform:translateY(-50%);background:var(--bg-card,#fff);border:1px solid rgba(0,0,0,.1);padding:4px 10px;border-radius:6px;font-size:11px;color:#60646C;white-space:nowrap;font-family:Inter,system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+      @keyframes ghost-hint{0%,100%{opacity:0}50%{opacity:1}}
       .cw-panel{position:fixed;left:0;top:0;width:220px;height:100vh;background:#FEFEFE;border-right:1px solid #E8E9ED;z-index:99998;transform:translateX(-220px);transition:transform 280ms cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;padding:0;font-family:'Inter',-apple-system,system-ui,sans-serif;box-shadow:4px 0 24px rgba(0,0,0,.06),12px 0 40px rgba(0,0,0,.03)}
       .cw-panel:focus-within{transform:translateX(0)}
       .cw-panel.open{transform:translateX(0)}
@@ -54,11 +58,14 @@ class CustomNavWidgetMiddleware
       .cw-panel-item{display:flex;align-items:center;gap:12px;padding:10px 16px;color:#60646C;text-decoration:none;font-size:14px;font-weight:500;transition:background .15s,color .15s,border-color .15s;direction:ltr;border-left:3px solid transparent;position:relative;outline:none}
       .cw-panel-item:hover,.cw-panel-item:focus-visible{background:rgba(99,102,241,.04);color:#1C2024}
       .cw-panel-item:focus-visible{outline:2px solid #6366F1;outline-offset:-2px;border-radius:4px}
-      .cw-panel-item.active{color:#6366F1;background:rgba(99,102,241,.06);border-left-color:transparent;font-weight:600}
+      .cw-panel-item.active{color:#6366F1;background:rgba(99,102,241,.08);border-left-color:transparent;font-weight:600}
+      .cw-panel-item.active svg{fill:#6366F1}
       .cw-panel-item.active::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:linear-gradient(180deg,#6366F1,#818CF8)}
       .cw-panel-item svg{width:18px;height:18px;fill:currentColor;flex-shrink:0}
       .cw-panel-sep{height:1px;background:linear-gradient(90deg,transparent,#E8E9ED 20%,#E8E9ED 80%,transparent);margin:6px 16px}
       .cw-panel-foot{padding:12px 16px;border-top:1px solid #E8E9ED;font-size:11px;color:#8B8D98;direction:ltr}
+      .cw-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:99996;pointer-events:none;transition:background 280ms ease}
+      .cw-backdrop.active{background:rgba(0,0,0,.08);pointer-events:auto}
       /* Dark mode overrides */
       @media(prefers-reduced-motion:reduce){.cw-panel{transition:none}}
       body.dark .cw-panel{background:#0C0D14;border-right-color:rgba(255,255,255,.04);box-shadow:4px 0 24px rgba(0,0,0,.4),12px 0 48px rgba(0,0,0,.3)}
@@ -67,6 +74,8 @@ class CustomNavWidgetMiddleware
       body.dark .cw-panel-item{color:#8B8D9E}
       body.dark .cw-panel-item:hover{background:rgba(99,102,241,.06);color:#EDEEF0}
       body.dark .cw-panel-item.active{color:#818CF8;background:rgba(99,102,241,.08)}
+      body.dark .cw-panel-item.active svg{fill:#818CF8}
+      body.dark .cw-ghost:focus::before{background:#1A1B25;border-color:rgba(255,255,255,.1);color:#B0B4BA}
       body.dark .cw-panel-sep{background:linear-gradient(90deg,transparent,rgba(255,255,255,.06) 20%,rgba(255,255,255,.06) 80%,transparent)}
       body.dark .cw-panel-foot{border-top-color:rgba(255,255,255,.06);color:#555770}
       </style>
@@ -93,22 +102,37 @@ class CustomNavWidgetMiddleware
         </div>
         <div class="cw-panel-foot">hover left edge to open</div>
       </nav>
+      <div class="cw-backdrop" data-custom-nav-backdrop></div>
       <script data-custom-nav-script>
       (function(){
         var panel=document.querySelector('[data-custom-nav-panel]');
         var ghost=document.querySelector('[data-custom-nav-ghost]');
+        var backdrop=document.querySelector('[data-custom-nav-backdrop]');
         var timer=null;
-        function openPanel(){clearTimeout(timer);panel.classList.add('open');ghost.setAttribute('aria-expanded','true')}
-        function closePanel(){panel.classList.remove('open');ghost.setAttribute('aria-expanded','false')}
+        function openPanel(){clearTimeout(timer);panel.classList.add('open');backdrop.classList.add('active');ghost.setAttribute('aria-expanded','true')}
+        function closePanel(){panel.classList.remove('open');backdrop.classList.remove('active');ghost.setAttribute('aria-expanded','false')}
         ghost.addEventListener('mouseenter',openPanel);
-        ghost.addEventListener('mouseleave',function(){timer=setTimeout(closePanel,400)});
+        ghost.addEventListener('mouseleave',function(){timer=setTimeout(closePanel,600)});
         panel.addEventListener('mouseenter',function(){clearTimeout(timer)});
-        panel.addEventListener('mouseleave',function(){timer=setTimeout(closePanel,300)});
-        // Keyboard: Escape to close, Tab trapping
+        panel.addEventListener('mouseleave',function(){timer=setTimeout(closePanel,500)});
+        // Keyboard: Escape to close
         document.addEventListener('keydown',function(e){
           if(e.key==='Escape'&&panel.classList.contains('open')){closePanel();e.preventDefault()}
         });
-        // Click outside to close
+        // Focus trap
+        panel.addEventListener('keydown', function(e) {
+          if (e.key !== 'Tab') return;
+          var focusable = panel.querySelectorAll('a[href], button, [tabindex]:not([tabindex="-1"])');
+          if (focusable.length === 0) return;
+          var first = focusable[0];
+          var last = focusable[focusable.length - 1];
+          if (e.shiftKey) {
+            if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+          } else {
+            if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+          }
+        });
+        // Click outside to close (includes backdrop)
         document.addEventListener('click',function(e){
           if(panel.classList.contains('open')&&!panel.contains(e.target)&&!ghost.contains(e.target)){closePanel()}
         });
