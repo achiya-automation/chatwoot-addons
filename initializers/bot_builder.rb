@@ -2906,7 +2906,7 @@ function _doAutoAlign(){
   // Layout each tree with dagre
   function layoutTree(comp){
     var g=new dagre.graphlib.Graph();
-    g.setGraph({rankdir:'TB',nodesep:40,ranksep:100,marginx:0,marginy:0,ranker:'network-simplex'});
+    g.setGraph({rankdir:'LR',nodesep:40,ranksep:160,marginx:0,marginy:0,ranker:'network-simplex'});
     g.setDefaultEdgeLabel(function(){return{}});
     for(var ni=0;ni<comp.length;ni++){
       var el=document.getElementById('node-'+comp[ni]);
