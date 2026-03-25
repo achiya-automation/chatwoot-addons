@@ -1263,6 +1263,72 @@ var L={
   draft_found:isHe?'\u05E0\u05DE\u05E6\u05D0\u05D4 \u05D8\u05D9\u05D5\u05D8\u05D4 \u05DE':'Draft found from ',
   draft_restore:isHe?'. \u05DC\u05E9\u05D7\u05D6\u05E8?':'. Restore?'
 };
+// Translate toolbar buttons and palette text for Hebrew locale
+if(isHe){
+  (function(){
+    var tMap={
+      'Back to list':'\u05D7\u05D6\u05E8\u05D4 \u05DC\u05E8\u05E9\u05D9\u05DE\u05D4',
+      'Bot Settings':'\u05D4\u05D2\u05D3\u05E8\u05D5\u05EA \u05D1\u05D5\u05D8',
+      'Auto-align':'\u05E1\u05D9\u05D3\u05D5\u05E8 \u05D0\u05D5\u05D8\u05D5\u05DE\u05D8\u05D9',
+      'Validate Flow':'\u05D1\u05D3\u05D9\u05E7\u05EA \u05D6\u05E8\u05D9\u05DE\u05D4',
+      'Export Flow (JSON)':'\u05D9\u05D9\u05E6\u05D5\u05D0 Flow (JSON)',
+      'Import Flow (JSON)':'\u05D9\u05D9\u05D1\u05D5\u05D0 Flow (JSON)',
+      'Zoom out (Ctrl+-)':'\u05D4\u05E7\u05D8\u05E0\u05D4 (Ctrl+-)',
+      'Zoom in (Ctrl++)':'\u05D4\u05D2\u05D3\u05DC\u05D4 (Ctrl++)',
+      'Fit to screen (Ctrl+0)':'\u05D4\u05EA\u05D0\u05DD \u05DC\u05DE\u05E1\u05DA (Ctrl+0)',
+      'Reset zoom (Ctrl+1)':'\u05D0\u05D9\u05E4\u05D5\u05E1 \u05D6\u05D5\u05DD (Ctrl+1)',
+      'Snap to grid':'\u05D4\u05E6\u05DE\u05D3 \u05DC\u05E8\u05E9\u05EA',
+      'Expand/Collapse palette':'\u05D4\u05E8\u05D7\u05D1/\u05E6\u05DE\u05E6\u05DD \u05E4\u05DC\u05D8\u05D4'
+    };
+    var btns=document.querySelectorAll('[title]');
+    for(var bi=0;bi<btns.length;bi++){var tt=btns[bi].getAttribute('title');if(tMap[tt])btns[bi].setAttribute('title',tMap[tt])}
+    // Translate node search placeholder
+    var ns=document.getElementById('node-search');if(ns)ns.placeholder='\u05D7\u05E4\u05E9 \u05E6\u05DE\u05EA\u05D9\u05DD...';
+    // Translate "No nodes found" text
+    var nnr=document.getElementById('nodes-no-results');if(nnr){var spans=nnr.childNodes;for(var si=0;si<spans.length;si++){if(spans[si].nodeType===3&&spans[si].textContent.indexOf('No nodes')!==-1){spans[si].textContent='\u05DC\u05D0 \u05E0\u05DE\u05E6\u05D0\u05D5 \u05E6\u05DE\u05EA\u05D9\u05DD'}}}
+    // Translate Save button text
+    var sb=document.getElementById('savebtn');if(sb){var t=sb.childNodes;for(var si2=0;si2<t.length;si2++){if(t[si2].nodeType===3&&t[si2].textContent.trim()==='Save'){t[si2].textContent=' \u05E9\u05DE\u05D5\u05E8 '}}}
+    // Translate bot name placeholder
+    var bn=document.getElementById('bname');if(bn)bn.placeholder='\u05DC\u05D7\u05E5 \u05DC\u05E2\u05E8\u05D9\u05DB\u05EA \u05E9\u05DD \u05D4\u05D1\u05D5\u05D8...';
+    // Translate Snap label
+    var sl=document.getElementById('snap-label');if(sl)sl.textContent='\u05D4\u05E6\u05DE\u05D3\u05D4';
+    // Translate palette node labels
+    var dnLabels={
+      'Incoming Message':'\u05D4\u05D5\u05D3\u05E2\u05D4 \u05E0\u05DB\u05E0\u05E1\u05EA',
+      'Send Message':'\u05E9\u05DC\u05D7 \u05D4\u05D5\u05D3\u05E2\u05D4',
+      'Send Image':'\u05E9\u05DC\u05D7 \u05EA\u05DE\u05D5\u05E0\u05D4',
+      'Send Video':'\u05E9\u05DC\u05D7 \u05D5\u05D9\u05D3\u05D0\u05D5',
+      'Buttons':'\u05DB\u05E4\u05EA\u05D5\u05E8\u05D9\u05DD',
+      'Menu':'\u05EA\u05E4\u05E8\u05D9\u05D8',
+      'Condition':'\u05EA\u05E0\u05D0\u05D9',
+      'Delay':'\u05D4\u05DE\u05EA\u05E0\u05D4',
+      'Internal Note':'\u05D4\u05E2\u05E8\u05D4 \u05E4\u05E0\u05D9\u05DE\u05D9\u05EA',
+      'Wait for Reply':'\u05D4\u05DE\u05EA\u05DF \u05DC\u05EA\u05E9\u05D5\u05D1\u05D4',
+      'A/B Split':'A/B \u05E4\u05D9\u05E6\u05D5\u05DC',
+      'Go to Step':'\u05E7\u05E4\u05D5\u05E5 \u05DC\u05E9\u05DC\u05D1',
+      'Assign to Agent':'\u05D4\u05E7\u05E6\u05D4 \u05DC\u05E0\u05E6\u05D9\u05D2',
+      'Add Label':'\u05D4\u05D5\u05E1\u05E3 \u05EA\u05D2\u05D9\u05EA',
+      'Remove Label':'\u05D4\u05E1\u05E8 \u05EA\u05D2\u05D9\u05EA',
+      'Set Attribute':'\u05E2\u05D3\u05DB\u05DF \u05DE\u05D0\u05E4\u05D9\u05D9\u05DF',
+      'Set Priority':'\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA \u05E9\u05D9\u05D7\u05D4',
+      'Set Status':'\u05E1\u05D8\u05D8\u05D5\u05E1 \u05E9\u05D9\u05D7\u05D4',
+      'Transfer Inbox':'\u05D4\u05E2\u05D1\u05E8 \u05EA\u05D9\u05D1\u05D4',
+      'Close Conversation':'\u05E1\u05D2\u05D5\u05E8 \u05E9\u05D9\u05D7\u05D4',
+      'Webhook':'Webhook',
+      'API Action':'API Action',
+      'Triggers':'\u05D8\u05E8\u05D9\u05D2\u05E8\u05D9\u05DD',
+      'Messages':'\u05D4\u05D5\u05D3\u05E2\u05D5\u05EA',
+      'Logic':'\u05DC\u05D5\u05D2\u05D9\u05E7\u05D4',
+      'Actions':'\u05E4\u05E2\u05D5\u05DC\u05D5\u05EA',
+      'Integrations':'\u05D0\u05D9\u05E0\u05D8\u05D2\u05E8\u05E6\u05D9\u05D5\u05EA'
+    };
+    var dnEls=document.querySelectorAll('.dn .dn-label, .sec-t .dn-label');
+    for(var di=0;di<dnEls.length;di++){var dt=dnEls[di].textContent.trim();if(dnLabels[dt])dnEls[di].textContent=dnLabels[dt]}
+    // Translate palette node title attributes
+    var dnTitleEls=document.querySelectorAll('.dn[title]');
+    for(var dti=0;dti<dnTitleEls.length;dti++){var dtt=dnTitleEls[dti].getAttribute('title');if(dnLabels[dtt])dnTitleEls[dti].setAttribute('title',dnLabels[dtt])}
+  })();
+}
 var botData = null;
 var agents=[], labels=[], teams=[], inboxes=[], customAttrs=[], contactFields=[];
 var dragNodeType = null;
@@ -2091,8 +2157,8 @@ var undoMax=100;
 var isUndoing=false;
 function updUndoState(){
   var ub=document.getElementById('undo-btn'),rb=document.getElementById('redo-btn');
-  if(ub)ub.disabled=undoStack.length<2;
-  if(rb)rb.disabled=redoStack.length===0;
+  if(ub){ub.disabled=undoStack.length<2;var uc=undoStack.length-1;ub.title=(isHe?'\u05D1\u05D8\u05DC':'Undo')+' (Ctrl+Z)'+(uc>0?' ['+uc+']':'')}
+  if(rb){rb.disabled=redoStack.length===0;rb.title=(isHe?'\u05D1\u05E6\u05E2 \u05DE\u05D7\u05D3\u05E9':'Redo')+' (Ctrl+Shift+Z)'+(redoStack.length>0?' ['+redoStack.length+']':'')}
 }
 function pushUndo(){
   if(isUndoing)return;
@@ -2132,9 +2198,9 @@ function updZoom(){
 }
 // Override zoom methods to track
 var _zi=editor.zoom_in.bind(editor),_zo=editor.zoom_out.bind(editor),_zr=editor.zoom_reset.bind(editor);
-editor.zoom_in=function(){_zi();updZoom()};
-editor.zoom_out=function(){_zo();updZoom()};
-editor.zoom_reset=function(){_zr();updZoom()};
+editor.zoom_in=function(){editor.precanvas.style.transition='transform 0.2s cubic-bezier(.4,0,.2,1)';_zi();updZoom();setTimeout(function(){editor.precanvas.style.transition=''},250)};
+editor.zoom_out=function(){editor.precanvas.style.transition='transform 0.2s cubic-bezier(.4,0,.2,1)';_zo();updZoom();setTimeout(function(){editor.precanvas.style.transition=''},250)};
+editor.zoom_reset=function(){editor.precanvas.style.transition='transform 0.2s cubic-bezier(.4,0,.2,1)';_zr();updZoom();setTimeout(function(){editor.precanvas.style.transition=''},250)};
 // Track scroll-zoom with debounce + minimap update
 var _zoomTimer=null;
 dfEl.addEventListener('wheel',function(){
@@ -2184,7 +2250,9 @@ function fitToScreen(){
   editor.zoom=z;
   editor.canvas_x=cW/2-((minX+maxX)/2)*z;
   editor.canvas_y=cH/2-((minY+maxY)/2)*z;
+  editor.precanvas.style.transition='transform 0.4s cubic-bezier(.4,0,.2,1)';
   editor.precanvas.style.transform='translate('+editor.canvas_x+'px, '+editor.canvas_y+'px) scale('+editor.zoom+')';
+  setTimeout(function(){editor.precanvas.style.transition=''},450);
   updZoom();
 }
 
@@ -2639,7 +2707,7 @@ ctxMenu.addEventListener('click',function(e){
   if(act==='copy'&&ctxNodeId){
     var nd=editor.getNodeFromId(ctxNodeId);
     if(nd)clipboard={name:nd.name,data:JSON.parse(JSON.stringify(nd.data)),pos_x:nd.pos_x,pos_y:nd.pos_y};
-    toast('Copied','ok');
+    toast(L.copied,'ok');
   }
   if(act==='paste'&&clipboard){
     var c=NC[clipboard.name];if(c){
@@ -2744,9 +2812,7 @@ function smartReposition(info){
 function autoAlign(){
   var d=editor.export().drawflow.Home.data;
   var keys=Object.keys(d);if(!keys.length)return;
-  // Collapse all nodes first for consistent sizing
-  collapseAllNodes();
-  setTimeout(function(){_doAutoAlign()},300);
+  _doAutoAlign();
 }
 function _doAutoAlign(){
   // === ManyChat-style auto layout ===
@@ -2801,7 +2867,7 @@ function _doAutoAlign(){
   // Layout each tree with dagre
   function layoutTree(comp){
     var g=new dagre.graphlib.Graph();
-    g.setGraph({rankdir:'LR',nodesep:80,ranksep:240,marginx:0,marginy:0,ranker:'network-simplex'});
+    g.setGraph({rankdir:'TB',nodesep:40,ranksep:100,marginx:0,marginy:0,ranker:'network-simplex'});
     g.setDefaultEdgeLabel(function(){return{}});
     for(var ni=0;ni<comp.length;ni++){
       var el=document.getElementById('node-'+comp[ni]);
@@ -2831,50 +2897,114 @@ function _doAutoAlign(){
   var treeLayouts=[];
   for(var ti=0;ti<trees.length;ti++)treeLayouts.push(layoutTree(trees[ti]));
 
-  // Place trees stacked vertically (LR layout: each tree flows left→right)
-  var TREE_GAP=120;
+  // Calculate canvas center for centering the layout
+  var cRect=document.querySelector('.canvas').getBoundingClientRect();
+  var canvasCenterX=(cRect.width/2)/editor.zoom;
+  var canvasCenterY=(cRect.height/2)/editor.zoom;
+
+  // Place trees stacked vertically (TB layout: each tree flows top→bottom)
+  var TREE_GAP=80;
   var ORPHAN_GAP=50;
-  var startX=100;var startY=80;
-  var curY=startY;var maxTreeW=0;
+  var curY=0;var maxTreeW=0;
 
   for(var ti=0;ti<treeLayouts.length;ti++){
     var lay=treeLayouts[ti];
     for(var ni=0;ni<lay.nodes.length;ni++){
       var nd=lay.nodes[ni];
-      var x=Math.round(startX+nd.x);var y=Math.round(curY+nd.y);
-      editor.drawflow.drawflow.Home.data[nd.id].pos_x=x;
-      editor.drawflow.drawflow.Home.data[nd.id].pos_y=y;
-      var el=document.getElementById('node-'+nd.id);
-      if(el){el.style.left=x+'px';el.style.top=y+'px'}
+      nd._absX=nd.x;nd._absY=curY+nd.y;
     }
     maxTreeW=Math.max(maxTreeW,lay.width);
     curY+=lay.height+TREE_GAP;
   }
 
-  // Place orphans in a column below the trees
+  // Place orphans below the trees, dynamic column count based on available width
+  var orphanTotalH=0;
   if(orphans.length){
+    var availW=Math.max(maxTreeW,600);
     var orphY=curY+(treeLayouts.length?40:0);
-    var orphX=startX;
-    var maxRowH=0;var cols=Math.min(orphans.length,3);
+    var orphX=0;var maxRowH=0;
+    // Dynamic cols: fit as many as the available width allows
+    var avgOrphW=220;
+    var dynCols=Math.max(1,Math.floor(availW/(avgOrphW+ORPHAN_GAP)));
     for(var oi=0;oi<orphans.length;oi++){
       var nid=orphans[oi];
       var el=document.getElementById('node-'+nid);
       var w=el?el.offsetWidth:220;var h=el?el.offsetHeight:100;
-      editor.drawflow.drawflow.Home.data[nid].pos_x=orphX;
-      editor.drawflow.drawflow.Home.data[nid].pos_y=orphY;
-      if(el){el.style.left=orphX+'px';el.style.top=orphY+'px'}
+      // Store position temporarily on a lookup
+      if(!orphans._pos)orphans._pos={};
+      orphans._pos[nid]={x:orphX,y:orphY};
       maxRowH=Math.max(maxRowH,h);
       orphX+=w+ORPHAN_GAP;
-      if((oi+1)%cols===0){orphX=startX;orphY+=maxRowH+ORPHAN_GAP;maxRowH=0}
+      if((oi+1)%dynCols===0){orphX=0;orphY+=maxRowH+ORPHAN_GAP;maxRowH=0}
+    }
+    orphanTotalH=orphY+(maxRowH>0?maxRowH:0)-curY;
+  }
+
+  // Compute total bounding box and center offset
+  var totalH=curY+orphanTotalH;
+  var offsetX=canvasCenterX-maxTreeW/2;
+  var offsetY=canvasCenterY-totalH/2;
+  // Ensure minimum margin
+  if(offsetX<40)offsetX=40;
+  if(offsetY<40)offsetY=40;
+
+  // Add smooth animation transition to all nodes
+  var allAnimNodes=document.querySelectorAll('.drawflow-node');
+  for(var ai=0;ai<allAnimNodes.length;ai++){
+    allAnimNodes[ai].style.transition='left 0.4s cubic-bezier(.4,0,.2,1), top 0.4s cubic-bezier(.4,0,.2,1)';
+  }
+
+  // Move tree nodes
+  for(var ti=0;ti<treeLayouts.length;ti++){
+    var lay=treeLayouts[ti];
+    // Center each tree horizontally within maxTreeW
+    var treeOffX=(maxTreeW-lay.width)/2;
+    for(var ni=0;ni<lay.nodes.length;ni++){
+      var nd=lay.nodes[ni];
+      var x=Math.round(offsetX+treeOffX+nd._absX);var y=Math.round(offsetY+nd._absY);
+      editor.drawflow.drawflow.Home.data[nd.id].pos_x=x;
+      editor.drawflow.drawflow.Home.data[nd.id].pos_y=y;
+      var el=document.getElementById('node-'+nd.id);
+      if(el){el.style.left=x+'px';el.style.top=y+'px'}
     }
   }
 
-  // Update all connections
-  var allNodes=document.querySelectorAll('.drawflow-node');
-  for(var ni=0;ni<allNodes.length;ni++){editor.updateConnectionNodes(allNodes[ni].id)}
-  pushUndo();fitToScreen();
+  // Move orphan nodes (centered below trees)
+  if(orphans.length&&orphans._pos){
+    // Center orphans relative to maxTreeW
+    var orphanMinX=Infinity,orphanMaxX=0;
+    for(var nid2 in orphans._pos){var pp=orphans._pos[nid2];if(pp.x<orphanMinX)orphanMinX=pp.x;var oel=document.getElementById('node-'+nid2);var ow=oel?oel.offsetWidth:220;if(pp.x+ow>orphanMaxX)orphanMaxX=pp.x+ow}
+    var orphanW=orphanMaxX-orphanMinX;
+    var orphCenterOff=(maxTreeW-orphanW)/2;if(orphCenterOff<0)orphCenterOff=0;
+    for(var oi2=0;oi2<orphans.length;oi2++){
+      var onid=orphans[oi2];
+      var op=orphans._pos[onid];if(!op)continue;
+      var ox=Math.round(offsetX+orphCenterOff+op.x);var oy=Math.round(offsetY+op.y);
+      editor.drawflow.drawflow.Home.data[onid].pos_x=ox;
+      editor.drawflow.drawflow.Home.data[onid].pos_y=oy;
+      var oel2=document.getElementById('node-'+onid);
+      if(oel2){oel2.style.left=ox+'px';oel2.style.top=oy+'px'}
+    }
+  }
+
+  // Update connections immediately (they follow the animated nodes)
+  var allN=document.querySelectorAll('.drawflow-node');
+  for(var ni2=0;ni2<allN.length;ni2++){editor.updateConnectionNodes(allN[ni2].id)}
+  pushUndo();
+
+  // After animation completes: remove transitions, re-update connections + minimap, fit to screen
+  setTimeout(function(){
+    var allN2=document.querySelectorAll('.drawflow-node');
+    for(var i2=0;i2<allN2.length;i2++){
+      allN2[i2].style.transition='';
+      editor.updateConnectionNodes(allN2[i2].id);
+    }
+    updateMinimap();
+    fitToScreen();
+  },500);
+
   markDirty();
-  toast('Nodes aligned','ok');
+  toast(isHe?'\u05D4\u05E0\u05D5\u05D3\u05D9\u05DD \u05E1\u05D5\u05D3\u05E8\u05D5':'Nodes aligned','ok');
 }
 
 // ===== FLOW VALIDATION =====
