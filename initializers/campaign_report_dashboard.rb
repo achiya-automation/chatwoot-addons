@@ -332,9 +332,9 @@ class CampaignReportMiddleware
 
         /* === STAT CARDS - Premium glass === */
         .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px}
-        .stat-card{background:var(--bg-card);border:1px solid var(--border-weak);border-radius:16px;padding:20px 22px;position:relative;overflow:hidden;transition:border-color .2s,box-shadow .3s,transform .2s;box-shadow:var(--card-shadow)}
+        .stat-card{background:var(--bg-card);border:1px solid var(--border-weak);border-radius:16px;padding:20px 22px;position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;box-shadow:var(--card-shadow)}
         .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:16px 16px 0 0;background:var(--stat-accent,var(--accent));opacity:.6;transition:opacity .2s}
-        .stat-card:hover{border-color:var(--border-strong);box-shadow:var(--card-hover-shadow);transform:translateY(-2px)}
+        .stat-card:hover{border-color:var(--accent-border);box-shadow:var(--card-hover-shadow),0 0 20px var(--glow-accent);transform:translateY(-3px)}
         .stat-card:hover::before{opacity:1}
         .stat-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:17px;transition:box-shadow .2s}
         .stat-card:hover .stat-icon{box-shadow:0 0 12px var(--stat-glow,rgba(99,102,241,.2))}
@@ -345,7 +345,8 @@ class CampaignReportMiddleware
         .stat-bar-fill{height:100%;border-radius:2px;transition:width 1s cubic-bezier(.4,0,.2,1)}
 
         /* === SECTION TITLES === */
-        .section-title{font-size:10px;font-weight:700;margin-bottom:12px;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:8px}
+        .section-title{font-size:11px;font-weight:700;margin-bottom:12px;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:8px;border-left:3px solid var(--accent);padding-left:10px}
+        [dir="rtl"] .section-title{border-left:none;padding-left:0;border-right:3px solid var(--accent);padding-right:10px}
         .section-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border-weak),transparent)}
 
         /* === TABLE - Premium === */
@@ -360,7 +361,11 @@ class CampaignReportMiddleware
         th.sorted .sort-arr{opacity:1}
         td{padding:14px 16px;border-bottom:1px solid var(--border-weak);font-size:13px;font-variant-numeric:tabular-nums}
         tbody tr{transition:background .15s,transform .15s}
+        tbody tr:nth-child(even){background:rgba(0,0,0,.015)}
+        body.dark tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
         tbody tr:hover{background:var(--table-hover)}
+        tbody tr.clickable:hover{background:rgba(99,102,241,.06)}
+        body.dark tbody tr.clickable:hover{background:rgba(99,102,241,.08)}
         tbody tr:last-child td{border-bottom:none}
         tbody tr.clickable{cursor:pointer;position:relative}
         tbody tr.clickable:active{transform:scale(.998)}
@@ -380,11 +385,13 @@ class CampaignReportMiddleware
         a:hover{text-decoration:underline;text-underline-offset:3px}
 
         /* Info card */
-        .info-card{background:var(--bg-card);border:1px solid var(--border-weak);border-radius:16px;padding:24px;box-shadow:var(--card-shadow)}
+        .info-card{background:var(--bg-card);border:1px solid var(--border-weak);border-left:3px solid var(--accent);border-radius:16px;padding:24px;box-shadow:var(--card-shadow)}
+        [dir="rtl"] .info-card{border-left:1px solid var(--border-weak);border-right:3px solid var(--accent)}
         .info-card h3{font-size:10px;font-weight:700;margin-bottom:14px;color:var(--text-4);text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:8px}
         .info-card h3::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border-weak),transparent)}
-        .info-row{display:flex;gap:8px;margin-bottom:8px;color:var(--text-3);font-size:13px;align-items:baseline}
-        .info-row strong{color:var(--text-2);min-width:80px;font-weight:600;font-size:12px}
+        .info-row{display:flex;gap:12px;margin-bottom:10px;font-size:13px;align-items:baseline}
+        .info-row strong{color:var(--text-4);min-width:90px;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.3px;flex-shrink:0}
+        .info-val{color:var(--text-1);word-break:break-word;line-height:1.5}
 
         /* Empty state */
         .empty-state{text-align:center;padding:60px 20px;color:var(--text-4)}
@@ -405,6 +412,9 @@ class CampaignReportMiddleware
         .funnel-seg span{white-space:nowrap;padding:0 8px}
         .funnel-seg.seg-tiny span{font-size:0}
         .funnel-seg.seg-tiny:hover span{font-size:10px;position:absolute;background:rgba(0,0,0,.85);color:#fff;padding:2px 8px;border-radius:6px;z-index:5;white-space:nowrap;top:-28px;left:50%;transform:translateX(-50%);pointer-events:none}
+        .funnel-seg.seg-empty{min-width:4px!important;flex:0 0 4px}
+        .funnel-seg.seg-empty span{font-size:0}
+        .funnel-seg.seg-empty:hover span{font-size:10px;position:absolute;background:rgba(0,0,0,.85);color:#fff;padding:2px 8px;border-radius:6px;z-index:5;white-space:nowrap;top:-28px;left:50%;transform:translateX(-50%);pointer-events:none}
         .funnel-labels{display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--text-4);padding:0 2px}
         .funnel-label{display:flex;align-items:center;gap:5px;font-weight:500}
         .funnel-label .dot{width:8px;height:8px;border-radius:3px;flex-shrink:0}
@@ -608,6 +618,7 @@ class CampaignReportMiddleware
           chips.forEach(function(c){var st=c.getAttribute('data-status');var cnt=counts[st]||0;var sp=c.querySelector('.chip-count');if(sp)sp.textContent=' ('+cnt+')'})
         }
         updateChipCounts();
+        filterCampaigns('');
         chips.forEach(function(c){c.addEventListener('click',function(){
           chips.forEach(function(x){x.classList.remove('active')});
           this.classList.add('active');
@@ -631,7 +642,10 @@ class CampaignReportMiddleware
           var cnt=document.getElementById('search-count');
           if(cnt)cnt.textContent=(q||_activeStatus!=='all')?vis+' / '+total:'';
           var sc=document.getElementById('showing-count');
-          if(sc)sc.textContent=vis<total?'('+vis+'/'+total+')':'';
+          if(sc){
+            if(_isHe){sc.textContent='\u05DE\u05E6\u05D9\u05D2 '+vis+' \u05DE\u05EA\u05D5\u05DA '+total}
+            else{sc.textContent='Showing '+vis+' of '+total}
+          }
         }
         var sortState={col:null,asc:true};
         function sortTable(col,type){
@@ -810,16 +824,16 @@ class CampaignReportMiddleware
 
           <div class="funnel">
             <div class="funnel-bar-wrap">
-              #{bar_read > 0 ? "<div class='funnel-seg#{bar_read < 5 ? ' seg-tiny' : ''}' style='width:#{bar_read}%;background:#a29bfe'><span>#{read_count} Read</span></div>" : ""}
-              #{(bar_delivered - bar_read) > 0 ? "<div class='funnel-seg#{(bar_delivered - bar_read) < 5 ? ' seg-tiny' : ''}' style='width:#{bar_delivered - bar_read}%;background:#2ecc71'><span>#{delivered - read_count} Delivered</span></div>" : ""}
-              #{bar_failed > 0 ? "<div class='funnel-seg#{bar_failed < 5 ? ' seg-tiny' : ''}' style='width:#{bar_failed}%;background:#ff6b6b'><span>#{failed} Failed</span></div>" : ""}
-              #{bar_not_sent > 0 ? "<div class='funnel-seg#{bar_not_sent < 5 ? ' seg-tiny' : ''}' style='width:#{bar_not_sent}%;background:#f0ad4e'><span>#{not_sent.size} Not Sent</span></div>" : ""}
+              <div class='funnel-seg#{bar_read > 0 ? (bar_read < 5 ? ' seg-tiny' : '') : ' seg-empty'}' style='#{bar_read > 0 ? "width:#{bar_read}%" : 'min-width:4px;opacity:.3'};background:#a29bfe' title='#{read_count} (#{bar_read}%)'><span>#{read_count} Read</span></div>
+              <div class='funnel-seg#{(bar_delivered - bar_read) > 0 ? ((bar_delivered - bar_read) < 5 ? ' seg-tiny' : '') : ' seg-empty'}' style='#{(bar_delivered - bar_read) > 0 ? "width:#{bar_delivered - bar_read}%" : 'min-width:4px;opacity:.3'};background:#2ecc71' title='#{delivered - read_count} (#{(bar_delivered - bar_read).round(1)}%)'><span>#{delivered - read_count} Delivered</span></div>
+              <div class='funnel-seg#{bar_failed > 0 ? (bar_failed < 5 ? ' seg-tiny' : '') : ' seg-empty'}' style='#{bar_failed > 0 ? "width:#{bar_failed}%" : 'min-width:4px;opacity:.3'};background:#ff6b6b' title='#{failed} (#{bar_failed}%)'><span>#{failed} Failed</span></div>
+              <div class='funnel-seg#{bar_not_sent > 0 ? (bar_not_sent < 5 ? ' seg-tiny' : '') : ' seg-empty'}' style='#{bar_not_sent > 0 ? "width:#{bar_not_sent}%" : 'min-width:4px;opacity:.3'};background:#f0ad4e' title='#{not_sent.size} (#{bar_not_sent}%)'><span>#{not_sent.size} Not Sent</span></div>
             </div>
             <div class="funnel-labels">
               <div class="funnel-label"><span class="dot" style="background:#a29bfe"></span> Read #{bar_read}%</div>
               <div class="funnel-label"><span class="dot" style="background:#2ecc71"></span> Delivered #{bar_delivered}%</div>
-              #{bar_failed > 0 ? "<div class='funnel-label'><span class='dot' style='background:#ff6b6b'></span> Failed #{bar_failed}%</div>" : ""}
-              #{bar_not_sent > 0 ? "<div class='funnel-label'><span class='dot' style='background:#f0ad4e'></span> Not Sent #{bar_not_sent}%</div>" : ""}
+              <div class="funnel-label"><span class="dot" style="background:#ff6b6b"></span> Failed #{bar_failed}%</div>
+              <div class="funnel-label"><span class="dot" style="background:#f0ad4e"></span> Not Sent #{bar_not_sent}%</div>
             </div>
           </div>
 
@@ -827,9 +841,9 @@ class CampaignReportMiddleware
 
           <div class="info-card">
             <h3>Template Details</h3>
-            <div class="info-row"><strong>Template:</strong> #{h(campaign.template_params&.dig('name') || '-')}</div>
-            <div class="info-row"><strong>Language:</strong> #{h(campaign.template_params&.dig('language') || '-')}</div>
-            <div class="info-row"><strong>Message:</strong> #{h(campaign.message || '-')}</div>
+            <div class="info-row"><strong>Template:</strong> <span class="info-val">#{h(campaign.template_params&.dig('name') || '-')}</span></div>
+            <div class="info-row"><strong>Language:</strong> <span class="info-val">#{h(campaign.template_params&.dig('language') || '-')}</span></div>
+            <div class="info-row"><strong>Message:</strong> <span class="info-val">#{h(campaign.message || '-')}</span></div>
           </div>
         </div>
         </div>
@@ -877,7 +891,8 @@ class CampaignReportMiddleware
           var irows=document.querySelectorAll('.info-row strong');
           var irmap={'Template:':'\u05EA\u05D1\u05E0\u05D9\u05EA:','Language:':'\u05E9\u05E4\u05D4:','Message:':'\u05D4\u05D5\u05D3\u05E2\u05D4:'};
           for(var i=0;i<irows.length;i++){var ir=irows[i].textContent.trim();if(irmap[ir])irows[i].textContent=irmap[ir]}
-          var att=document.querySelector('.att-text');if(att){var as=att.querySelector('strong');if(as)as.textContent='\u05D3\u05D5\u05E8\u05E9 \u05EA\u05E9\u05D5\u05DE\u05EA \u05DC\u05D1:'}
+          var att=document.querySelector('.att-text');if(att){var as=att.querySelector('strong');if(as)as.textContent='\u05D3\u05D5\u05E8\u05E9 \u05EA\u05E9\u05D5\u05DE\u05EA \u05DC\u05D1:';var atn=att.childNodes;for(var ai=0;ai<atn.length;ai++){if(atn[ai].nodeType===3){var av=atn[ai].textContent;av=av.replace(/Failed/g,'\u05E0\u05DB\u05E9\u05DC\u05D5');av=av.replace(/Not Sent/g,'\u05DC\u05D0 \u05E0\u05E9\u05DC\u05D7\u05D5');atn[ai].textContent=av}}}
+          var fts=document.querySelectorAll('.funnel-seg');for(var i=0;i<fts.length;i++){var tt=fts[i].getAttribute('title')||'';for(var fk in fmap){if(tt.indexOf(fk)!==-1){fts[i].setAttribute('title',tt.replace(fk,fmap[fk]))}}}
           var audSpan=document.querySelector('.subtitle');if(audSpan){var at=audSpan.textContent||'';audSpan.textContent=at.replace('Audience:','\u05E7\u05D4\u05DC:')}
         })();
         </script>

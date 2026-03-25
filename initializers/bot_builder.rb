@@ -191,7 +191,7 @@ class BotBuilderMiddleware
       act = b['active']
       inb_names = begin; ids=b['inbox_ids']||[]; ids.map{|id| inbox_lookup[id]}.compact; rescue; [] end
       inb_display = if inb_names.empty?
-        "Not assigned"
+        "<span data-i18n='not-assigned'>Not assigned</span>"
       elsif inb_names.length <= 2
         inb_names.join(', ')
       else
@@ -204,13 +204,13 @@ class BotBuilderMiddleware
       "<a href='/bot-builder/#{e(b['id'])}/edit' class='bc-link'>" \
       "<div class='bc-top'><div class='bc-info'><h3 title='#{e(b['name']||"Unnamed")}'>#{e(b['name']||"Unnamed")}</h3>" \
       "#{"<p>#{e(b['description'])}</p>" if b['description'].to_s.strip.length > 0}" \
-      "</div><span class='badge #{act ? "bg" : "bi"}'><span class='badge-dot #{act ? "dot-g" : "dot-n"}'></span>#{act ? "Active" : "Disabled"}</span></div>" \
+      "</div><span class='badge #{act ? "bg" : "bi"}' data-i18n='badge-status'><span class='badge-dot #{act ? "dot-g" : "dot-n"}'></span>#{act ? "Active" : "Disabled"}</span></div>" \
       "<div class='bc-meta'><span><i class='ti ti-inbox'></i> #{e(inb_display)}</span>" \
-      "<span><i class='ti ti-puzzle'></i> #{nc} nodes</span><span><i class='ti ti-clock'></i> #{upd}</span><span><i class='ti ti-calendar'></i> Created #{crt}</span></div>" \
+      "<span data-i18n='meta-nodes'><i class='ti ti-puzzle'></i> #{nc} nodes</span><span class='bc-time' data-i18n='meta-time'><i class='ti ti-clock'></i> #{upd}</span><span data-i18n='meta-created'><i class='ti ti-calendar'></i> Created #{crt}</span></div>" \
       "</a>" \
       "<div class='bc-act'>" \
-      "<button class='btn btn-sm bo' data-tid='#{e(b['id'])}'><i class='ti #{act ? 'ti-player-pause' : 'ti-player-play'}'></i> #{act ? "Disable" : "Enable"}</button>" \
-      "<button class='btn btn-sm bd' data-did='#{e(b['id'])}'><i class='ti ti-trash'></i> Delete</button></div></div>"
+      "<button class='btn btn-sm bo' data-tid='#{e(b['id'])}' data-i18n='btn-toggle'><i class='ti #{act ? 'ti-player-pause' : 'ti-player-play'}'></i> #{act ? "Disable" : "Enable"}</button>" \
+      "<button class='btn btn-sm bd' data-did='#{e(b['id'])}' data-i18n='btn-delete'><i class='ti ti-trash'></i> Delete</button></div></div>"
     }.join
 
     empty = bots.empty? ? "<div class='empty'><div class='empty-icon'><i class='ti ti-robot'></i></div>" \
@@ -223,7 +223,7 @@ class BotBuilderMiddleware
       "<span class='stat-sep'>\u00B7</span>" \
       "<span class='stat-item' data-i18n='stat-disabled'><span class='stat-dot dot-n'></span>#{inactive_count} Disabled</span>" \
       "<span class='stat-sep'>\u00B7</span>" \
-      "<span class='stat-item'><i class='ti ti-puzzle' style='font-size:14px;vertical-align:middle;margin-right:4px'></i>#{total_nodes} total nodes</span>" \
+      "<span class='stat-item' data-i18n='stat-nodes'><i class='ti ti-puzzle' style='font-size:14px;vertical-align:middle;margin-right:4px'></i>#{total_nodes} total nodes</span>" \
       "</div>"
     else "" end
 
@@ -282,6 +282,7 @@ class BotBuilderMiddleware
     ".stat-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}" \
     ".dot-g{background:#12a594}" \
     ".dot-n{background:var(--text-10)}" \
+    "body.dark .stats-bar{background:var(--bg-card);box-shadow:0 0 0 1px rgba(255,255,255,.06),0 1px 2px rgba(0,0,0,.2),0 4px 12px rgba(0,0,0,.15)}" \
     "" \
     ".filter-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}" \
     ".search-wrap{position:relative;flex:1;min-width:200px;max-width:360px}" \
@@ -339,6 +340,13 @@ class BotBuilderMiddleware
     "var nb=document.querySelector('.page-hdr .bp');if(nb)nb.innerHTML='<i class=\"ti ti-plus\" style=\"font-size:16px\"></i> \\u05D1\\u05D5\\u05D8 \\u05D7\\u05D3\\u05E9';" \
     "var si=document.querySelector('[data-i18n=\"stat-active\"]');if(si)si.innerHTML='<span class=\"stat-dot dot-g\"></span>'+si.textContent.match(/\\d+/)[0]+' \\u05E4\\u05E2\\u05D9\\u05DC\\u05D9\\u05DD';" \
     "var sd=document.querySelector('[data-i18n=\"stat-disabled\"]');if(sd)sd.innerHTML='<span class=\"stat-dot dot-n\"></span>'+sd.textContent.match(/\\d+/)[0]+' \\u05DE\\u05D5\\u05E9\\u05D1\\u05EA\\u05D9\\u05DD';" \
+    "var sn=document.querySelector('[data-i18n=\"stat-nodes\"]');if(sn)sn.innerHTML='<i class=\"ti ti-puzzle\" style=\"font-size:14px;vertical-align:middle;margin-right:4px\"></i>'+sn.textContent.match(/\\d+/)[0]+' \\u05E0\\u05D5\\u05D3\\u05D9\\u05DD';" \
+    "document.querySelectorAll('[data-i18n=\"not-assigned\"]').forEach(function(el){el.textContent='\\u05DC\\u05D0 \\u05DE\\u05E9\\u05D5\\u05D9\\u05DA'});" \
+    "document.querySelectorAll('[data-i18n=\"meta-nodes\"]').forEach(function(el){var n=el.textContent.match(/\\d+/);el.innerHTML='<i class=\"ti ti-puzzle\"></i> '+(n?n[0]:'0')+' \\u05E0\\u05D5\\u05D3\\u05D9\\u05DD'});" \
+    "document.querySelectorAll('[data-i18n=\"meta-created\"]').forEach(function(el){var d=el.textContent.replace(/Created\\s*/,'');el.innerHTML='<i class=\"ti ti-calendar\"></i> \\u05E0\\u05D5\\u05E6\\u05E8 '+d});" \
+    "document.querySelectorAll('[data-i18n=\"badge-status\"]').forEach(function(el){var isAct=el.textContent.trim()==='Active';el.innerHTML='<span class=\"badge-dot '+(isAct?'dot-g':'dot-n')+'\"></span>'+(isAct?'\\u05E4\\u05E2\\u05D9\\u05DC':'\\u05DE\\u05D5\\u05E9\\u05D1\\u05EA')});" \
+    "document.querySelectorAll('[data-i18n=\"btn-toggle\"]').forEach(function(el){var isDis=el.textContent.trim()==='Disable';el.innerHTML='<i class=\"ti '+(isDis?'ti-player-pause':'ti-player-play')+'\"></i> '+(isDis?'\\u05D4\\u05E9\\u05D1\\u05EA':'\\u05D4\\u05E4\\u05E2\\u05DC')});" \
+    "document.querySelectorAll('[data-i18n=\"btn-delete\"]').forEach(function(el){el.innerHTML='<i class=\"ti ti-trash\"></i> \\u05DE\\u05D7\\u05E7'});" \
     "var se=document.getElementById('bot-search');if(se)se.placeholder='\\u05D7\\u05E4\\u05E9 \\u05D1\\u05D5\\u05D8\\u05D9\\u05DD...';" \
     "var so=document.getElementById('bot-sort');if(so){so.options[0].text='\\u05E2\\u05D3\\u05DB\\u05D5\\u05DF \\u05D0\\u05D7\\u05E8\\u05D5\\u05DF';so.options[1].text='\\u05E9\\u05DD';so.options[2].text='\\u05EA\\u05D0\\u05E8\\u05D9\\u05DA \\u05D9\\u05E6\\u05D9\\u05E8\\u05D4'}" \
     "var em=document.querySelector('.empty h2');if(em)em.textContent='\\u05D0\\u05D9\\u05DF \\u05D1\\u05D5\\u05D8\\u05D9\\u05DD \\u05E2\\u05D3\\u05D9\\u05D9\\u05DF';" \
@@ -346,6 +354,19 @@ class BotBuilderMiddleware
     "var eb=document.querySelector('.empty .bp');if(eb)eb.innerHTML='<i class=\"ti ti-plus\" style=\"font-size:18px\"></i> \\u05D1\\u05D5\\u05D8 \\u05D7\\u05D3\\u05E9';" \
     "var nr=document.getElementById('no-results');if(nr)nr.innerHTML='<i class=\"ti ti-search-off\" style=\"font-size:32px;display:block;margin-bottom:8px;opacity:.5\"></i>\\u05DC\\u05D0 \\u05E0\\u05DE\\u05E6\\u05D0\\u05D5 \\u05D1\\u05D5\\u05D8\\u05D9\\u05DD \\u05EA\\u05D5\\u05D0\\u05DE\\u05D9\\u05DD';" \
     "})();" \
+    "function relativeTime(dateStr,isHe){" \
+    "var d=new Date(dateStr);var now=new Date();var diff=Math.floor((now-d)/1000);" \
+    "if(diff<60)return isHe?'\\u05D4\\u05E8\\u05D2\\u05E2':'Just now';" \
+    "if(diff<3600){var m=Math.floor(diff/60);return isHe?'\\u05DC\\u05E4\\u05E0\\u05D9 '+m+' \\u05D3\\u05E7\\u05D5\\u05EA':m+'m ago'}" \
+    "if(diff<86400){var h=Math.floor(diff/3600);return isHe?'\\u05DC\\u05E4\\u05E0\\u05D9 '+h+' \\u05E9\\u05E2\\u05D5\\u05EA':h+'h ago'}" \
+    "if(diff<604800){var dy=Math.floor(diff/86400);return isHe?'\\u05DC\\u05E4\\u05E0\\u05D9 '+dy+' \\u05D9\\u05DE\\u05D9\\u05DD':dy+'d ago'}" \
+    "if(diff<2592000){var w=Math.floor(diff/604800);return isHe?'\\u05DC\\u05E4\\u05E0\\u05D9 '+w+' \\u05E9\\u05D1\\u05D5\\u05E2\\u05D5\\u05EA':w+'w ago'}" \
+    "var mo=Math.floor(diff/2592000);return isHe?'\\u05DC\\u05E4\\u05E0\\u05D9 '+mo+' \\u05D7\\u05D5\\u05D3\\u05E9\\u05D9\\u05DD':mo+'mo ago'}" \
+    "document.querySelectorAll('.bc').forEach(function(card){" \
+    "var upd=card.getAttribute('data-updated');if(!upd)return;" \
+    "var timeEl=card.querySelector('.bc-time');if(!timeEl)return;" \
+    "timeEl.innerHTML='<i class=\"ti ti-clock\"></i> '+relativeTime(upd,_isHe);timeEl.title=upd;" \
+    "});" \
     "document.addEventListener('click',function(e){" \
     "if(e.target.closest('.bc-link'))return;" \
     "var t=e.target.closest('[data-tid]');if(t){e.preventDefault();e.stopPropagation();fetch('/bot-builder/api/bots/'+t.getAttribute('data-tid')+'/toggle',{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){if(r.ok)location.reload()});return}" \
@@ -872,6 +893,12 @@ body.dark .nh-go{--nc-tint:rgba(148,163,184,.13);--nc-text:#94A3B8;--nc-icon-bg:
 .props-field .cond-sub{margin-top:4px}
 .props-field .cond-sub label{font-size:12px;color:var(--text-faint);margin-bottom:3px}
 
+/* === TOOLBAR KBD HINTS === */
+.toolbar-kbd{display:inline-block;padding:1px 5px;border-radius:3px;font-size:10px;font-family:monospace;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:var(--text-muted);margin-left:6px;vertical-align:middle}
+/* === FLOAT ANIMATION === */
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.canvas-empty-icon{animation:float 3s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.canvas-empty-icon{animation:none !important}}
 /* === UNIQUE ENHANCEMENTS === */
 @keyframes nodeEnter{from{opacity:0;filter:blur(4px);transform:scale(.97)}to{opacity:1;filter:blur(0);transform:scale(1)}}
 /* --nc defined on .nh-XX classes (icon + header accent) */
@@ -929,7 +956,7 @@ body.dark .nb select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http
     <input type="file" id="flow-import" accept=".json" style="display:none" onchange="importFlow(this)">
   </div>
   <div class="tb-divider"></div>
-  <button class="tbtn tbtn-save" id="savebtn"><i class="ti ti-device-floppy"></i> Save</button>
+  <button class="tbtn tbtn-save" id="savebtn"><i class="ti ti-device-floppy"></i> Save <kbd class="toolbar-kbd">Ctrl+S</kbd></button>
 </div>
 <div class="layout">
   <!-- RIGHT SIDEBAR: Nodes (collapsible 48px strip / 240px expanded) -->
@@ -993,11 +1020,11 @@ body.dark .nb select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http
       </p>
     </div>
     <div class="zoom">
-      <button class="zb" onclick="editor.zoom_out()"><i class="ti ti-minus"></i></button>
+      <button class="zb" onclick="editor.zoom_out()" title="Zoom out (Ctrl+-)"><i class="ti ti-minus"></i></button>
       <span class="zoom-pct" id="zoom-pct">100%</span>
-      <button class="zb" onclick="editor.zoom_in()"><i class="ti ti-plus"></i></button>
-      <button class="zb" onclick="fitToScreen()" title="Fit to screen"><i class="ti ti-arrows-maximize"></i></button>
-      <button class="zb" onclick="editor.zoom_reset();updZoom()" title="Reset"><i class="ti ti-refresh"></i></button>
+      <button class="zb" onclick="editor.zoom_in()" title="Zoom in (Ctrl++)"><i class="ti ti-plus"></i></button>
+      <button class="zb" onclick="fitToScreen()" title="Fit to screen (Ctrl+0)"><i class="ti ti-arrows-maximize"></i></button>
+      <button class="zb" onclick="editor.zoom_reset();updZoom()" title="Reset zoom (Ctrl+1)"><i class="ti ti-refresh"></i></button>
     </div>
     <div class="snap-toggle active" id="snap-toggle" onclick="toggleSnap()" title="Snap to grid">
       <i class="ti ti-grid-dots"></i> <span id="snap-label">Snap</span>
@@ -3197,7 +3224,7 @@ setTimeout(queueMM,800);
 
   // --- Save button ---
   var savebtn=document.getElementById('savebtn');
-  if(savebtn) savebtn.innerHTML='<i class="ti ti-device-floppy"></i> \u05E9\u05DE\u05D5\u05E8';
+  if(savebtn) savebtn.innerHTML='<i class="ti ti-device-floppy"></i> \u05E9\u05DE\u05D5\u05E8 <kbd class="toolbar-kbd">Ctrl+S</kbd>';
 
   // --- Snap button ---
   var snapLabel=document.getElementById('snap-label');
@@ -3254,8 +3281,10 @@ setTimeout(queueMM,800);
     'Export Flow (JSON)':'\u05D9\u05D9\u05E6\u05D5\u05D0 \u05D6\u05E8\u05D9\u05DE\u05D4 (JSON)',
     'Import Flow (JSON)':'\u05D9\u05D9\u05D1\u05D5\u05D0 \u05D6\u05E8\u05D9\u05DE\u05D4 (JSON)',
     'Expand/Collapse palette':'\u05D4\u05E8\u05D7\u05D1/\u05E6\u05DE\u05E6\u05DD \u05E4\u05DC\u05D8\u05D4',
-    'Fit to screen':'\u05D4\u05EA\u05D0\u05DE\u05D4 \u05DC\u05DE\u05E1\u05DA',
-    'Reset':'\u05D0\u05D9\u05E4\u05D5\u05E1',
+    'Fit to screen (Ctrl+0)':'\u05D4\u05EA\u05D0\u05DE\u05D4 \u05DC\u05DE\u05E1\u05DA (Ctrl+0)',
+    'Reset zoom (Ctrl+1)':'\u05D0\u05D9\u05E4\u05D5\u05E1 \u05D6\u05D5\u05DD (Ctrl+1)',
+    'Zoom out (Ctrl+-)':'\u05D4\u05E7\u05D8\u05E0\u05D4 (Ctrl+-)',
+    'Zoom in (Ctrl++)':'\u05D4\u05D2\u05D3\u05DC\u05D4 (Ctrl++)',
     'Snap to grid':'\u05D4\u05E6\u05DE\u05D3 \u05DC\u05E8\u05E9\u05EA',
     'Back to list':'\u05D7\u05D6\u05E8\u05D4 \u05DC\u05E8\u05E9\u05D9\u05DE\u05D4',
     'Duplicate':'\u05E9\u05DB\u05E4\u05D5\u05DC',
