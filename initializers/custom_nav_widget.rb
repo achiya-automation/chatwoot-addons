@@ -23,9 +23,10 @@ class CustomNavWidgetMiddleware
     # Skip injection for bot-builder and campaign-report (they render their own nav)
     return [status, headers, response] if path.start_with?('/bot-builder') || path.start_with?('/campaign-report')
 
-    body = ''
-    response.each { |part| body += part }
+    parts = []
+    response.each { |part| parts << part }
     response.close if response.respond_to?(:close)
+    body = parts.join
 
     if body.include?('</body>')
       body.sub!('</body>', "#{nav_overlay_html}</body>")
@@ -42,21 +43,24 @@ class CustomNavWidgetMiddleware
   def nav_overlay_html
     <<~'HTML'
       <style data-custom-nav-style>
-      .cw-ghost{position:fixed;left:0;top:0;width:6px;height:100vh;z-index:99997;cursor:pointer}
-      .cw-panel{position:fixed;left:0;top:0;width:210px;height:100vh;background:#FEFEFE;border-right:1px solid #E8E9ED;z-index:99998;transform:translateX(-210px);transition:transform 280ms cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;padding:0;font-family:'Inter',-apple-system,system-ui,sans-serif;box-shadow:4px 0 24px rgba(0,0,0,.06),12px 0 40px rgba(0,0,0,.03)}
+      .cw-ghost{position:fixed;left:0;top:0;width:8px;height:100vh;z-index:99997;cursor:pointer}
+      .cw-panel{position:fixed;left:0;top:0;width:220px;height:100vh;background:#FEFEFE;border-right:1px solid #E8E9ED;z-index:99998;transform:translateX(-220px);transition:transform 280ms cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;padding:0;font-family:'Inter',-apple-system,system-ui,sans-serif;box-shadow:4px 0 24px rgba(0,0,0,.06),12px 0 40px rgba(0,0,0,.03)}
+      .cw-panel:focus-within{transform:translateX(0)}
       .cw-panel.open{transform:translateX(0)}
       .cw-panel-hdr{padding:18px 16px 14px;border-bottom:1px solid #E8E9ED;display:flex;align-items:center;gap:10px;direction:ltr}
       .cw-panel-hdr svg{width:20px;height:20px;flex-shrink:0}
       .cw-panel-hdr span{font-size:13px;font-weight:600;color:#60646C;letter-spacing:-.01em}
       .cw-panel-nav{flex:1;padding:8px 0;overflow-y:auto}
-      .cw-panel-item{display:flex;align-items:center;gap:12px;padding:10px 16px;color:#60646C;text-decoration:none;font-size:14px;font-weight:500;transition:background .15s,color .15s,border-color .15s;direction:ltr;border-left:3px solid transparent;position:relative}
-      .cw-panel-item:hover{background:rgba(99,102,241,.04);color:#1C2024}
-      .cw-panel-item.active{color:#6366F1;background:rgba(99,102,241,.06);border-left-color:transparent}
+      .cw-panel-item{display:flex;align-items:center;gap:12px;padding:10px 16px;color:#60646C;text-decoration:none;font-size:14px;font-weight:500;transition:background .15s,color .15s,border-color .15s;direction:ltr;border-left:3px solid transparent;position:relative;outline:none}
+      .cw-panel-item:hover,.cw-panel-item:focus-visible{background:rgba(99,102,241,.04);color:#1C2024}
+      .cw-panel-item:focus-visible{outline:2px solid #6366F1;outline-offset:-2px;border-radius:4px}
+      .cw-panel-item.active{color:#6366F1;background:rgba(99,102,241,.06);border-left-color:transparent;font-weight:600}
       .cw-panel-item.active::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:linear-gradient(180deg,#6366F1,#818CF8)}
       .cw-panel-item svg{width:18px;height:18px;fill:currentColor;flex-shrink:0}
       .cw-panel-sep{height:1px;background:linear-gradient(90deg,transparent,#E8E9ED 20%,#E8E9ED 80%,transparent);margin:6px 16px}
       .cw-panel-foot{padding:12px 16px;border-top:1px solid #E8E9ED;font-size:11px;color:#8B8D98;direction:ltr}
       /* Dark mode overrides */
+      @media(prefers-reduced-motion:reduce){.cw-panel{transition:none}}
       body.dark .cw-panel{background:#0C0D14;border-right-color:rgba(255,255,255,.04);box-shadow:4px 0 24px rgba(0,0,0,.4),12px 0 48px rgba(0,0,0,.3)}
       body.dark .cw-panel-hdr{border-bottom-color:rgba(255,255,255,.06)}
       body.dark .cw-panel-hdr span{color:#B0B4BA}
@@ -66,8 +70,8 @@ class CustomNavWidgetMiddleware
       body.dark .cw-panel-sep{background:linear-gradient(90deg,transparent,rgba(255,255,255,.06) 20%,rgba(255,255,255,.06) 80%,transparent)}
       body.dark .cw-panel-foot{border-top-color:rgba(255,255,255,.06);color:#555770}
       </style>
-      <div class="cw-ghost" data-custom-nav-ghost></div>
-      <nav class="cw-panel" data-custom-nav-panel>
+      <div class="cw-ghost" data-custom-nav-ghost tabindex="0" role="button" aria-label="Open navigation" aria-expanded="false"></div>
+      <nav class="cw-panel" data-custom-nav-panel role="navigation" aria-label="Chatwoot Tools">
         <div class="cw-panel-hdr">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="#6366F1" stroke-width="1.5" opacity=".3"/><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1.07A7.001 7.001 0 0 1 7.07 19H6a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z" fill="#6366F1" opacity=".35"/></svg>
           <span>Chatwoot Tools</span>
@@ -94,9 +98,23 @@ class CustomNavWidgetMiddleware
         var panel=document.querySelector('[data-custom-nav-panel]');
         var ghost=document.querySelector('[data-custom-nav-ghost]');
         var timer=null;
-        ghost.addEventListener('mouseenter',function(){clearTimeout(timer);panel.classList.add('open');});
-        panel.addEventListener('mouseenter',function(){clearTimeout(timer);});
-        panel.addEventListener('mouseleave',function(){timer=setTimeout(function(){panel.classList.remove('open');},300);});
+        function openPanel(){clearTimeout(timer);panel.classList.add('open');ghost.setAttribute('aria-expanded','true')}
+        function closePanel(){panel.classList.remove('open');ghost.setAttribute('aria-expanded','false')}
+        ghost.addEventListener('mouseenter',openPanel);
+        ghost.addEventListener('mouseleave',function(){timer=setTimeout(closePanel,400)});
+        panel.addEventListener('mouseenter',function(){clearTimeout(timer)});
+        panel.addEventListener('mouseleave',function(){timer=setTimeout(closePanel,300)});
+        // Keyboard: Escape to close, Tab trapping
+        document.addEventListener('keydown',function(e){
+          if(e.key==='Escape'&&panel.classList.contains('open')){closePanel();e.preventDefault()}
+        });
+        // Click outside to close
+        document.addEventListener('click',function(e){
+          if(panel.classList.contains('open')&&!panel.contains(e.target)&&!ghost.contains(e.target)){closePanel()}
+        });
+        // Ghost click also opens (for touch/accessibility)
+        ghost.addEventListener('click',function(){panel.classList.contains('open')?closePanel():openPanel()});
+        // Set active state
         var p=window.location.pathname;
         if(p.indexOf('/bot-builder')===0)document.getElementById('nav-bot').classList.add('active');
         else if(p.indexOf('/campaign-report')===0)document.getElementById('nav-campaign').classList.add('active');

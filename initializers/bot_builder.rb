@@ -6,6 +6,8 @@
 # Access: /bot-builder (requires login)
 
 module BotFlowStore
+  WRITE_MUTEX = Mutex.new
+
   class << self
     def storage_dir
       @storage_dir ||= Rails.root.join('storage', 'bot_flows').tap { |d| FileUtils.mkdir_p(d) }
@@ -22,11 +24,17 @@ module BotFlowStore
     rescue StandardError; nil end
 
     def save(d)
-      d['id'] ||= "#{Time.now.to_i}#{rand(1000).to_s.rjust(3,'0')}"
-      d['updated_at'] = Time.now.iso8601
-      d['created_at'] ||= Time.now.iso8601
-      File.write(storage_dir.join("#{d['id']}.json"), JSON.pretty_generate(d))
-      d
+      WRITE_MUTEX.synchronize do
+        d['id'] ||= SecureRandom.hex(8)
+        d['updated_at'] = Time.now.iso8601
+        d['created_at'] ||= Time.now.iso8601
+        target = storage_dir.join("#{d['id']}.json")
+        # Atomic write: write to temp then rename
+        tmp = storage_dir.join(".#{d['id']}.tmp")
+        File.write(tmp, JSON.pretty_generate(d))
+        File.rename(tmp, target)
+        d
+      end
     end
 
     def delete(id)
@@ -51,8 +59,8 @@ class BotBuilderMiddleware
     return [302, {'Location'=>'/auth/sign_in','Content-Type'=>'text/html'}, ['Redirecting']] unless user
     handle(req, path, user)
   rescue => e
-    Rails.logger.error("[BotBuilder] #{e.message}\n#{e.backtrace&.first(3)&.join("\n")}")
-    [500, sh.merge('Content-Type'=>'text/html'), ["<h1>Error</h1>"]]
+    Rails.logger.error("[BotBuilder] #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}")
+    [500, sh.merge('Content-Type'=>'text/html'), ["<h1>Internal Error</h1><p>Please try again or contact support.</p>"]]
   end
 
   private
@@ -65,6 +73,14 @@ class BotBuilderMiddleware
     return nil unless t.present?
     a = AccessToken.find_by(token: t)
     a&.owner.is_a?(User) ? a.owner : nil
+  end
+
+  # CSRF protection: mutating requests must include X-Requested-With header
+  # (fetch() does not set this by default, so it blocks cross-origin requests)
+  def csrf_ok?(req)
+    return true if req.get? || req.head?
+    req.get_header('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest' ||
+      req.get_header('HTTP_API_ACCESS_TOKEN').present?
   end
 
   def sh
@@ -80,6 +96,10 @@ class BotBuilderMiddleware
   end
 
   def handle(req, path, user)
+    # CSRF check for mutating requests
+    unless csrf_ok?(req)
+      return [403, sh.merge('Content-Type'=>'application/json'), ['{"error":"csrf_failed"}']]
+    end
     ac = aids(user)
     case path
     when '/bot-builder'
@@ -163,9 +183,13 @@ class BotBuilderMiddleware
     inactive_count = bots.length - active_count
     total_nodes = bots.sum{|b| begin; (b.dig('flow','drawflow','Home','data')||{}).keys.length; rescue; 0 end }
 
+    # Pre-load all inbox names in one query to avoid N+1
+    all_inbox_ids = bots.flat_map{|b| b['inbox_ids'] || []}.uniq
+    inbox_lookup = all_inbox_ids.any? ? Hash[Inbox.where(id: all_inbox_ids).pluck(:id, :name)] : {}
+
     rows = bots.map{|b|
       act = b['active']
-      inb_names = begin; ids=b['inbox_ids']||[]; ids.empty? ? [] : Inbox.where(id:ids).pluck(:name); rescue; [] end
+      inb_names = begin; ids=b['inbox_ids']||[]; ids.map{|id| inbox_lookup[id]}.compact; rescue; [] end
       inb_display = if inb_names.empty?
         "Not assigned"
       elsif inb_names.length <= 2
@@ -211,7 +235,7 @@ class BotBuilderMiddleware
       "<button class='fchip' data-filter='active'>Active</button>" \
       "<button class='fchip' data-filter='inactive'>Disabled</button>" \
       "</div>" \
-      "<select id='bot-sort' class='sort-select'>" \
+      "<select id='bot-sort' class='sort-select' aria-label='Sort bots'>" \
       "<option value='updated'>Last updated</option>" \
       "<option value='name'>Name</option>" \
       "<option value='created'>Date created</option>" \
@@ -222,7 +246,7 @@ class BotBuilderMiddleware
     "<!DOCTYPE html><html dir='ltr' lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>" \
     "<title>Bot Builder | Chatwoot</title>" \
     "<link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap' rel='stylesheet'>" \
-    "<link href='https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css' rel='stylesheet' onerror=\"this.onerror=null;this.href=this.href.replace('cdn.jsdelivr.net/npm','unpkg.com')\">" \
+    "<link href='https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css' rel='stylesheet'>" \
     "<style>" \
     ":root{--bg-app:#F8F9FB;--bg-card:#FFFFFF;--bg-surface:#FFFFFF;--border-weak:#E2E4E9;--border-strong:#D1D5DB;--text-12:#111827;--text-11:#4B5563;--text-10:#6B7280;--text-9:#9CA3AF;--btn-bg:#FFFFFF;--overlay:rgba(0,0,0,.08);--label-bg:#F3F4F6;--card-shadow:0 1px 3px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.04);--card-hover-shadow:0 2px 8px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.06)}" \
     "body.dark{--bg-app:#0F0F14;--bg-card:#1A1B24;--bg-surface:#111118;--border-weak:rgba(255,255,255,.06);--border-strong:rgba(255,255,255,.1);--text-12:#F1F2F6;--text-11:#A1A6B4;--text-10:#6B7280;--text-9:#4B5563;--btn-bg:#1C1E28;--overlay:rgba(0,0,0,.4);--label-bg:#1C1E28;--card-shadow:0 2px 8px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.2);--card-hover-shadow:0 4px 12px rgba(0,0,0,.35),0 12px 36px rgba(0,0,0,.25)}" \
@@ -323,8 +347,8 @@ class BotBuilderMiddleware
     "})();" \
     "document.addEventListener('click',function(e){" \
     "if(e.target.closest('.bc-link'))return;" \
-    "var t=e.target.closest('[data-tid]');if(t){e.preventDefault();e.stopPropagation();fetch('/bot-builder/api/bots/'+t.getAttribute('data-tid')+'/toggle',{method:'POST'}).then(function(r){if(r.ok)location.reload()});return}" \
-    "var d=e.target.closest('[data-did]');if(d&&confirm(_isHe?'\\u05DC\\u05DE\\u05D7\\u05D5\\u05E7 \\u05D0\\u05EA \\u05D4\\u05D1\\u05D5\\u05D8?':'Delete this bot?')){e.preventDefault();e.stopPropagation();fetch('/bot-builder/api/bots/'+d.getAttribute('data-did'),{method:'DELETE'}).then(function(r){if(r.ok)location.reload()})}" \
+    "var t=e.target.closest('[data-tid]');if(t){e.preventDefault();e.stopPropagation();fetch('/bot-builder/api/bots/'+t.getAttribute('data-tid')+'/toggle',{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){if(r.ok)location.reload()});return}" \
+    "var d=e.target.closest('[data-did]');if(d&&confirm(_isHe?'\\u05DC\\u05DE\\u05D7\\u05D5\\u05E7 \\u05D0\\u05EA \\u05D4\\u05D1\\u05D5\\u05D8?':'Delete this bot?')){e.preventDefault();e.stopPropagation();fetch('/bot-builder/api/bots/'+d.getAttribute('data-did'),{method:'DELETE',headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){if(r.ok)location.reload()})}" \
     "});" \
     "var searchEl=document.getElementById('bot-search');" \
     "var grid=document.getElementById('bot-grid');" \
@@ -383,8 +407,12 @@ class BotBuilderMiddleware
   end
 
   def editor_html(bot_id, user=nil)
-    bid_js = bot_id ? "\"#{e(bot_id)}\"" : 'null'
+    # Sanitize bot_id for JS context (allow only alphanumeric + underscore)
+    bid_js = bot_id ? "\"#{bot_id.to_s.gsub(/[^a-zA-Z0-9_]/, '')}\"" : 'null'
     locale = begin; user&.account_users&.first&.account&.locale; rescue; nil end || 'en'
+    # Sanitize locale for JS context (allow only a-z and hyphens, max 10 chars)
+    locale = locale.to_s.gsub(/[^a-z\-]/, '')[0, 10]
+    locale = 'en' if locale.empty?
     # Use single-quoted heredoc so Ruby doesn't interpret backslashes
     # All Hebrew text is actual UTF-8, emojis use HTML entities
     html = <<~'ENDHTML'
@@ -392,9 +420,9 @@ class BotBuilderMiddleware
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bot Editor | Chatwoot</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" rel="stylesheet" onerror="this.onerror=null;this.href=this.href.replace('cdn.jsdelivr.net/npm','unpkg.com')">
-<link href="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.css" rel="stylesheet" onerror="this.onerror=null;this.href=this.href.replace('cdn.jsdelivr.net/npm','unpkg.com')">
-<script src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js" onerror="var s=document.createElement('script');s.src=this.src.replace('cdn.jsdelivr.net/npm','unpkg.com');document.head.appendChild(s)"></script>
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/dagre@0.8.5/dist/dagre.min.js"></script>
 <style>
 /* === THEME VARIABLES (Premium v2) === */
 :root{
@@ -859,6 +887,9 @@ body.dark .inbox-item.sel{border-color:rgba(139,92,246,.3)}
 body.dark .minimap:hover{box-shadow:0 4px 16px rgba(0,0,0,.4)}
 body.dark .canvas-empty kbd{border-color:rgba(255,255,255,.12);box-shadow:0 1px 0 rgba(255,255,255,.12)}
 body.dark .nb select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%236B7280' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E")}
+/* Validation goto button */
+.valid-goto{display:inline-flex;align-items:center;padding:2px 6px;border-radius:4px;color:var(--accent);cursor:pointer;transition:background .15s}
+.valid-goto:hover{background:var(--accent-10)}
 /* Focus indicators */
 .tbtn:focus-visible,.zb:focus-visible,.dn:focus-visible,.ctx-item:focus-visible,.snap-toggle:focus-visible,.minimap-toggle:focus-visible,.nodes-toggle:focus-visible,.side-cfg-close:focus-visible,.nh-toggle:focus-visible,.tb-bot-name:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 /* Reduced motion */
@@ -944,7 +975,7 @@ body.dark .nb select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http
   <div class="canvas">
     <div class="hint">Drag nodes to canvas &#x2022; Double-click = edit &#x2022; Scroll = zoom &#x2022; Connect ports</div>
     <div class="canvas-loading" id="canvas-loading"><div class="spinner"></div><span style="font-size:13px;color:var(--text-muted)">Loading...</span></div>
-    <div id="drawflow"></div>
+    <div id="drawflow" role="application" aria-label="Bot flow canvas - drag and drop nodes to build your bot"></div>
     <div class="canvas-empty" id="canvas-empty">
       <div class="canvas-empty-icon"><i class="ti ti-topology-star-3"></i></div>
       <h3>Build a bot in 3 steps</h3>
@@ -1003,7 +1034,7 @@ body.dark .nb select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http
   <div class="sr"><span class="lab">Last updated</span><span class="val" id="st-u">-</span></div>
   <div class="sep"></div>
   <!-- Properties panel -->
-  <div id="props-panel" class="props-panel"></div>
+  <div id="props-panel" class="props-panel" aria-live="polite"></div>
   <!-- Tips -->
   <div id="tips-panel" class="tips-panel">
     <h3><i class="ti ti-bulb" style="font-size:16px;vertical-align:middle"></i> Tips</h3>
@@ -1024,15 +1055,15 @@ body.dark .nb select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http
   </div>
 </div>
 <div id="toast" class="toast"></div>
-<div id="ctx-menu" class="ctx-menu">
-  <div class="ctx-item" data-act="duplicate"><i class="ti ti-copy"></i> Duplicate<span class="ks">Ctrl+D</span></div>
-  <div class="ctx-item" data-act="copy"><i class="ti ti-clipboard"></i> Copy<span class="ks">Ctrl+C</span></div>
-  <div class="ctx-item" data-act="paste"><i class="ti ti-clipboard-check"></i> Paste<span class="ks">Ctrl+V</span></div>
-  <div class="ctx-sep"></div>
-  <div class="ctx-item ctx-del" data-act="delete"><i class="ti ti-trash"></i> Delete<span class="ks">Del</span></div>
+<div id="ctx-menu" class="ctx-menu" role="menu" aria-label="Node actions">
+  <div class="ctx-item" data-act="duplicate" role="menuitem" tabindex="-1"><i class="ti ti-copy"></i> Duplicate<span class="ks">Ctrl+D</span></div>
+  <div class="ctx-item" data-act="copy" role="menuitem" tabindex="-1"><i class="ti ti-clipboard"></i> Copy<span class="ks">Ctrl+C</span></div>
+  <div class="ctx-item" data-act="paste" role="menuitem" tabindex="-1"><i class="ti ti-clipboard-check"></i> Paste<span class="ks">Ctrl+V</span></div>
+  <div class="ctx-sep" role="separator"></div>
+  <div class="ctx-item ctx-del" data-act="delete" role="menuitem" tabindex="-1"><i class="ti ti-trash"></i> Delete<span class="ks">Del</span></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.js" onerror="var s=document.createElement('script');s.src=this.src.replace('cdn.jsdelivr.net/npm','unpkg.com');s.onload=function(){document.dispatchEvent(new Event('drawflow-ready'))};document.head.appendChild(s)"></script>
+<script src="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.js"></script>
 <script>
 var BOT_ID = __BOT_ID__;
 var LOCALE = __LOCALE__;
@@ -1256,7 +1287,7 @@ editor.updateConnectionNodes = function(id) {
   });
 };
 
-// Also hook into real-time drag updates via position observer
+// Real-time drag updates with RAF (fixed memory leak: always cancel on mouseup)
 (function() {
   var dragging = false;
   var dragId = null;
@@ -1265,20 +1296,28 @@ editor.updateConnectionNodes = function(id) {
     if (dragging && dragId) {
       editor.updateConnectionNodes('node-' + dragId);
       rafId = requestAnimationFrame(updateDuringDrag);
+    } else {
+      rafId = null;
     }
   }
   editor.on('nodeSelected', function(id) { dragId = id; });
   dfEl.addEventListener('mousedown', function(e) {
     if (e.target.closest && e.target.closest('.drawflow-node')) {
       dragging = true;
-      rafId = requestAnimationFrame(updateDuringDrag);
+      if (!rafId) rafId = requestAnimationFrame(updateDuringDrag);
     }
   });
-  document.addEventListener('mouseup', function() {
+  function stopDrag() {
     dragging = false;
     if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-    if (dragId) editor.updateConnectionNodes('node-' + dragId);
-  });
+    if (dragId) {
+      editor.updateConnectionNodes('node-' + dragId);
+      setTimeout(updateMinimap, 100);
+    }
+  }
+  document.addEventListener('mouseup', stopDrag);
+  // Also stop on blur (e.g., alt-tab while dragging)
+  window.addEventListener('blur', stopDrag);
 })();
 
 editor.on('nodeCreated', function(id){updStats();addNodeActions(id);setTimeout(function(){updateNodeSummary(id);fillGotoSelects()},200);var el=document.getElementById('node-'+id);if(el)el._createdAt=Date.now()});
@@ -1855,7 +1894,11 @@ function renderInboxes(){
 
 // ===== API =====
 function fetchT(url,opts,ms){
-  var ctrl=new AbortController();opts=Object.assign({},opts||{},{signal:ctrl.signal});
+  var ctrl=new AbortController();
+  opts=Object.assign({},opts||{},{signal:ctrl.signal});
+  // Add CSRF header for mutating requests
+  if(!opts.headers)opts.headers={};
+  opts.headers['X-Requested-With']='XMLHttpRequest';
   var t=setTimeout(function(){ctrl.abort()},ms||30000);
   return fetch(url,opts).finally(function(){clearTimeout(t)});
 }
@@ -1894,9 +1937,11 @@ function importFlow(inp){
     try{
       var d=JSON.parse(ev.target.result);
       if(!d.drawflow){toast(L.invalid_file,'err');return}
-      pushUndo();editor.import(d);
-      setTimeout(function(){popSelects();updStats();addAllNodeActions();upgradeLoadedNodes();updateAllSummaries();addConnHitAreas()},200);
-      markDirty();pushUndo();
+      pushUndo();
+      isUndoing=true; // Suppress pushUndo from nodeCreated events during import
+      editor.import(d);
+      setTimeout(function(){isUndoing=false;popSelects();updStats();addAllNodeActions();upgradeLoadedNodes();updateAllSummaries();addConnHitAreas();pushUndo()},200);
+      markDirty();
       toast(L.flow_imported,'ok');
     }catch(ex){toast(L.file_read_err,'err')}
   };
@@ -1913,6 +1958,10 @@ document.getElementById('savebtn').addEventListener('click',function(){
   saving=true;btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="font-size:16px;animation:spin .7s linear infinite"></i> '+(isHe?'\u05E9\u05D5\u05DE\u05E8...':'Saving...');
   var cbs=document.querySelectorAll('#inbox-list input:checked'),ids=[];
   for(var i=0;i<cbs.length;i++)ids.push(parseInt(cbs[i].value));
+  // Generate a temp ID for new bots to prevent duplicate creation on rapid saves
+  if(!BOT_ID&&!botData){
+    BOT_ID='new_'+Date.now();
+  }
   var data={
     id:BOT_ID||(botData?botData.id:null),
     name:name,
@@ -1925,12 +1974,12 @@ document.getElementById('savebtn').addEventListener('click',function(){
     .then(function(r){if(!r.ok)throw new Error();return r.json()})
     .then(function(s){
       botData=s;
-      if(!BOT_ID){BOT_ID=s.id;history.replaceState(null,'','/bot-builder/'+s.id+'/edit')}
+      BOT_ID=s.id;history.replaceState(null,'','/bot-builder/'+s.id+'/edit');
       document.getElementById('st-s').textContent=s.active?(isHe?'\u05E4\u05E2\u05D9\u05DC':'Active'):(isHe?'\u05DE\u05D5\u05E9\u05D1\u05EA':'Disabled');
       document.getElementById('st-u').textContent=isHe?'\u05D4\u05E8\u05D2\u05E2':'Just now';
       toast(isHe?'\u05D4\u05D1\u05D5\u05D8 \u05E0\u05E9\u05DE\u05E8 \u05D1\u05D4\u05E6\u05DC\u05D7\u05D4!':'Bot saved successfully!','ok');markSaved();
       if(BOT_ID)try{localStorage.removeItem('bot-draft-'+BOT_ID)}catch(ex){}
-    }).catch(function(err){toast(err&&err.name==='AbortError'?(isHe?'\u05D4\u05E9\u05DE\u05D9\u05E8\u05D4 \u05E0\u05DB\u05E9\u05DC\u05D4 \u2014 timeout':'Save failed \u2014 timeout'):(isHe?'\u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05E9\u05DE\u05D9\u05E8\u05D4':'Error saving'),'err')})
+    }).catch(function(err){toast(err&&err.name==='AbortError'?(isHe?'\u05D4\u05E9\u05DE\u05D9\u05E8\u05D4 \u05E0\u05DB\u05E9\u05DC\u05D4 \u2014 timeout. \u05D4\u05D8\u05D9\u05D5\u05D8\u05D4 \u05E0\u05E9\u05DE\u05E8\u05D4 \u05DE\u05E7\u05D5\u05DE\u05D9\u05EA':'Save failed \u2014 timeout. Draft preserved locally.'):(isHe?'\u05E9\u05D2\u05D9\u05D0\u05D4 \u05D1\u05E9\u05DE\u05D9\u05E8\u05D4 \u2014 \u05D4\u05D8\u05D9\u05D5\u05D8\u05D4 \u05E0\u05E9\u05DE\u05E8\u05D4 \u05DE\u05E7\u05D5\u05DE\u05D9\u05EA':'Error saving \u2014 draft preserved locally'),'err')})
     .finally(function(){saving=false;btn.disabled=false;btn.innerHTML='<i class="ti ti-device-floppy"></i> '+(isHe?'\u05E9\u05DE\u05D5\u05E8':'Save')});
 });
 
@@ -1977,11 +2026,12 @@ function toast(m,t){
 var hasUnsavedChanges = false;
 var saveInd = document.getElementById('save-ind');
 function markDirty(){
-  if(!hasUnsavedChanges){hasUnsavedChanges=true;saveInd.textContent=isHe?'\u05E9\u05D9\u05E0\u05D5\u05D9\u05D9\u05DD \u05DC\u05D0 \u05E0\u05E9\u05DE\u05E8\u05D5':'Unsaved changes';saveInd.className='save-ind dirty'}
+  if(!hasUnsavedChanges){hasUnsavedChanges=true;saveInd.textContent=isHe?'\u05E9\u05D9\u05E0\u05D5\u05D9\u05D9\u05DD \u05DC\u05D0 \u05E0\u05E9\u05DE\u05E8\u05D5':'Unsaved changes';saveInd.className='save-ind dirty';document.title='\u2022 '+document.title.replace(/^\u2022 /,'')}
 }
 var lastSaveTime=null;
 function markSaved(){
   hasUnsavedChanges=false;lastSaveTime=new Date();
+  document.title=document.title.replace(/^\u2022 /,'');
   saveInd.textContent=isHe?'\u2713 \u05E0\u05E9\u05DE\u05E8':'\u2713 Saved';saveInd.className='save-ind saved';
   setTimeout(function(){if(!hasUnsavedChanges&&lastSaveTime){
     var diff=Math.floor((Date.now()-lastSaveTime.getTime())/60000);
@@ -2056,8 +2106,12 @@ var _zi=editor.zoom_in.bind(editor),_zo=editor.zoom_out.bind(editor),_zr=editor.
 editor.zoom_in=function(){_zi();updZoom()};
 editor.zoom_out=function(){_zo();updZoom()};
 editor.zoom_reset=function(){_zr();updZoom()};
-// Track scroll-zoom
-dfEl.addEventListener('wheel',function(){setTimeout(updZoom,50)});
+// Track scroll-zoom with debounce + minimap update
+var _zoomTimer=null;
+dfEl.addEventListener('wheel',function(){
+  clearTimeout(_zoomTimer);
+  _zoomTimer=setTimeout(function(){updZoom();updateMinimap()},50);
+});
 
 // Add invisible wider hit-area paths to connections for easier clicking
 function addConnHitAreas(){
@@ -2132,6 +2186,14 @@ document.addEventListener('keydown',function(e){
     if(isInputFocused())return;
     e.preventDefault();
     redo();
+    return;
+  }
+  // Ctrl+F: Focus node search
+  if((e.ctrlKey||e.metaKey)&&e.key==='f'){
+    e.preventDefault();
+    var sn=document.getElementById('side-nodes');
+    if(sn&&!sn.classList.contains('expanded')){sn.classList.add('expanded');localStorage.setItem('bb-palette-expanded','true')}
+    var ns=document.getElementById('node-search');if(ns){ns.focus();ns.select()}
     return;
   }
   // Ctrl+D: Duplicate selected node
@@ -2253,24 +2315,32 @@ function duplicateNode(id){
 }
 
 // ===== NODE SEARCH =====
+// Fuzzy search: allows partial matching and Hebrew aliases
+var _nodeSearchTimer=null;
+var _nodeAliases={trigger:'\u05D8\u05E8\u05D9\u05D2\u05E8 \u05D4\u05D5\u05D3\u05E2\u05D4',message:'\u05D4\u05D5\u05D3\u05E2\u05D4 \u05E9\u05DC\u05D9\u05D7\u05D4',image:'\u05EA\u05DE\u05D5\u05E0\u05D4',video:'\u05D5\u05D9\u05D3\u05D0\u05D5',buttons:'\u05DB\u05E4\u05EA\u05D5\u05E8\u05D9\u05DD',menu:'\u05EA\u05E4\u05E8\u05D9\u05D8',condition:'\u05EA\u05E0\u05D0\u05D9 \u05E9\u05D0\u05DC\u05D4',delay:'\u05D4\u05DE\u05EA\u05E0\u05D4 \u05D6\u05DE\u05DF',note:'\u05D4\u05E2\u05E8\u05D4',assign:'\u05D4\u05E7\u05E6\u05D4 \u05E0\u05E6\u05D9\u05D2',add_label:'\u05EA\u05D2\u05D9\u05EA',remove_label:'\u05D4\u05E1\u05E8',set_attribute:'\u05DE\u05D0\u05E4\u05D9\u05D9\u05DF',close:'\u05E1\u05D2\u05D5\u05E8',webhook:'webhook api',set_priority:'\u05E2\u05D3\u05D9\u05E4\u05D5\u05EA',set_status:'\u05E1\u05D8\u05D8\u05D5\u05E1',transfer_inbox:'\u05D4\u05E2\u05D1\u05E8\u05D4 \u05EA\u05D9\u05D1\u05D4',wait_reply:'\u05D4\u05DE\u05EA\u05E0\u05D4 \u05EA\u05E9\u05D5\u05D1\u05D4',api_action:'api http',ab_split:'ab test \u05D1\u05D3\u05D9\u05E7\u05D4',goto_step:'\u05E7\u05E4\u05D5\u05E5 \u05E9\u05DC\u05D1'};
 document.getElementById('node-search').addEventListener('input',function(){
-  var q=this.value.trim().toLowerCase();
-  var secs=document.querySelectorAll('.side-nodes .sec');
-  var totalVis=0;
-  for(var s=0;s<secs.length;s++){
-    var items=secs[s].querySelectorAll('.dn');
-    var vis=0;
-    for(var i=0;i<items.length;i++){
-      var txt=items[i].textContent.toLowerCase();
-      var ntype=items[i].getAttribute('data-node')||'';
-      if(!q||txt.indexOf(q)!==-1||ntype.indexOf(q)!==-1){items[i].style.display='';vis++}
-      else{items[i].style.display='none'}
+  clearTimeout(_nodeSearchTimer);
+  var el=this;
+  _nodeSearchTimer=setTimeout(function(){
+    var q=el.value.trim().toLowerCase();
+    var secs=document.querySelectorAll('.side-nodes .sec');
+    var totalVis=0;
+    for(var s=0;s<secs.length;s++){
+      var items=secs[s].querySelectorAll('.dn');
+      var vis=0;
+      for(var i=0;i<items.length;i++){
+        var txt=items[i].textContent.toLowerCase();
+        var ntype=items[i].getAttribute('data-node')||'';
+        var alias=(_nodeAliases[ntype]||'').toLowerCase();
+        if(!q||txt.indexOf(q)!==-1||ntype.indexOf(q)!==-1||alias.indexOf(q)!==-1){items[i].style.display='';vis++}
+        else{items[i].style.display='none'}
+      }
+      secs[s].style.display=vis>0?'':'none';
+      totalVis+=vis;
     }
-    secs[s].style.display=vis>0?'':'none';
-    totalVis+=vis;
-  }
-  var noRes=document.getElementById('nodes-no-results');
-  if(noRes)noRes.style.display=(q&&totalVis===0)?'block':'none';
+    var noRes=document.getElementById('nodes-no-results');
+    if(noRes)noRes.style.display=(q&&totalVis===0)?'block':'none';
+  },150);
 });
 
 // ===== PROPERTIES PANEL =====
@@ -2702,7 +2772,7 @@ function _doAutoAlign(){
   // Layout each tree with dagre
   function layoutTree(comp){
     var g=new dagre.graphlib.Graph();
-    g.setGraph({rankdir:'LR',nodesep:60,ranksep:200,marginx:0,marginy:0,ranker:'network-simplex'});
+    g.setGraph({rankdir:'LR',nodesep:80,ranksep:240,marginx:0,marginy:0,ranker:'network-simplex'});
     g.setDefaultEdgeLabel(function(){return{}});
     for(var ni=0;ni<comp.length;ni++){
       var el=document.getElementById('node-'+comp[ni]);
@@ -2840,18 +2910,31 @@ function showIssues(issues){
   if(!issues.length){vp.style.display='none';return}
   vp.style.display='block';
   openCfg();
-  vl.innerHTML='';
+  vl.textContent='';
+  // Summary header
+  var hdr=document.createElement('div');
+  hdr.style.cssText='font-size:12px;color:var(--text-muted);margin-bottom:8px;padding:6px 10px;background:var(--valid-bg);border-radius:8px;display:flex;align-items:center;gap:6px';
+  var hdrIcon=document.createElement('i');hdrIcon.className='ti ti-alert-triangle';hdrIcon.style.cssText='font-size:14px;color:var(--danger-text)';
+  var hdrStrong=document.createElement('strong');hdrStrong.style.color='var(--danger-text)';hdrStrong.textContent=issues.length;
+  var hdrText=document.createTextNode(' '+(isHe?'\u05D1\u05E2\u05D9\u05D5\u05EA \u05E0\u05DE\u05E6\u05D0\u05D5':'issues found'));
+  hdr.appendChild(hdrIcon);hdr.appendChild(hdrStrong);hdr.appendChild(hdrText);
+  vl.appendChild(hdr);
   for(var i=0;i<issues.length;i++){
     (function(issue){
       var el=document.createElement('div');
       el.className='valid-item';
-      el.innerHTML='<i class="ti ti-alert-triangle" style="font-size:12px"></i> '+issue.msg;
+      el.style.cursor=issue.id?'pointer':'default';
+      var icon=document.createElement('i');icon.className='ti ti-alert-triangle';icon.style.fontSize='12px';
+      var span=document.createElement('span');span.textContent=issue.msg;
+      el.appendChild(icon);el.appendChild(document.createTextNode(' '));el.appendChild(span);
       if(issue.id){
-        // Highlight the node
+        var goBtn=document.createElement('span');goBtn.className='valid-goto';goBtn.title=isHe?'\u05E7\u05E4\u05D5\u05E5 \u05DC\u05E6\u05D5\u05DE\u05EA':'Go to node';
+        var goIcon=document.createElement('i');goIcon.className='ti ti-eye';goIcon.style.fontSize='11px';
+        goBtn.appendChild(goIcon);
+        el.appendChild(document.createTextNode(' '));el.appendChild(goBtn);
         var ne=document.getElementById('node-'+issue.id);
         if(ne)ne.classList.add('node-error');
         el.addEventListener('click',function(){
-          // Center viewport on node
           var ne2=document.getElementById('node-'+issue.id);
           if(ne2){
             ne2.classList.add('selected');
@@ -2862,6 +2945,10 @@ function showIssues(issues){
               editor.canvas_y=dRect.height/2-nd.pos_y*editor.zoom;
               editor.precanvas.style.transform='translate('+editor.canvas_x+'px,'+editor.canvas_y+'px) scale('+editor.zoom+')';
               if(typeof updateMinimap==='function')updateMinimap();
+              // Flash effect on target node
+              ne2.style.outline='2px solid var(--danger-text)';
+              ne2.style.outlineOffset='4px';
+              setTimeout(function(){ne2.style.outline='';ne2.style.outlineOffset=''},1500);
             }
           }
         });
@@ -3253,6 +3340,31 @@ Rails.application.config.after_initialize do
   end
 
   module BotEngine
+    # SSRF protection: block requests to private/internal IPs
+    def self.ssrf_blocked?(url)
+      begin
+        uri = URI.parse(url)
+        host = uri.host.to_s.downcase
+        return true if host.empty?
+        # Block localhost, loopback, link-local
+        return true if %w[localhost].include?(host) || host.end_with?('.local')
+        ip = IPAddr.new(host) rescue nil
+        if ip
+          return true if ip.loopback? || ip.link_local?
+          # Block private ranges
+          return true if IPAddr.new('10.0.0.0/8').include?(ip)
+          return true if IPAddr.new('172.16.0.0/12').include?(ip)
+          return true if IPAddr.new('192.168.0.0/16').include?(ip)
+          return true if IPAddr.new('169.254.0.0/16').include?(ip)
+          return true if IPAddr.new('127.0.0.0/8').include?(ip)
+        end
+        false
+      rescue => e
+        Rails.logger.warn("[BotEngine] SSRF check failed for #{url}: #{e.message}")
+        true # Block if we can't validate
+      end
+    end
+
     class ProcessJob < ApplicationJob
       queue_as :default
 
@@ -3287,20 +3399,26 @@ Rails.application.config.after_initialize do
         else false end
       end
 
-      def run(node, fd, conv, bot, out='output_1')
+      MAX_EXEC_DEPTH = 100
+
+      def run(node, fd, conv, bot, out='output_1', depth=0)
+        if depth >= MAX_EXEC_DEPTH
+          Rails.logger.error("[BotEngine] Max execution depth reached (#{MAX_EXEC_DEPTH}) — possible infinite loop in bot #{bot['id']}")
+          return
+        end
         (node.dig('outputs',out,'connections')||[]).each do |c|
-          nx=fd[c['node']]; exec_node(nx,fd,conv,bot) if nx
+          nx=fd[c['node']]; exec_node(nx,fd,conv,bot,depth+1) if nx
         end
       end
 
-      def exec_node(n, fd, conv, bot)
+      def exec_node(n, fd, conv, bot, depth=0)
         case n['name']
         when 'message'
-          txt(conv, n['data']['message']); run(n,fd,conv,bot)
+          txt(conv, n['data']['message']); run(n,fd,conv,bot,'output_1',depth)
         when 'image'
-          img(conv, n['data']['image_url'], n['data']['caption']); run(n,fd,conv,bot)
+          img(conv, n['data']['image_url'], n['data']['caption']); run(n,fd,conv,bot,'output_1',depth)
         when 'video'
-          vid(conv, n['data']['video_url'], n['data']['caption']); run(n,fd,conv,bot)
+          vid(conv, n['data']['video_url'], n['data']['caption']); run(n,fd,conv,bot,'output_1',depth)
         when 'buttons'
           btns(conv, n, fd, bot)
         when 'menu'
@@ -3308,7 +3426,7 @@ Rails.application.config.after_initialize do
         when 'condition'
           lm=conv.messages.where(message_type: :incoming).order(created_at: :desc).first
           ok=cond?(n['data'], lm&.content.to_s, conv)
-          run(n,fd,conv,bot, ok ? 'output_1':'output_2')
+          run(n,fd,conv,bot, ok ? 'output_1':'output_2', depth)
         when 'delay'
           s=(n['data']['seconds']||5).to_i.clamp(1,3600)
           (n.dig('outputs','output_1','connections')||[]).each{|c|
@@ -3318,24 +3436,24 @@ Rails.application.config.after_initialize do
           d=n['data']
           conv.update!(assignee:User.find_by(id:d['agent_id'])) if d['agent_id'].present?
           conv.update!(team:Team.find_by(id:d['team_id'])) if d['team_id'].present?
-          run(n,fd,conv,bot)
+          run(n,fd,conv,bot,'output_1',depth)
         when 'add_label'
           l=n['data']['label_name'].to_s.strip
           if l.present?; cur=conv.label_list||[]; conv.update!(label_list:cur+[l]) unless cur.include?(l); end
-          run(n,fd,conv,bot)
+          run(n,fd,conv,bot,'output_1',depth)
         when 'remove_label'
           l=n['data']['label_name'].to_s.strip
           if l.present?; cur=conv.label_list||[]; conv.update!(label_list:cur-[l]) if cur.include?(l); end
-          run(n,fd,conv,bot)
+          run(n,fd,conv,bot,'output_1',depth)
         when 'set_attribute'
           k=n['data']['attr_key'].to_s.strip; v=n['data']['attr_value'].to_s
           if k.present?; c=conv.contact; a=c.custom_attributes||{}; a[k]=v; c.update!(custom_attributes:a); end
-          run(n,fd,conv,bot)
+          run(n,fd,conv,bot,'output_1',depth)
         when 'close'
           conv.update!(status: :resolved)
         when 'webhook'
           u=n['data']['url'].to_s.strip
-          if u.present? && u.match?(/\Ahttps?:\/\//i)
+          if u.present? && u.match?(/\Ahttps?:\/\//i) && !BotEngine.ssrf_blocked?(u)
             pl={conversation_id:conv.id,contact_name:conv.contact&.name,contact_phone:conv.contact&.phone_number,inbox_id:conv.inbox_id,last_message:conv.messages.where(message_type: :incoming).last&.content}
             begin
               hdrs={'Content-Type'=>'application/json'}
@@ -3348,27 +3466,27 @@ Rails.application.config.after_initialize do
               end
             rescue => e; Rails.logger.error("[BotEngine] webhook: #{e.message}"); end
           end
-          run(n,fd,conv,bot)
+          run(n,fd,conv,bot,'output_1',depth)
         when 'note'
           t=n['data']['text'].to_s.strip
           conv.messages.create!(message_type: :activity, content:"[Bot] #{t}", account_id:conv.account_id, inbox_id:conv.inbox_id, content_attributes:{'bot_response'=>true}) if t.present?
         when 'set_priority'
           p=n['data']['priority'].to_s.strip
           conv.update!(priority: p.to_i) if p.present? && %w[0 1 2 3].include?(p)
-          run(n,fd,conv,bot)
+          run(n,fd,conv,bot,'output_1',depth)
         when 'set_status'
           s=n['data']['status'].to_s.strip
           if s.present? && %w[open resolved pending].include?(s)
             conv.update!(status: s.to_sym)
           end
-          run(n,fd,conv,bot)
+          run(n,fd,conv,bot,'output_1',depth)
         when 'transfer_inbox'
           ib_id=n['data']['inbox_id'].to_s.strip
           if ib_id.present?
             ib=Inbox.find_by(id:ib_id, account_id:conv.account_id)
             conv.update!(inbox_id:ib.id) if ib
           end
-          run(n,fd,conv,bot)
+          run(n,fd,conv,bot,'output_1',depth)
         end
       end
 
@@ -3487,7 +3605,7 @@ Rails.application.config.after_initialize do
         case d['check_type']
         when 'contains' then content.downcase.include?(v.downcase)
         when 'equals' then content.strip.downcase==v.downcase
-        when 'regex' then (begin; content.match?(Regexp.new(v, Regexp::IGNORECASE)); rescue RegexpError; Rails.logger.warn("[BotEngine] Invalid regex: #{v}"); false; end)
+        when 'regex' then (begin; Timeout.timeout(0.5) { content.match?(Regexp.new(v, Regexp::IGNORECASE)) }; rescue RegexpError, Timeout::Error => re; Rails.logger.warn("[BotEngine] Regex issue (#{re.class}): #{v}"); false; end)
         when 'label_exists' then (conv.label_list||[]).include?(v)
         when 'contact_type'
           ct = conv.contact&.contact_type.to_s

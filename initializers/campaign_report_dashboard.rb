@@ -39,37 +39,54 @@ class CampaignReportMiddleware
     nil
   end
 
+  # Sanitize locale for safe JS embedding
+  def safe_locale(user)
+    loc = begin; user&.account_users&.first&.account&.locale; rescue; nil end || 'en'
+    loc.to_s.gsub(/[^a-z\-]/, '')[0, 10].then { |l| l.empty? ? 'en' : l }
+  end
+
   def handle_campaign_list(request)
     user = authenticate(request)
     return unauthorized_response unless user
 
     account_ids = user.account_users.pluck(:account_id)
-    campaigns = Campaign.where(account_id: account_ids).order(created_at: :desc).limit(50)
+
+    # Pagination
+    page = [(request.params['page'].to_i), 1].max
+    per_page = 25
+    total_count = Campaign.where(account_id: account_ids).count
+    total_pages = [(total_count.to_f / per_page).ceil, 1].max
+    page = [page, total_pages].min
+
+    campaigns = Campaign.where(account_id: account_ids)
+                        .order(created_at: :desc)
+                        .offset((page - 1) * per_page)
+                        .limit(per_page)
+
+    # Batch message stats to avoid N+1 queries (scoped to account)
+    campaign_ids = campaigns.map(&:id)
+    msg_stats = batch_campaign_stats(campaign_ids, account_ids)
 
     rows = campaigns.map do |c|
-      messages = campaign_messages(c.id)
-      total = messages.count
-      delivered = messages.where(status: :delivered).count + messages.where(status: :read).count
-      read_count = messages.where(status: :read).count
-      failed = messages.where(status: :failed).count
+      stats = msg_stats[c.id] || { total: 0, delivered: 0, read: 0, failed: 0 }
       audience_size = campaign_audience_size(c)
 
       {
         campaign: c,
-        total_sent: total,
-        delivered: delivered,
-        read: read_count,
-        failed: failed,
+        total_sent: stats[:total],
+        delivered: stats[:delivered],
+        read: stats[:read],
+        failed: stats[:failed],
         audience_size: audience_size
       }
     end
 
-    locale = begin; user.account_users.first&.account&.locale; rescue; nil end || 'en'
-    html = render_list_page(rows, locale)
+    locale = safe_locale(user)
+    html = render_list_page(rows, locale, page, total_pages, total_count)
     [200, hdrs, [html]]
   rescue StandardError => e
-    Rails.logger.error "[CampaignReport] Error: #{e.message}"
-    [500, {"content-type"=>"text/html; charset=utf-8"}, ["<h1>#{h(e.message)}</h1>"]]
+    Rails.logger.error "[CampaignReport] Error: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}"
+    [500, {"content-type"=>"text/html; charset=utf-8"}, ["<h1>Internal Error</h1><p>Please try again.</p>"]]
   end
 
   def handle_campaign_detail(request, campaign_id)
@@ -82,7 +99,7 @@ class CampaignReportMiddleware
 
     return not_found_response unless campaign
 
-    messages = campaign_messages(campaign.id)
+    messages = campaign_messages(campaign.id, account_ids)
 
     contact_results = messages.includes(conversation: :contact).map do |m|
       contact = m.conversation&.contact
@@ -99,21 +116,48 @@ class CampaignReportMiddleware
     sent_phones = contact_results.map { |r| r[:phone] }.compact
     not_sent = audience_contacts.reject { |c| sent_phones.include?(c[:phone]) }
 
-    locale = begin; user.account_users.first&.account&.locale; rescue; nil end || 'en'
+    locale = safe_locale(user)
     html = render_detail_page(campaign, contact_results, not_sent, locale)
     [200, hdrs, [html]]
   rescue StandardError => e
     Rails.logger.error "[CampaignReport] Error: #{e.message}"
-    [500, {"content-type"=>"text/html; charset=utf-8"}, ["<h1>#{h(e.message)}</h1>"]]
+    [500, {"content-type"=>"text/html; charset=utf-8"}, ["<h1>Internal Error</h1><p>Please try again.</p>"]]
   end
 
   def hdrs
     {"content-type"=>"text/html; charset=utf-8","cache-control"=>"no-store, no-cache, must-revalidate, private","x-frame-options"=>"DENY","x-content-type-options"=>"nosniff"}
   end
 
-  def campaign_messages(campaign_id)
-    Message.where("content_attributes::text LIKE ?", "%campaign_id%")
-           .where("content_attributes::text LIKE ?", "%#{campaign_id}%")
+  # Scope message queries to account_ids for data isolation
+  def campaign_messages(campaign_id, account_ids = nil)
+    scope = Message.joins(:conversation)
+    scope = scope.where(conversations: { account_id: account_ids }) if account_ids
+    scope.where("messages.content_attributes::text LIKE ?", "%campaign_id%")
+         .where("messages.content_attributes::text LIKE ?", "%#{campaign_id.to_i}%")
+  end
+
+  # Batch query: get stats for all campaigns at once (scoped to account)
+  def batch_campaign_stats(campaign_ids, account_ids = nil)
+    return {} if campaign_ids.empty?
+    stats = {}
+    campaign_ids.each { |id| stats[id] = { total: 0, delivered: 0, read: 0, failed: 0 } }
+
+    # Base query scoped to account
+    base = Message.joins(:conversation)
+    base = base.where(conversations: { account_id: account_ids }) if account_ids
+    messages = base.where("messages.content_attributes::text LIKE ?", "%campaign_id%")
+
+    campaign_ids.each do |cid|
+      msgs = messages.where("messages.content_attributes::text LIKE ?", "%#{cid.to_i}%")
+      stats[cid][:total] = msgs.count
+      stats[cid][:delivered] = msgs.where(status: [:delivered, :read]).count
+      stats[cid][:read] = msgs.where(status: :read).count
+      stats[cid][:failed] = msgs.where(status: :failed).count
+    end
+    stats
+  rescue StandardError => e
+    Rails.logger.error "[CampaignReport] batch_campaign_stats error: #{e.message}"
+    {}
   end
 
   def campaign_audience_size(campaign)
@@ -135,7 +179,7 @@ class CampaignReportMiddleware
       if segment["type"] == "Label"
         label = Label.find_by(id: segment["id"])
         if label
-          campaign.account.contacts.tagged_with(label.title).each do |c|
+          campaign.account.contacts.tagged_with(label.title).select(:id, :name, :phone_number).each do |c|
             contacts << { name: c.name, phone: c.phone_number, id: c.id }
           end
         end
@@ -144,9 +188,36 @@ class CampaignReportMiddleware
     contacts
   end
 
+  def pagination_html(page, total_pages)
+    html = '<div class="pagination">'
+    html += "<a href='/campaign-report?page=#{page - 1}' class='pg-btn#{page <= 1 ? ' disabled' : ''}' aria-label='Previous page'><i class='ti ti-chevron-left' style='font-size:14px'></i></a>"
+    # Show page numbers with ellipsis
+    pages = []
+    if total_pages <= 7
+      pages = (1..total_pages).to_a
+    else
+      pages = [1]
+      pages << '...' if page > 3
+      (([ page - 1, 2 ].max)..([page + 1, total_pages - 1].min)).each { |pg| pages << pg }
+      pages << '...' if page < total_pages - 2
+      pages << total_pages
+    end
+    pages.each do |pg|
+      if pg == '...'
+        html += "<span class='pg-info'>&hellip;</span>"
+      else
+        html += "<a href='/campaign-report?page=#{pg}' class='pg-btn#{pg == page ? ' active' : ''}'>#{pg}</a>"
+      end
+    end
+    html += "<a href='/campaign-report?page=#{page + 1}' class='pg-btn#{page >= total_pages ? ' disabled' : ''}' aria-label='Next page'><i class='ti ti-chevron-right' style='font-size:14px'></i></a>"
+    html += "<span class='pg-info'>Page #{page} of #{total_pages}</span>"
+    html += '</div>'
+    html
+  end
+
   def h(text); CGI.escapeHTML(text.to_s); end
 
-  def status_text_he(status)
+  def status_label(status)
     case status.to_s
     when "sent" then "Sent"
     when "delivered" then "Delivered"
@@ -160,7 +231,7 @@ class CampaignReportMiddleware
     time.in_time_zone("UTC").strftime("%d/%m/%Y %H:%M")
   end
 
-  def campaign_status_he(status)
+  def campaign_status_label(status)
     case status.to_s
     when "completed" then "Completed"
     when "active" then "Active"
@@ -181,7 +252,7 @@ class CampaignReportMiddleware
   end
 
   def not_found_response
-    [404, {"content-type"=>"text/html; charset=utf-8"}, ["<!DOCTYPE html><html dir='ltr' lang='en'><head><meta charset='utf-8'>#{dark_styles}</head><body>#{theme_detect_script}<div class='app-shell'>#{nav_html('report')}<div class='app-main' style='display:flex;justify-content:center;align-items:center'><div style='background:var(--bg-card);border:1px solid var(--border-weak);padding:3rem;border-radius:14px;text-align:center'><h2 style='color:var(--text-1);font-weight:600;letter-spacing:-.02em'>Campaign Not Found</h2><p style='color:#696E77;margin-top:8px'>Please verify the campaign ID is correct</p><a href='/campaign-report' style='display:inline-flex;align-items:center;gap:6px;margin-top:16px;padding:8px 20px;border-radius:8px;background:var(--accent-bg);border:1px solid var(--accent-border);color:#6366F1;font-size:13px;text-decoration:none'><i class='ti ti-arrow-right' style='font-size:14px'></i> Go Back</a></div></div></div></body></html>"]]
+    [404, {"content-type"=>"text/html; charset=utf-8"}, ["<!DOCTYPE html><html dir='ltr' lang='en'><head><meta charset='utf-8'>#{dark_styles}</head><body>#{theme_detect_script}<div class='app-shell'>#{nav_html('report')}<div class='app-main' style='display:flex;justify-content:center;align-items:center'><div style='background:var(--bg-card);border:1px solid var(--border-weak);padding:3rem;border-radius:14px;text-align:center'><h2 style='color:var(--text-1);font-weight:600;letter-spacing:-.02em'>Campaign Not Found</h2><p style='color:#696E77;margin-top:8px'>Please verify the campaign ID is correct</p><a href='/campaign-report' style='display:inline-flex;align-items:center;gap:6px;margin-top:16px;padding:8px 20px;border-radius:8px;background:var(--accent-bg);border:1px solid var(--accent-border);color:#6366F1;font-size:13px;text-decoration:none'><i class='ti ti-arrow-left' style='font-size:14px'></i> Go Back</a></div></div></div></body></html>"]]
   end
 
   def nav_html(active)
@@ -200,7 +271,7 @@ class CampaignReportMiddleware
   def dark_styles
     <<~STYLE
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-      <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" rel="stylesheet" onerror="this.onerror=null;this.href=this.href.replace('cdn.jsdelivr.net/npm','unpkg.com')">
+      <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3/dist/tabler-icons.min.css" rel="stylesheet">
       <style>
         :root{
           --bg-app:#F4F5F8;--bg-card:#FFFFFF;--bg-surface:#FAFBFC;--border-weak:#E8E9ED;--border-strong:#D4D6DC;
@@ -357,13 +428,42 @@ class CampaignReportMiddleware
         .stat-card:nth-child(1){animation-delay:.05s}.stat-card:nth-child(2){animation-delay:.1s}.stat-card:nth-child(3){animation-delay:.15s}.stat-card:nth-child(4){animation-delay:.2s}
         .table-wrapper{animation-delay:.25s}.funnel{animation-delay:.2s}.download-card{animation-delay:.3s}
 
-        @media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr);gap:8px}th,td{padding:8px 10px;font-size:11px}.container{padding:16px}.app-nav{width:48px}.app-nav .ti{font-size:18px}.download-card{padding:20px}}
+        /* === FILTER CHIPS === */
+        .filter-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+        .filter-chips{display:flex;gap:4px}
+        .fchip{padding:6px 14px;border-radius:20px;border:1px solid var(--border-weak);background:transparent;color:var(--text-3);font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;transition:border-color .15s,color .15s,background .15s}
+        .fchip:hover{border-color:var(--border-strong);color:var(--text-2)}
+        .fchip.active{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-border)}
+        .fchip .chip-count{font-size:10px;opacity:.7;margin-left:3px}
+
+        /* === PAGINATION === */
+        .pagination{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:20px;margin-bottom:8px}
+        .pg-btn{padding:6px 12px;border-radius:8px;border:1px solid var(--border-weak);background:var(--bg-card);color:var(--text-2);font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;transition:background .15s,color .15s,border-color .15s;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+        .pg-btn:hover{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-border);text-decoration:none}
+        .pg-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+        .pg-btn.disabled{opacity:.4;pointer-events:none}
+        .pg-info{font-size:12px;color:var(--text-4);margin:0 8px}
+
+        /* === COUNTER ANIMATION === */
+        .stat-number{font-size:30px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.03em;transition:color .2s}
+
+        /* === LIST CSV EXPORT === */
+        .list-export-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:8px;background:transparent;border:1px solid var(--border-weak);color:var(--text-3);font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;margin-left:auto}
+        .list-export-btn:hover{background:var(--accent-bg);color:var(--accent);border-color:var(--accent-border)}
+        .list-export-btn .ti{font-size:14px}
+
+        /* === SUMMARY ROW === */
+        .summary-row td{font-weight:600;color:var(--text-1);background:var(--bg-surface);border-top:2px solid var(--border-strong)}
+        .summary-row:hover td{background:var(--bg-surface)}
+
+        @media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr);gap:8px}th,td{padding:8px 10px;font-size:11px}.container{padding:16px}.app-nav{width:48px}.app-nav .ti{font-size:18px}.download-card{padding:20px}.filter-bar{flex-direction:column;align-items:stretch}.pagination{flex-wrap:wrap}}
+        @media(prefers-reduced-motion:reduce){.stat-card,.table-wrapper,.funnel,.download-card,.info-card,.attention-box{animation:none}}
       </style>
     STYLE
   end
 
-  def render_list_page(rows, locale='en')
-    total_campaigns = rows.size
+  def render_list_page(rows, locale='en', page=1, total_pages=1, total_count=0)
+    total_campaigns = total_count
     total_sent = rows.sum { |r| r[:total_sent] }
     total_delivered = rows.sum { |r| r[:delivered] }
     total_read = rows.sum { |r| r[:read] }
@@ -374,9 +474,9 @@ class CampaignReportMiddleware
       pct_read = r[:total_sent] > 0 ? ((r[:read].to_f / r[:total_sent]) * 100).round(0) : 0
 
       <<~ROW
-        <tr class="clickable" onclick="window.location='/campaign-report/#{c.id}'" data-search="#{h(c.title.to_s)} #{campaign_status_he(c.campaign_status)} #{format_time(c.scheduled_at)}" data-sort-0="#{h(c.title.to_s.downcase)}" data-sort-2="#{c.scheduled_at.to_i rescue 0}" data-sort-4="#{r[:total_sent]}" data-sort-5="#{r[:delivered]}" data-sort-6="#{r[:read]}" data-sort-7="#{r[:failed]}">
+        <tr class="clickable" onclick="window.location='/campaign-report/#{c.id}'" data-search="#{h(c.title.to_s)} #{campaign_status_label(c.campaign_status)} #{format_time(c.scheduled_at)}" data-status="#{c.campaign_status}" data-sort-0="#{h(c.title.to_s.downcase)}" data-sort-2="#{c.scheduled_at.to_i rescue 0}" data-sort-4="#{r[:total_sent]}" data-sort-5="#{r[:delivered]}" data-sort-6="#{r[:read]}" data-sort-7="#{r[:failed]}">
           <td><strong style="color:var(--text-1)">#{h(c.title)}</strong></td>
-          <td><span class="campaign-status cs-#{c.campaign_status}">#{campaign_status_he(c.campaign_status)}</span></td>
+          <td><span class="campaign-status cs-#{c.campaign_status}">#{campaign_status_label(c.campaign_status)}</span></td>
           <td style="color:var(--text-3)">#{format_time(c.scheduled_at)}</td>
           <td style="color:var(--text-3)">#{r[:audience_size]}</td>
           <td>#{r[:total_sent]}</td>
@@ -436,13 +536,22 @@ class CampaignReportMiddleware
             </div>
           </div>
 
-          <div class="search-wrap">
-            <i class="ti ti-search" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:14px;color:#696E77;pointer-events:none"></i>
-            <input type="text" id="campaign-search" placeholder="Search campaigns..." oninput="filterCampaigns(this.value)" style="padding-right:34px">
-            <span id="search-count" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:11px;color:#696E77"></span>
+          <div class="filter-bar">
+            <div class="search-wrap" style="margin-bottom:0;flex:1;min-width:200px;max-width:360px">
+              <i class="ti ti-search" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:14px;color:#696E77;pointer-events:none"></i>
+              <input type="text" id="campaign-search" placeholder="Search campaigns..." style="padding-right:34px">
+              <span id="search-count" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:11px;color:#696E77"></span>
+            </div>
+            <div class="filter-chips">
+              <button class="fchip active" data-status="all">All<span class="chip-count"></span></button>
+              <button class="fchip" data-status="completed">Completed<span class="chip-count"></span></button>
+              <button class="fchip" data-status="active">Active<span class="chip-count"></span></button>
+              <button class="fchip" data-status="scheduled">Scheduled<span class="chip-count"></span></button>
+            </div>
+            <button class="list-export-btn" onclick="exportListCSV()"><i class="ti ti-file-spreadsheet"></i> CSV</button>
           </div>
 
-          <div class="section-title">All Campaigns</div>
+          <div class="section-title">All Campaigns <span id="showing-count" style="font-weight:400;text-transform:none;letter-spacing:normal"></span></div>
           <div class="table-wrapper">
             <div class="table-scroll">
               <table id="campaign-table">
@@ -464,6 +573,9 @@ class CampaignReportMiddleware
               </table>
             </div>
           </div>
+
+          #{total_pages > 1 ? pagination_html(page, total_pages) : ""}
+
         </div>
         </div>
         </div>
@@ -472,18 +584,46 @@ class CampaignReportMiddleware
         var _locale='#{locale}';
         var _isHe=_locale==='he';
         if(_isHe){document.documentElement.setAttribute('dir','rtl');document.documentElement.setAttribute('lang','he')}
-        function filterCampaigns(q){
-          q=q.trim().toLowerCase();
+
+        // Debounced search
+        var _searchTimer=null;
+        var searchEl=document.getElementById('campaign-search');
+        if(searchEl){searchEl.addEventListener('input',function(){clearTimeout(_searchTimer);var v=this.value;_searchTimer=setTimeout(function(){filterCampaigns(v)},200)})}
+
+        // Status filter
+        var _activeStatus='all';
+        var chips=document.querySelectorAll('.fchip');
+        function updateChipCounts(){
           var rows=document.querySelectorAll('#campaign-tbody tr[data-search]');
-          var vis=0;
+          var counts={all:0,completed:0,active:0,scheduled:0};
+          for(var i=0;i<rows.length;i++){var s=rows[i].getAttribute('data-status')||'';counts.all++;if(counts[s]!==undefined)counts[s]++}
+          chips.forEach(function(c){var st=c.getAttribute('data-status');var cnt=counts[st]||0;var sp=c.querySelector('.chip-count');if(sp)sp.textContent=' ('+cnt+')'})
+        }
+        updateChipCounts();
+        chips.forEach(function(c){c.addEventListener('click',function(){
+          chips.forEach(function(x){x.classList.remove('active')});
+          this.classList.add('active');
+          _activeStatus=this.getAttribute('data-status');
+          filterCampaigns(searchEl?searchEl.value:'');
+        })});
+
+        function filterCampaigns(q){
+          q=(q||'').trim().toLowerCase();
+          var rows=document.querySelectorAll('#campaign-tbody tr[data-search]');
+          var vis=0,total=rows.length;
           for(var i=0;i<rows.length;i++){
             var s=(rows[i].getAttribute('data-search')||'').toLowerCase();
-            var show=!q||s.indexOf(q)!==-1;
+            var st=rows[i].getAttribute('data-status')||'';
+            var matchSearch=!q||s.indexOf(q)!==-1;
+            var matchStatus=_activeStatus==='all'||st===_activeStatus;
+            var show=matchSearch&&matchStatus;
             rows[i].style.display=show?'':'none';
             if(show)vis++;
           }
           var cnt=document.getElementById('search-count');
-          if(cnt)cnt.textContent=q?vis+' / '+rows.length:'';
+          if(cnt)cnt.textContent=(q||_activeStatus!=='all')?vis+' / '+total:'';
+          var sc=document.getElementById('showing-count');
+          if(sc)sc.textContent=vis<total?'('+vis+'/'+total+')':'';
         }
         var sortState={col:null,asc:true};
         function sortTable(col,type){
@@ -518,7 +658,53 @@ class CampaignReportMiddleware
           var thmap={'Campaign Name':'\u05E9\u05DD \u05E7\u05DE\u05E4\u05D9\u05D9\u05DF','Status':'\u05E1\u05D8\u05D8\u05D5\u05E1','Date':'\u05EA\u05D0\u05E8\u05D9\u05DA','Audience':'\u05E7\u05D4\u05DC','Sent':'\u05E0\u05E9\u05DC\u05D7\u05D5','Delivered':'\u05E0\u05DE\u05E1\u05E8\u05D5','Read':'\u05E0\u05E7\u05E8\u05D0\u05D5','Failed':'\u05E0\u05DB\u05E9\u05DC\u05D5'};
           for(var i=0;i<ths.length;i++){var arr=ths[i].querySelector('.sort-arr');var txt=ths[i].textContent.trim();if(thmap[txt]){ths[i].textContent='';ths[i].appendChild(document.createTextNode(thmap[txt]+' '));if(arr)ths[i].appendChild(arr)}}
           var ep=document.querySelector('.empty-state p');if(ep)ep.textContent='\u05DC\u05D0 \u05E0\u05DE\u05E6\u05D0\u05D5 \u05E7\u05DE\u05E4\u05D9\u05D9\u05E0\u05D9\u05DD';
+          // Filter chips i18n
+          var chipMap={'All':'\u05D4\u05DB\u05DC','Completed':'\u05D4\u05D5\u05E9\u05DC\u05DE\u05D5','Active':'\u05E4\u05E2\u05D9\u05DC\u05D9\u05DD','Scheduled':'\u05DE\u05EA\u05D5\u05D6\u05DE\u05E0\u05D9\u05DD'};
+          var fchips=document.querySelectorAll('.fchip');
+          for(var i=0;i<fchips.length;i++){var cn=fchips[i].childNodes[0];if(cn&&cn.nodeType===3){var ct=cn.textContent.trim();if(chipMap[ct])cn.textContent=chipMap[ct]}}
+          var leb=document.querySelector('.list-export-btn');if(leb){var lic=leb.querySelector('.ti');leb.textContent=' CSV';if(lic)leb.insertBefore(lic,leb.firstChild)}
+          // Pagination i18n
+          var pinfo=document.querySelector('.pg-info');if(pinfo){var pt=pinfo.textContent;pinfo.textContent=pt.replace('of','\u05DE\u05EA\u05D5\u05DA').replace('Page','\u05E2\u05DE\u05D5\u05D3')}
         })();
+
+        // Counter animation on load
+        (function(){
+          var nums=document.querySelectorAll('.stat-number');
+          nums.forEach(function(el){
+            var target=parseInt(el.textContent)||0;
+            if(target<=0)return;
+            el.textContent='0';
+            var duration=800,start=null;
+            function step(ts){
+              if(!start)start=ts;
+              var progress=Math.min((ts-start)/duration,1);
+              var eased=1-Math.pow(1-progress,3);
+              el.textContent=Math.round(eased*target).toLocaleString();
+              if(progress<1)requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+          });
+        })();
+
+        // CSV export from list
+        function csvSafeL(v){var s=String(v||'');return /^[=+\-@\t\r]/.test(s)?("'"+s):s}
+        function exportListCSV(){
+          var rows=document.querySelectorAll('#campaign-tbody tr[data-search]');
+          if(!rows.length){alert('No data');return}
+          var csv='\uFEFF';
+          csv+=(_isHe?'\u05E9\u05DD \u05E7\u05DE\u05E4\u05D9\u05D9\u05DF,\u05E1\u05D8\u05D8\u05D5\u05E1,\u05EA\u05D0\u05E8\u05D9\u05DA,\u05E7\u05D4\u05DC,\u05E0\u05E9\u05DC\u05D7\u05D5,\u05E0\u05DE\u05E1\u05E8\u05D5,\u05E0\u05E7\u05E8\u05D0\u05D5,\u05E0\u05DB\u05E9\u05DC\u05D5':'Campaign,Status,Date,Audience,Sent,Delivered,Read,Failed')+'\\n';
+          for(var i=0;i<rows.length;i++){
+            if(rows[i].style.display==='none')continue;
+            var cells=rows[i].querySelectorAll('td');
+            if(cells.length<8)continue;
+            var vals=[];for(var j=0;j<cells.length;j++){vals.push('"'+csvSafeL((cells[j].textContent||'').trim()).replace(/"/g,'""')+'"')}
+            csv+=vals.join(',')+'\\n';
+          }
+          var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+          var url=URL.createObjectURL(blob);
+          var a=document.createElement('a');a.href=url;a.download='campaigns-report.csv';
+          document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+        }
         </script>
       </body>
       </html>
@@ -542,12 +728,13 @@ class CampaignReportMiddleware
 
     # Build JSON data for CSV export
     export_data = contact_results.map do |r|
-      { n: h(r[:contact_name]), p: h(r[:phone]), s: status_text_he(r[:status]), d: format_time(r[:created_at]), c: r[:conversation_id].to_s }
+      { n: h(r[:contact_name]), p: h(r[:phone]), s: status_label(r[:status]), d: format_time(r[:created_at]), c: r[:conversation_id].to_s }
     end
     not_sent.each do |c|
       export_data << { n: h(c[:name]), p: h(c[:phone] || "-"), s: "Not Sent", d: "-", c: "-" }
     end
-    export_json = export_data.to_json
+    # Escape </script> to prevent XSS when embedding in <script> tag
+    export_json = export_data.to_json.gsub('</', '<\/')
 
     attention_items = []
     attention_items << "#{failed} Failed" if failed > 0
@@ -573,7 +760,7 @@ class CampaignReportMiddleware
               <h1>#{h(campaign.title)}</h1>
               <div class="subtitle">
                 ##{campaign.id} &middot;
-                <span class="campaign-status cs-#{campaign.campaign_status}">#{campaign_status_he(campaign.campaign_status)}</span>
+                <span class="campaign-status cs-#{campaign.campaign_status}">#{campaign_status_label(campaign.campaign_status)}</span>
                 &middot; #{format_time(campaign.scheduled_at)}
                 &middot; Audience: #{all_count}
               </div>
@@ -597,7 +784,7 @@ class CampaignReportMiddleware
               #{total > 0 ? "<div class='stat-pct'>#{pct_delivered}%</div><div class='stat-bar'><div class='stat-bar-fill' style='width:#{pct_delivered}%;background:linear-gradient(90deg,#14B8A6,#5EEAD4)'></div></div>" : ""}
             </div>
             <div class="stat-card" style="--stat-accent:#8B5CF6;--stat-glow:rgba(139,92,246,.25)">
-              <div class="stat-icon" style="background:rgba(139,92,246,.08);color:#C4B5FD;border:1px solid rgba(139,92,246,.12)"><i class="ti ti-chevron-down"></i></div>
+              <div class="stat-icon" style="background:rgba(139,92,246,.08);color:#C4B5FD;border:1px solid rgba(139,92,246,.12)"><i class="ti ti-eye"></i></div>
               <div class="stat-number" style="color:#C4B5FD">#{read_count}</div>
               <div class="stat-label">Read</div>
               #{total > 0 ? "<div class='stat-pct' style='color:#C4B5FD'>#{pct_read}%</div><div class='stat-bar'><div class='stat-bar-fill' style='width:#{pct_read}%;background:linear-gradient(90deg,#8B5CF6,#C4B5FD)'></div></div>" : ""}
@@ -649,11 +836,12 @@ class CampaignReportMiddleware
         var _exportData=#{export_json};
         function exportCSV(){
           if(!_exportData.length){alert('No data to export');return}
+          function csvSafe(v){var s=String(v||'');return /^[=+\\-@\\t\\r]/.test(s)?("'"+s):s}
           var csv='\\uFEFF';
           csv+=(_isHe?'\u05E9\u05DD,\u05D8\u05DC\u05E4\u05D5\u05DF,\u05E1\u05D8\u05D8\u05D5\u05E1,\u05EA\u05D0\u05E8\u05D9\u05DA \u05E9\u05DC\u05D9\u05D7\u05D4,\u05DE\u05D6\u05D4\u05D4 \u05E9\u05D9\u05D7\u05D4':'Name,Phone,Status,Send Date,Conversation ID')+'\\n';
           for(var i=0;i<_exportData.length;i++){
             var r=_exportData[i];
-            csv+='"'+(r.n||'').replace(/"/g,'""')+'","'+(r.p||'').replace(/"/g,'""')+'","'+(r.s||'').replace(/"/g,'""')+'","'+(r.d||'').replace(/"/g,'""')+'","'+(r.c||'').replace(/"/g,'""')+'"\\n';
+            csv+='"'+csvSafe(r.n).replace(/"/g,'""')+'","'+csvSafe(r.p).replace(/"/g,'""')+'","'+csvSafe(r.s).replace(/"/g,'""')+'","'+csvSafe(r.d).replace(/"/g,'""')+'","'+csvSafe(r.c).replace(/"/g,'""')+'"\\n';
           }
           var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
           var url=URL.createObjectURL(blob);
