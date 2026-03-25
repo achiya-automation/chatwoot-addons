@@ -149,7 +149,7 @@ class CampaignReportMiddleware
   def campaign_messages(campaign_id, account_ids = nil)
     scope = Message.joins(:conversation)
     scope = scope.where(conversations: { account_id: account_ids }) if account_ids
-    scope.where("messages.content_attributes @> ?", { campaign_id: campaign_id.to_i }.to_json)
+    scope.where("messages.content_attributes::jsonb @> ?::jsonb", { campaign_id: campaign_id.to_i }.to_json)
   end
 
   # Batch query: get stats for all campaigns at once (scoped to account)
@@ -162,7 +162,7 @@ class CampaignReportMiddleware
     base = Message.joins(:conversation)
     base = base.where(conversations: { account_id: account_ids }) if account_ids
     campaign_ids.each do |cid|
-      msgs = base.where("messages.content_attributes @> ?", { campaign_id: cid.to_i }.to_json)
+      msgs = base.where("messages.content_attributes::jsonb @> ?::jsonb", { campaign_id: cid.to_i }.to_json)
       stats[cid][:total] = msgs.count
       stats[cid][:delivered] = msgs.where(status: [:delivered, :read]).count
       stats[cid][:read] = msgs.where(status: :read).count
