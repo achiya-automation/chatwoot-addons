@@ -191,7 +191,7 @@ class BotBuilderMiddleware
       act = b['active']
       inb_names = begin; ids=b['inbox_ids']||[]; ids.map{|id| inbox_lookup[id]}.compact; rescue; [] end
       inb_display = if inb_names.empty?
-        "<span data-i18n='not-assigned'>Not assigned</span>"
+        "Not assigned"
       elsif inb_names.length <= 2
         inb_names.join(', ')
       else
@@ -205,7 +205,7 @@ class BotBuilderMiddleware
       "<div class='bc-top'><div class='bc-info'><h3 title='#{e(b['name']||"Unnamed")}'>#{e(b['name']||"Unnamed")}</h3>" \
       "#{"<p>#{e(b['description'])}</p>" if b['description'].to_s.strip.length > 0}" \
       "</div><span class='badge #{act ? "bg" : "bi"}' data-i18n='badge-status'><span class='badge-dot #{act ? "dot-g" : "dot-n"}'></span>#{act ? "Active" : "Disabled"}</span></div>" \
-      "<div class='bc-meta'><span><i class='ti ti-inbox'></i> #{e(inb_display)}</span>" \
+      "<div class='bc-meta'><span#{inb_names.empty? ? " data-i18n='not-assigned'" : ""}><i class='ti ti-inbox'></i> #{e(inb_display)}</span>" \
       "<span data-i18n='meta-nodes'><i class='ti ti-puzzle'></i> #{nc} nodes</span><span class='bc-time' data-i18n='meta-time'><i class='ti ti-clock'></i> #{upd}</span><span data-i18n='meta-created'><i class='ti ti-calendar'></i> Created #{crt}</span></div>" \
       "</a>" \
       "<div class='bc-act'>" \
@@ -341,7 +341,7 @@ class BotBuilderMiddleware
     "var si=document.querySelector('[data-i18n=\"stat-active\"]');if(si)si.innerHTML='<span class=\"stat-dot dot-g\"></span>'+si.textContent.match(/\\d+/)[0]+' \\u05E4\\u05E2\\u05D9\\u05DC\\u05D9\\u05DD';" \
     "var sd=document.querySelector('[data-i18n=\"stat-disabled\"]');if(sd)sd.innerHTML='<span class=\"stat-dot dot-n\"></span>'+sd.textContent.match(/\\d+/)[0]+' \\u05DE\\u05D5\\u05E9\\u05D1\\u05EA\\u05D9\\u05DD';" \
     "var sn=document.querySelector('[data-i18n=\"stat-nodes\"]');if(sn)sn.innerHTML='<i class=\"ti ti-puzzle\" style=\"font-size:14px;vertical-align:middle;margin-right:4px\"></i>'+sn.textContent.match(/\\d+/)[0]+' \\u05E0\\u05D5\\u05D3\\u05D9\\u05DD';" \
-    "document.querySelectorAll('[data-i18n=\"not-assigned\"]').forEach(function(el){el.textContent='\\u05DC\\u05D0 \\u05DE\\u05E9\\u05D5\\u05D9\\u05DA'});" \
+    "document.querySelectorAll('[data-i18n=\"not-assigned\"]').forEach(function(el){el.innerHTML='<i class=\"ti ti-inbox\"></i> \\u05DC\\u05D0 \\u05DE\\u05E9\\u05D5\\u05D9\\u05DA'});" \
     "document.querySelectorAll('[data-i18n=\"meta-nodes\"]').forEach(function(el){var n=el.textContent.match(/\\d+/);el.innerHTML='<i class=\"ti ti-puzzle\"></i> '+(n?n[0]:'0')+' \\u05E0\\u05D5\\u05D3\\u05D9\\u05DD'});" \
     "document.querySelectorAll('[data-i18n=\"meta-created\"]').forEach(function(el){var d=el.textContent.replace(/Created\\s*/,'');el.innerHTML='<i class=\"ti ti-calendar\"></i> \\u05E0\\u05D5\\u05E6\\u05E8 '+d});" \
     "document.querySelectorAll('[data-i18n=\"badge-status\"]').forEach(function(el){var isAct=el.textContent.trim()==='Active';el.innerHTML='<span class=\"badge-dot '+(isAct?'dot-g':'dot-n')+'\"></span>'+(isAct?'\\u05E4\\u05E2\\u05D9\\u05DC':'\\u05DE\\u05D5\\u05E9\\u05D1\\u05EA')});" \
