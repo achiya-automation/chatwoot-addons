@@ -465,9 +465,9 @@ class BotBuilderMiddleware
     "document.querySelectorAll('.bc-dropdown.open').forEach(function(d){if(d!==dd)d.classList.remove('open')});" \
     "dd.classList.toggle('open');return}" \
     "if(!e.target.closest('.bc-dropdown')){document.querySelectorAll('.bc-dropdown.open').forEach(function(d){d.classList.remove('open')})}" \
-    "if(e.target.closest('.bc-link'))return;" \
     "var t=e.target.closest('[data-tid]');if(t){e.preventDefault();e.stopPropagation();fetch('/bot-builder/api/bots/'+t.getAttribute('data-tid')+'/toggle',{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){if(r.ok)location.reload()});return}" \
-    "var d=e.target.closest('[data-did]');if(d&&confirm(_isHe?'\\u05DC\\u05DE\\u05D7\\u05D5\\u05E7 \\u05D0\\u05EA \\u05D4\\u05D1\\u05D5\\u05D8?':'Delete this bot?')){e.preventDefault();e.stopPropagation();fetch('/bot-builder/api/bots/'+d.getAttribute('data-did'),{method:'DELETE',headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){if(r.ok)location.reload()})}" \
+    "var d=e.target.closest('[data-did]');if(d){e.preventDefault();e.stopPropagation();if(confirm(_isHe?'\\u05DC\\u05DE\\u05D7\\u05D5\\u05E7 \\u05D0\\u05EA \\u05D4\\u05D1\\u05D5\\u05D8?':'Delete this bot?')){fetch('/bot-builder/api/bots/'+d.getAttribute('data-did'),{method:'DELETE',headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){if(r.ok)location.reload()})}return}" \
+    "if(e.target.closest('.bc-link'))return;" \
     "});" \
     "var searchEl=document.getElementById('bot-search');" \
     "var grid=document.getElementById('bot-grid');" \
