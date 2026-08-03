@@ -10,6 +10,8 @@ services:
       - /opt/chatwoot/custom-initializers/bot_builder.rb:/app/config/initializers/bot_builder.rb:ro
       - /opt/chatwoot/custom-initializers/campaign_report_dashboard.rb:/app/config/initializers/campaign_report_dashboard.rb:ro
       - /opt/chatwoot/custom-initializers/custom_nav_widget.rb:/app/config/initializers/custom_nav_widget.rb:ro
+      - /opt/chatwoot/custom-initializers/social_comments.rb:/app/config/initializers/social_comments.rb:ro
+      - /opt/chatwoot/bin/social-comments-connect:/app/bin/social-comments-connect:ro
       - /opt/chatwoot/bot_flows:/app/storage/bot_flows  # Persist bot flows
 
   sidekiq:
@@ -17,4 +19,14 @@ services:
       - /opt/chatwoot/custom-initializers/bot_builder.rb:/app/config/initializers/bot_builder.rb:ro
       - /opt/chatwoot/custom-initializers/campaign_report_dashboard.rb:/app/config/initializers/campaign_report_dashboard.rb:ro
       - /opt/chatwoot/custom-initializers/custom_nav_widget.rb:/app/config/initializers/custom_nav_widget.rb:ro
+      - /opt/chatwoot/custom-initializers/social_comments.rb:/app/config/initializers/social_comments.rb:ro
       - /opt/chatwoot/bot_flows:/app/storage/bot_flows
+
+# ------------------------------------------------------------
+# social_comments דורש FB_APP_SECRET שכבר קיים ב-.env של Chatwoot
+# (הוא משמש לאימות חתימת ה-webhook של Meta).
+#
+# אחרי ההעלאה, חיבור דף:
+#   docker exec -it chatwoot-rails-1 \
+#     bundle exec rails runner /app/bin/social-comments-connect
+# ------------------------------------------------------------
