@@ -148,8 +148,12 @@ module SocialComments
     token = page_token(inbox)
     return [:no_token, nil] if token.blank?
 
+    # הטוקן ב-Authorization header ולא בגוף/ב-URL — לא נרשם בלוגים של פרוקסי.
     uri = URI("#{GRAPH}/#{parent_comment_id}/comments")
-    res = Net::HTTP.post_form(uri, 'message' => body, 'access_token' => token)
+    req = Net::HTTP::Post.new(uri)
+    req['Authorization'] = "Bearer #{token}"
+    req.set_form_data('message' => body)
+    res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
     json = JSON.parse(res.body) rescue {}
 
     return [:ok, json['id']] if res.is_a?(Net::HTTPSuccess) && json['id'].present?

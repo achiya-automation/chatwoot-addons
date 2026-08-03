@@ -50,9 +50,31 @@ die('חסרים פרטים') if account_id.empty? || page_id.empty? || page_toke
 
 account = Account.find_by(id: account_id) or die("לא נמצא חשבון #{account_id}")
 
+# הטוקן עובר תמיד ב-Authorization header ולא ב-query string —
+# query strings נרשמים בלוגים של שרתים ופרוקסי.
+def graph_get(path, token)
+  uri = URI("#{GRAPH}/#{path}")
+  req = Net::HTTP::Get.new(uri)
+  req['Authorization'] = "Bearer #{token}"
+  res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
+  JSON.parse(res.body)
+rescue StandardError
+  {}
+end
+
+def graph_post(path, token, form)
+  uri = URI("#{GRAPH}/#{path}")
+  req = Net::HTTP::Post.new(uri)
+  req['Authorization'] = "Bearer #{token}"
+  req.set_form_data(form)
+  res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
+  JSON.parse(res.body)
+rescue StandardError => e
+  { 'error' => { 'message' => e.message } }
+end
+
 # --- 1. אימות הטוקן ושליפת שם הדף ---
-uri = URI("#{GRAPH}/#{page_id}?fields=name&access_token=#{page_token}")
-res = JSON.parse(Net::HTTP.get(uri)) rescue {}
+res = graph_get("#{page_id}?fields=name", page_token)
 die("הטוקן או מזהה הדף שגויים: #{res.dig('error', 'message')}") if res['name'].nil?
 
 page_name = res['name']
@@ -60,16 +82,11 @@ puts "\n✅ הדף זוהה: #{page_name}"
 
 # --- 2. הרשמה ל-feed (העקיפה המרכזית) ---
 # משמרים את מה ש-Chatwoot כבר רשם ומוסיפים feed מעליו.
-current = JSON.parse(Net::HTTP.get(URI("#{GRAPH}/#{page_id}/subscribed_apps?access_token=#{page_token}"))) rescue {}
+current = graph_get("#{page_id}/subscribed_apps", page_token)
 existing = Array(current['data']).flat_map { |a| Array(a['subscribed_fields']) }.uniq
 fields = (existing + %w[feed]).uniq
 
-sub = Net::HTTP.post_form(
-  URI("#{GRAPH}/#{page_id}/subscribed_apps"),
-  'subscribed_fields' => fields.join(','),
-  'access_token' => page_token
-)
-sub_body = JSON.parse(sub.body) rescue {}
+sub_body = graph_post("#{page_id}/subscribed_apps", page_token, 'subscribed_fields' => fields.join(','))
 die("הרשמת ה-webhook נכשלה: #{sub_body.dig('error', 'message')}") unless sub_body['success']
 
 puts "✅ נרשם ל-webhook. שדות: #{fields.join(', ')}"
