@@ -198,7 +198,8 @@ class SocialCommentsMiddleware
 
     comments.each do |c|
       result = SocialComments.ingest(c)
-      Rails.logger.info("[social-comments] #{c[:comment_id]} -> #{result}")
+      # warn ולא info — Chatwoot רץ ב-RAILS_LOG_LEVEL=warn, ו-info נבלע.
+      Rails.logger.warn("[social-comments] #{c[:comment_id]} -> #{result}")
     end
 
     [200, { 'Content-Type' => 'text/plain' }, ['ok']]
@@ -242,7 +243,7 @@ class SocialCommentsMiddleware
     return json(200, ignored: 'no parent comment') unless parent
 
     status, info = SocialComments.publish_reply(inbox, parent.source_id, body)
-    Rails.logger.info("[social-comments] reply #{parent.source_id} -> #{status}")
+    Rails.logger.warn("[social-comments] reply #{parent.source_id} -> #{status}")
 
     # שומרים את מזהה התגובה שפרסמנו, כדי שהחזרה שלה כ-webhook תזוהה כשלנו
     if status == :ok && info.present?
