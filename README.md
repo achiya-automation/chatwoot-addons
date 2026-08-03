@@ -1,7 +1,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Chatwoot-Addons-6366F1?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxwYXRoIGQ9Ik0xMiAyYTIgMiAwIDAgMSAyIDJjMCAuNzQtLjQgMS4zOS0xIDEuNzNWN2gxYTcgNyAwIDAgMSA3IDdoMWExIDEgMCAwIDEgMSAxdjNhMSAxIDAgMCAxLTEgMWgtMS4wN0E3LjAwMSA3LjAwMSAwIDAgMSA3LjA3IDE5SDZhMSAxIDAgMCAxLTEtMXYtM2ExIDEgMCAwIDEgMS0xaDFhNyA3IDAgMCAxIDctN2gxVjUuNzNjLS42LS4zNC0xLS45OS0xLTEuNzNhMiAyIDAgMCAxIDItMnpNOS41IDE2YTEuNSAxLjUgMCAxIDAgMC0zIDEuNSAxLjUgMCAwIDAgMCAzem01IDBhMS41IDEuNSAwIDEgMCAwLTMgMS41IDEuNSAwIDAgMCAwIDN6Ii8+PC9zdmc+" alt="Chatwoot Addons">
   <br><br>
-  <strong>Visual Bot Builder + Campaign Analytics for Chatwoot</strong>
+  <strong>Visual Bot Builder + Campaign Analytics + Social Comments for Chatwoot</strong>
   <br>
   Drop-in Rack middleware extensions — no core modifications needed
   <br><br>
@@ -15,10 +15,11 @@
 
 ## What is this?
 
-**Chatwoot Addons** adds two powerful tools to your self-hosted Chatwoot instance — without touching Chatwoot's source code:
+**Chatwoot Addons** adds three tools to your self-hosted Chatwoot instance — without touching Chatwoot's source code:
 
 1. **Bot Builder** — A visual drag-and-drop bot flow editor (think ManyChat/Botpress, inside Chatwoot)
 2. **Campaign Report** — WhatsApp campaign analytics dashboard with delivery tracking and CSV export
+3. **Social Comments** — Facebook Page post comments as Chatwoot conversations, with public replies sent back
 
 Both are injected as Rack middleware via Docker volume mounts. They run alongside Chatwoot and use its authentication, database, and session management.
 
@@ -62,6 +63,29 @@ Both are injected as Rack middleware via Docker volume mounts. They run alongsid
 - **Search & sort** across campaigns
 - **Status badges** (completed, active, scheduled)
 - **Dark mode** — consistent with Bot Builder theme
+
+### Social Comments
+
+Chatwoot's Facebook channel handles Messenger DMs only — post comments are not supported ([#5196](https://github.com/chatwoot/chatwoot/issues/5196), [#9724](https://github.com/chatwoot/chatwoot/issues/9724)). Two gaps in core cause this:
+
+- `facebookScopes.js` does not request the comment permissions
+- `channel/facebook_page.rb` does not subscribe to the `feed` webhook field
+
+Neither file is edited. The addon works around both from the outside:
+
+- **Comments become conversations** — a new comment on a Page post opens a conversation in a dedicated API inbox
+- **Replies go back public** — the agent answers in Chatwoot, the reply is published under the original comment
+- **Threading preserved** — replies to a comment join the existing conversation instead of opening a new one
+- **Signature verified** — `X-Hub-Signature-256` is checked against `FB_APP_SECRET` before any processing
+- **Loop-safe** — comments authored by the Page itself are ignored, so our own replies never bounce back as new conversations
+
+Connect a Page:
+```bash
+docker exec -it chatwoot-rails-1 bundle exec rails runner /app/bin/social-comments-connect
+```
+The Page Access Token is read from stdin, never from argv — it will not appear in `ps` or shell history.
+
+**Requires** Advanced Access for `pages_read_user_content` and `pages_manage_engagement` before it works for Pages outside your own app roles.
 
 ### Navigation Widget
 
