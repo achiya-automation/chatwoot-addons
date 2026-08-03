@@ -10,99 +10,80 @@
 #   2. יוצר תיבת API בשם "תגובות — <שם הדף>"
 #   3. מפנה את ה-webhook היוצא שלה ל-/social-comments/outgoing
 #
-# הרצה (בתוך הקונטיינר, כי צריך את המודלים של Chatwoot):
-#   docker exec -it chatwoot-rails-1 \
-#     bundle exec rails runner /app/bin/social-comments-connect
+# הרצה:
+#   rails runner /app/bin/social-comments-connect <account_id> <page_id>
 #
-# הטוקן נקרא מ-stdin ולא מ-argv, כדי שלא יופיע ב-ps או בהיסטוריית הפקודות.
+# הטוקן נקרא מ-stdin — לא מ-argv, כדי שלא יופיע ב-ps או בהיסטוריה.
+# אפשר להזין System User token: הסקריפט יגזור ממנו Page Token לבד.
 # ============================================================
 
 require 'net/http'
 require 'json'
-require 'io/console'
 
 GRAPH = 'https://graph.facebook.com/v23.0'
-
-def ask(prompt)
-  print prompt
-  $stdin.gets.to_s.strip
-end
-
-def ask_secret(prompt)
-  print prompt
-  value = $stdin.noecho(&:gets).to_s.strip
-  puts
-  value
-end
 
 def die(msg)
   warn "\n🔴 #{msg}"
   exit 1
 end
 
-puts "\n=== חיבור דף פייסבוק לתיבת תגובות ===\n\n"
-
-account_id = ask('מזהה חשבון ב-Chatwoot (account id): ')
-page_id    = ask('מזהה הדף בפייסבוק (page id): ')
-page_token = ask_secret('Page Access Token (לא יוצג ולא יישמר בלוג): ')
-
-die('חסרים פרטים') if account_id.empty? || page_id.empty? || page_token.empty?
-
-account = Account.find_by(id: account_id) or die("לא נמצא חשבון #{account_id}")
-
-# הטוקן עובר תמיד ב-Authorization header ולא ב-query string —
+# הטוקן תמיד ב-Authorization header ולא ב-query string —
 # query strings נרשמים בלוגים של שרתים ופרוקסי.
-def graph_get(path, token)
+def graph(path, token, form = nil)
   uri = URI("#{GRAPH}/#{path}")
-  req = Net::HTTP::Get.new(uri)
+  req = form ? Net::HTTP::Post.new(uri) : Net::HTTP::Get.new(uri)
   req['Authorization'] = "Bearer #{token}"
-  res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
-  JSON.parse(res.body)
-rescue StandardError
-  {}
-end
-
-def graph_post(path, token, form)
-  uri = URI("#{GRAPH}/#{path}")
-  req = Net::HTTP::Post.new(uri)
-  req['Authorization'] = "Bearer #{token}"
-  req.set_form_data(form)
+  req.set_form_data(form) if form
   res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
   JSON.parse(res.body)
 rescue StandardError => e
   { 'error' => { 'message' => e.message } }
 end
 
-# --- 1. אימות הטוקן ושליפת שם הדף ---
-res = graph_get("#{page_id}?fields=name", page_token)
-die("הטוקן או מזהה הדף שגויים: #{res.dig('error', 'message')}") if res['name'].nil?
+account_id, page_id = ARGV[0], ARGV[1]
+die('שימוש: rails runner social-comments-connect <account_id> <page_id>') if account_id.nil? || page_id.nil?
 
-page_name = res['name']
+token = $stdin.read.to_s.strip
+die('לא התקבל טוקן ב-stdin') if token.empty?
+
+account = Account.find_by(id: account_id) or die("לא נמצא חשבון #{account_id}")
+
+# --- 1. גזירת Page Token ---
+# System User token לא מורשה ל-subscribed_apps, אבל כן יכול לגזור Page Token.
+# אם כבר קיבלנו Page Token, הגזירה פשוט מחזירה אותו עצמו.
+probe = graph("#{page_id}?fields=name,access_token", token)
+die("הטוקן או מזהה הדף שגויים: #{probe.dig('error', 'message')}") if probe['name'].nil?
+
+page_name  = probe['name']
+page_token = probe['access_token'] || token
+derived    = probe['access_token'] ? ' (נגזר אוטומטית)' : ''
+
 puts "\n✅ הדף זוהה: #{page_name}"
+puts "   Page Token#{derived}"
 
 # --- 2. הרשמה ל-feed (העקיפה המרכזית) ---
 # משמרים את מה ש-Chatwoot כבר רשם ומוסיפים feed מעליו.
-current = graph_get("#{page_id}/subscribed_apps", page_token)
+current  = graph("#{page_id}/subscribed_apps", page_token)
 existing = Array(current['data']).flat_map { |a| Array(a['subscribed_fields']) }.uniq
-fields = (existing + %w[feed]).uniq
+fields   = (existing + %w[feed]).uniq
 
-sub_body = graph_post("#{page_id}/subscribed_apps", page_token, 'subscribed_fields' => fields.join(','))
-die("הרשמת ה-webhook נכשלה: #{sub_body.dig('error', 'message')}") unless sub_body['success']
+sub = graph("#{page_id}/subscribed_apps", page_token, 'subscribed_fields' => fields.join(','))
+die("הרשמת ה-webhook נכשלה: #{sub.dig('error', 'message')}") unless sub['success']
 
 puts "✅ נרשם ל-webhook. שדות: #{fields.join(', ')}"
 puts '   (feed הוא זה שמעביר תגובות — בלעדיו שום תגובה לא מגיעה)' unless existing.include?('feed')
 
 # --- 3. תיבת API ---
 inbox_name = "תגובות — #{page_name}"
-existing_inbox = account.inboxes.find_by(name: inbox_name)
+inbox = account.inboxes.find_by(name: inbox_name)
 
-if existing_inbox
-  channel = existing_inbox.channel
-  puts "\n↻ התיבה כבר קיימת (id #{existing_inbox.id}) — מעדכן"
+if inbox
+  channel = inbox.channel
+  puts "\n↻ התיבה כבר קיימת (id #{inbox.id}) — מעדכן"
 else
   channel = Channel::Api.create!(account: account, webhook_url: '')
-  existing_inbox = account.inboxes.create!(name: inbox_name, channel: channel)
-  puts "\n✅ נוצרה תיבה: #{inbox_name} (id #{existing_inbox.id})"
+  inbox = account.inboxes.create!(name: inbox_name, channel: channel)
+  puts "\n✅ נוצרה תיבה: #{inbox_name} (id #{inbox.id})"
 end
 
 attrs = channel.additional_attributes || {}
@@ -126,8 +107,8 @@ puts <<~DONE
     2. השיחה אמורה להיפתח בתיבה תוך שניות
     3. ענה מ-Chatwoot — התשובה תתפרסם כתגובה פומבית
 
-  אם לא הופיע כלום, בדוק את הלוג:
-    docker logs chatwoot-rails-1 2>&1 | grep social-comments
+  אם לא הופיע כלום:
+    docker logs chatwoot-rails-1 --since 10m 2>&1 | grep social-comments
   ─────────────────────────────────────────
 
 DONE
