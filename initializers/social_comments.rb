@@ -143,6 +143,35 @@ module SocialComments
     :dup
   end
 
+  # שליחת הודעה פרטית למי שהגיב (Private Reply).
+  # Meta: "Only one message can be sent to the person who commented",
+  # "within 7 days from when the post or comment was created".
+  # שתי המגבלות נבדקות גם אצלנו לפני הקריאה, כדי לא לבזבז מכסה על כישלון ודאי.
+  def send_private_reply(inbox, comment_id, body)
+    token   = page_token(inbox)
+    page_id = inbox.channel.additional_attributes.to_h[PAGE_KEY]
+    return [:no_token, nil] if token.blank? || page_id.blank?
+
+    uri = URI("#{GRAPH}/#{page_id}/messages")
+    res = Net::HTTP.post_form(
+      uri,
+      'recipient' => { comment_id: comment_id }.to_json,
+      'message' => { text: body }.to_json,
+      'messaging_type' => 'RESPONSE',
+      'access_token' => token
+    )
+    json = JSON.parse(res.body) rescue {}
+    return [:ok, json['message_id']] if res.is_a?(Net::HTTPSuccess) && json['message_id'].present?
+
+    code = json.dig('error', 'code')
+    sub  = json.dig('error', 'error_subcode')
+    # 10 / 200 = מחוץ למדיניות ההודעות (בד"כ החלון נסגר או שכבר נשלחה הודעה)
+    status = [10, 200].include?(code) ? :not_allowed : :error
+    [status, json.dig('error', 'message')]
+  rescue StandardError => e
+    [:error, e.message]
+  end
+
   # פרסום התשובה של הסוכן חזרה כתגובה פומבית.
   def publish_reply(inbox, parent_comment_id, body)
     token = page_token(inbox)
@@ -170,6 +199,9 @@ end
 
 class SocialCommentsMiddleware
   OUTGOING_PATH = '/social-comments/outgoing'
+  # מנוע ה-journeys קורא לכאן כדי לשלוח הודעה פרטית למי שהגיב.
+  # הביצוע יושב כאן ולא במנוע כי ה-Page Token שמור בערוץ, ואין סיבה לשכפל אותו.
+  PM_PATH       = '/social-comments/private-reply'
   # Chatwoot ממפה את ה-webhook של פייסבוק כאן:
   #   config/routes.rb:644  mount Facebook::Messenger::Server, at: 'bot'
   # מיירטים רק אותו — לא כל POST באפליקציה.
@@ -180,6 +212,7 @@ class SocialCommentsMiddleware
   end
 
   def call(env)
+    return handle_pm(env)       if env['PATH_INFO'] == PM_PATH && env['REQUEST_METHOD'] == 'POST'
     return handle_outgoing(env) if env['PATH_INFO'] == OUTGOING_PATH && env['REQUEST_METHOD'] == 'POST'
     return @app.call(env) unless env['REQUEST_METHOD'] == 'POST'
     return @app.call(env) unless env['PATH_INFO'].to_s.start_with?(INBOUND_PATH)
@@ -218,6 +251,46 @@ class SocialCommentsMiddleware
     raw = input.read
     input.rewind if input.respond_to?(:rewind)
     raw
+  end
+
+  # מנוע ה-journeys שולח לכאן: {conversation:{display_id}, account_id, text}.
+  # אוכף את שתי מגבלות Meta לפני הקריאה — הודעה אחת לכל תגובה, וחלון 7 ימים.
+  def handle_pm(env)
+    data = JSON.parse(read_body(env).to_s) rescue {}
+    display_id = data.dig('conversation', 'display_id')
+    account_id = data['account_id']
+    text       = data['text'].to_s
+    return json(400, error: 'missing display_id/text') if display_id.blank? || text.blank?
+
+    conversation = Conversation.find_by(display_id: display_id, account_id: account_id)
+    return json(404, error: 'conversation not found') unless conversation
+
+    inbox = conversation.inbox
+    unless inbox.channel.is_a?(Channel::Api) && inbox.channel.additional_attributes[SocialComments::PAGE_KEY].present?
+      return json(422, error: 'not a comments inbox')
+    end
+
+    attrs = conversation.additional_attributes.to_h
+    return json(409, error: 'already sent', detail: attrs['pm_at']) if attrs['pm_sent']
+
+    src = conversation.messages.where(message_type: :incoming).where.not(source_id: nil).order(:id).first
+    return json(422, error: 'no source comment') unless src
+    return json(410, error: 'window closed', detail: src.created_at) if src.created_at < 7.days.ago
+
+    status, info = SocialComments.send_private_reply(inbox, src.source_id, text)
+    Rails.logger.warn("[social-comments] pm #{src.source_id} -> #{status}")
+    return json(502, error: status.to_s, detail: info) unless status == :ok
+
+    conversation.update!(additional_attributes: attrs.merge('pm_sent' => true, 'pm_at' => Time.current.iso8601))
+    conversation.messages.create!(
+      message_type: :outgoing, content: text,
+      account_id: conversation.account_id, inbox_id: inbox.id,
+      content_attributes: { 'bot_response' => true, 'private_reply' => true, 'mid' => info }
+    )
+    json(200, status: 'ok', mid: info)
+  rescue StandardError => e
+    Rails.logger.error("[social-comments] pm #{e.class}: #{e.message}")
+    json(500, error: 'internal')
   end
 
   # Chatwoot שולח לכאן כשסוכן עונה בתיבת התגובות.
