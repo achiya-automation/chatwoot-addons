@@ -28,13 +28,23 @@ class CustomNavWidgetMiddleware
     response.close if response.respond_to?(:close)
     body = parts.join
 
-    if body.include?('</body>')
-      body.sub!('</body>', "#{nav_overlay_html}</body>")
-      headers['Content-Length'] = body.bytesize.to_s if headers['Content-Length']
+    # ⚠️ מכאן והלאה אסור להחזיר את `response` המקורי: הוא כבר נשאב עד הסוף ונסגר, ולכן
+    # אינו ניתן לאיטרציה חוזרת — החזרתו הייתה מגישה למשתמש דף ריק. ה-middleware הזה רץ
+    # על *כל* תשובת HTML באפליקציה, אז כשל כאן הוא כשל בכל מקום. שומרים את הגוף שכבר
+    # קראנו, וכל תקלה בהזרקה מחזירה אותו כמות שהוא — בלי התוסף, אבל שלם.
+    begin
+      if body.include?('</body>')
+        body = body.sub('</body>', "#{nav_overlay_html}</body>")
+        headers['Content-Length'] = body.bytesize.to_s if headers['Content-Length']
+      end
+    rescue StandardError => e
+      # RAILS_LOG_LEVEL=warn בפרודקשן — info נבלע. הגרסה הקודמת שתקה לגמרי.
+      Rails.logger.warn("[custom-nav] injection skipped (#{e.class}: #{e.message}) — serving page unmodified")
     end
 
     [status, headers, [body]]
-  rescue StandardError
+  rescue StandardError => e
+    Rails.logger.warn("[custom-nav] passthrough failed (#{e.class}: #{e.message})")
     [status, headers, response]
   end
 

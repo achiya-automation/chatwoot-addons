@@ -25,7 +25,8 @@ module BotFlowStore
 
     def save(d)
       WRITE_MUTEX.synchronize do
-        d['id'] ||= SecureRandom.hex(8)
+        # מזהה חייב להיות תווי-מילה בלבד — מזהה עם ../ או נתיב מוחלט היה כותב קובץ מחוץ לתיקיית האחסון
+        d['id'] = SecureRandom.hex(8) unless d['id'].to_s.match?(/\A\w{1,64}\z/)
         d['updated_at'] = Time.now.iso8601
         d['created_at'] ||= Time.now.iso8601
         target = storage_dir.join("#{d['id']}.json")
@@ -91,8 +92,19 @@ class BotBuilderMiddleware
     [s, sh.merge('Content-Type'=>'application/json; charset=utf-8'), [data.to_json]]
   end
 
+  # מנהלי חשבון בלבד: בניית בוטים שקולה לכללי אוטומציה/קמפיינים בצ'אטוווט, שמוגבלים ל-administrator
+  # בכל הפעולות. מנהל של כמה חשבונות ממשיך לעבוד בכל החשבונות שהוא מנהל בהם.
   def aids(user)
-    user.account_ids rescue user.accounts.pluck(:id)
+    AccountUser.where(user_id: user.id, role: :administrator).pluck(:account_id)
+  end
+
+  # דף 403 לסוכן רגיל שמגיע לבונה הבוטים
+  def admin_only_html
+    '<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="utf-8"><title>Bot Builder</title></head>' \
+    '<body style="font-family:Inter,-apple-system,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#60646C">' \
+    '<div style="text-align:center"><h1 style="font-size:18px;font-weight:600;color:#1C2024;margin:0 0 8px">אין הרשאה</h1>' \
+    '<p style="font-size:14px;margin:0 0 16px">בונה הבוטים זמין למנהלי החשבון בלבד.</p>' \
+    '<a href="/app" style="color:#6366F1;font-size:13px;text-decoration:none">חזרה ל-Chatwoot</a></div></body></html>'
   end
 
   def handle(req, path, user)
@@ -101,6 +113,10 @@ class BotBuilderMiddleware
       return [403, sh.merge('Content-Type'=>'application/json'), ['{"error":"csrf_failed"}']]
     end
     ac = aids(user)
+    if ac.empty?
+      return jr({error:'forbidden'},403) if path.start_with?('/bot-builder/api')
+      return [403, sh.merge('Content-Type'=>'text/html; charset=utf-8'), [admin_only_html]]
+    end
     case path
     when '/bot-builder'
       return list_page(ac, user) if req.get?
@@ -111,7 +127,14 @@ class BotBuilderMiddleware
     when '/bot-builder/api/bots'
       return jr(BotFlowStore.all.select{|b| ac.include?(b['account_id'])}) if req.get?
       if req.post?
-        d = JSON.parse(req.body.read); d['account_id'] ||= ac.first
+        d = JSON.parse(req.body.read)
+        return jr({error:'bad_request'},400) unless d.is_a?(Hash)
+        # בעלות: עדכון בוט קיים מותר רק לחשבון שהבוט שייך לו, ובוט חדש רק לחשבון של המשתמש
+        ex = d['id'].present? ? BotFlowStore.find(d['id']) : nil
+        return jr({error:'forbidden'},403) if ex && !ac.include?(ex['account_id'])
+        # בוט קיים שומר על שיוך החשבון שלו (העורך לא שולח account_id בשמירה)
+        d['account_id'] = ex ? ex['account_id'] : (d['account_id'].presence || ac.first)
+        return jr({error:'forbidden'},403) unless ac.include?(d['account_id'])
         return jr(BotFlowStore.save(d))
       end
     when %r{^/bot-builder/api/bots/(\w+)$}
@@ -3653,6 +3676,12 @@ Rails.application.config.after_initialize do
   end
 
   module BotEngine
+    # Private/internal ranges. IPv6 included: a hostname can resolve to an AAAA record.
+    PRIVATE_NETS = [
+      '0.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16',
+      '169.254.0.0/16', '127.0.0.0/8', '::1/128', 'fc00::/7', 'fe80::/10', '::/96'
+    ].map { |n| IPAddr.new(n) }.freeze
+
     # SSRF protection: block requests to private/internal IPs
     def self.ssrf_blocked?(url)
       begin
@@ -3661,21 +3690,30 @@ Rails.application.config.after_initialize do
         return true if host.empty?
         # Block localhost, loopback, link-local
         return true if %w[localhost].include?(host) || host.end_with?('.local')
-        ip = IPAddr.new(host) rescue nil
-        if ip
-          return true if ip.loopback? || ip.link_local?
-          # Block private ranges
-          return true if IPAddr.new('10.0.0.0/8').include?(ip)
-          return true if IPAddr.new('172.16.0.0/12').include?(ip)
-          return true if IPAddr.new('192.168.0.0/16').include?(ip)
-          return true if IPAddr.new('169.254.0.0/16').include?(ip)
-          return true if IPAddr.new('127.0.0.0/8').include?(ip)
-        end
-        false
+        # שם דומיין (המקרה הרגיל) חייב להיפתר לפני הבדיקה: בלי זה תוקף מפנה דומיין שלו
+        # ל-127.0.0.1 או ל-169.254.169.254 (metadata של הענן) והבקשה עוברת. בודקים כל
+        # כתובת שה-DNS מחזיר, לא רק host שהוא כתובת IP מפורשת.
+        # ⚠️ DNS rebinding נשאר פתוח: HTTParty/Down פותרים את השם שוב ברגע החיבור ועלולים
+        #    לקבל תשובה אחרת. סגירה מלאה דורשת חיבור לכתובת שנבדקה בלבד (pinned IP).
+        ips = resolve_ips(host)
+        return true if ips.empty?
+        ips.any? { |ip| private_ip?(ip) }
       rescue => e
         Rails.logger.warn("[BotEngine] SSRF check failed for #{url}: #{e.message}")
         true # Block if we can't validate
       end
+    end
+
+    def self.resolve_ips(host)
+      literal = IPAddr.new(host) rescue nil
+      return [literal] if literal
+      Addrinfo.getaddrinfo(host, nil, nil, :STREAM).map { |a| IPAddr.new(a.ip_address) rescue nil }.compact
+    end
+
+    def self.private_ip?(ip)
+      ip = ip.native if ip.ipv4_mapped?
+      return true if ip.loopback? || ip.link_local?
+      PRIVATE_NETS.any? { |net| net.include?(ip) }
     end
 
     class ProcessJob < ApplicationJob

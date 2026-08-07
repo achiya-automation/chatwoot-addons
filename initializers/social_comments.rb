@@ -32,6 +32,33 @@ module SocialComments
     ENV.fetch('FB_APP_SECRET', nil)
   end
 
+  def internal_token
+    ENV.fetch('SOCIAL_COMMENTS_TOKEN', nil)
+  end
+
+  # אימות הקוראים הפנימיים (מנוע ה-journeys, וה-webhook היוצא של Chatwoot).
+  #
+  # ⚠️ בניגוד ל-webhook הנכנס מ-Meta, לשתי הנקודות האלה אין חתימה לאמת מולה — הן
+  # מקבלות פקודת *שליחה*. בלי השומר הזה כל מי שמגיע לשרת (וה-reverse proxy מעביר
+  # הכול ל-Rails) יכול לשגר הודעה פרטית בפייסבוק בשם העסק או לפרסם תגובה ציבורית.
+  #
+  # fail-closed בכוונה: בלי סוד מוגדר אנחנו דוחים, לא פותחים. סוד חסר הוא תקלת
+  # התקנה שצריך לצעוק עליה — לא סיבה להגיש נקודת שליחה פתוחה לאינטרנט.
+  def internal_caller?(env)
+    secret = internal_token
+    if secret.blank?
+      Rails.logger.error('[social-comments] SOCIAL_COMMENTS_TOKEN is not set — refusing send endpoints')
+      return false
+    end
+
+    presented = env['HTTP_X_INTERNAL_TOKEN'].to_s
+    return false if presented.empty?
+
+    ActiveSupport::SecurityUtils.secure_compare(presented, secret)
+  rescue StandardError
+    false
+  end
+
   # אימות חתימה של Meta. ללא זה כל אחד יכול להזריק שיחות לתיבות של לקוחות.
   def valid_signature?(raw_body, header)
     secret = app_secret
@@ -256,6 +283,8 @@ class SocialCommentsMiddleware
   # מנוע ה-journeys שולח לכאן: {conversation:{display_id}, account_id, text}.
   # אוכף את שתי מגבלות Meta לפני הקריאה — הודעה אחת לכל תגובה, וחלון 7 ימים.
   def handle_pm(env)
+    return json(401, error: 'unauthorized') unless SocialComments.internal_caller?(env)
+
     data = JSON.parse(read_body(env).to_s) rescue {}
     display_id = data.dig('conversation', 'display_id')
     account_id = data['account_id']
@@ -295,6 +324,8 @@ class SocialCommentsMiddleware
 
   # Chatwoot שולח לכאן כשסוכן עונה בתיבת התגובות.
   def handle_outgoing(env)
+    return json(401, error: 'unauthorized') unless SocialComments.internal_caller?(env)
+
     raw = read_body(env)
     data = JSON.parse(raw.to_s) rescue {}
 
@@ -305,7 +336,12 @@ class SocialCommentsMiddleware
     body = data['content'].to_s
     return json(200, ignored: 'empty') if conversation_id.blank? || body.blank?
 
-    conversation = Conversation.find_by(id: conversation_id)
+    # ה-webhook של Chatwoot נושא את החשבון. מצמצמים לפיו כשהוא קיים — אחרת
+    # conversation_id לבדו הוא מפתח גלובלי, ותקלת הגדרה בחשבון אחד הייתה מפרסמת
+    # תגובה בשם עמוד של חשבון אחר.
+    account_id = data.dig('account', 'id') || data['account_id']
+    scope = account_id.present? ? Conversation.where(account_id: account_id) : Conversation
+    conversation = scope.find_by(id: conversation_id)
     return json(200, ignored: 'no conversation') unless conversation
 
     inbox = conversation.inbox
