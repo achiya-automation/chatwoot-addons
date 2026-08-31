@@ -78,6 +78,7 @@ Neither file is edited. The addon works around both from the outside:
 - **Threading preserved** — replies to a comment join the existing conversation instead of opening a new one
 - **Signature verified** — `X-Hub-Signature-256` is checked against `FB_APP_SECRET` before any processing
 - **Loop-safe** — comments authored by the Page itself are ignored, so our own replies never bounce back as new conversations
+- **Retry-safe** — concurrent or partially failed Meta deliveries are serialized and deduplicated, including when a Chatwoot conversation is deleted mid-request
 
 Connect a Page:
 ```bash

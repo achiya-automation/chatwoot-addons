@@ -26,6 +26,11 @@ module SocialComments
   PAGE_KEY    = 'fb_page_id'
   TOKEN_KEY   = 'fb_page_token'
 
+  # Meta may deliver the same webhook concurrently or while an operator is
+  # deleting/merging a conversation.  One retry is enough to refresh stale
+  # associations without turning a persistent programming error into a loop.
+  INGEST_RETRIES = 1
+
   module_function
 
   def app_secret
@@ -117,23 +122,53 @@ module SocialComments
     Message.where(inbox_id: inbox.id, source_id: comment_id).exists?
   end
 
+  # Meta intentionally omits `from.id` for some private Facebook profiles.
+  # An empty source_id is invalid in Chatwoot and, even if accepted by an old
+  # installation, would merge every anonymous commenter into one contact.
+  def contact_source_id(comment)
+    comment[:from_id].presence || "facebook-comment:#{comment[:comment_id]}"
+  end
+
   def find_or_create_contact(inbox, comment)
-    ci = ContactInbox.find_by(inbox_id: inbox.id, source_id: comment[:from_id])
-    return ci if ci
+    source_id = contact_source_id(comment)
+    ci = ContactInbox.find_by(inbox_id: inbox.id, source_id: source_id)
+    return ci if live_contact_for(inbox, ci)
 
     contact = inbox.account.contacts.create!(name: comment[:from_name])
-    ContactInbox.create!(inbox: inbox, contact: contact, source_id: comment[:from_id])
+    ContactInbox.create!(inbox: inbox, contact: contact, source_id: source_id)
+  end
+
+  def live_contact_for(inbox, contact_inbox)
+    return nil if contact_inbox.nil? || contact_inbox.contact_id.blank?
+
+    inbox.account.contacts.find_by(id: contact_inbox.contact_id)
+  end
+
+  # Do not dereference `message.conversation`: the conversation can be removed
+  # between the message lookup and association load, which raises
+  # ActiveRecord::RecordNotFound.  A scoped lookup turns that race into a clean
+  # miss and also prevents a cross-inbox association from ever being reused.
+  def live_conversation_for(inbox, message)
+    return nil if message.nil? || message.conversation_id.blank?
+
+    Conversation.find_by(
+      id: message.conversation_id,
+      account_id: inbox.account_id,
+      inbox_id: inbox.id
+    )
   end
 
   # תגובת שורש פותחת שיחה. תשובה לתגובה נכנסת לשיחה הקיימת.
   def find_or_create_conversation(inbox, contact_inbox, comment)
     if comment[:parent_id].present?
       parent = Message.find_by(inbox_id: inbox.id, source_id: comment[:parent_id])
-      return parent.conversation if parent&.conversation
+      conversation = live_conversation_for(inbox, parent)
+      return conversation if conversation
     end
 
     root = Message.find_by(inbox_id: inbox.id, source_id: comment[:post_id])
-    return root.conversation if root&.conversation
+    conversation = live_conversation_for(inbox, root)
+    return conversation if conversation
 
     Conversation.create!(
       account_id: inbox.account_id,
@@ -149,25 +184,86 @@ module SocialComments
   end
 
   def ingest(comment)
+    attempts = 0
+
+    begin
+      inbox = inbox_for(comment[:page_id])
+      return :no_inbox unless inbox
+      return :own if own_comment?(comment)
+
+      # Serialising per inbox closes the gap between `already_seen?` and message
+      # creation.  Without it, two deliveries can both create a conversation
+      # before either one stores the deduplication source_id.
+      result = nil
+      inbox.with_lock do
+        if already_seen?(inbox, comment[:comment_id])
+          result = :dup
+          next
+        end
+
+        contact_inbox = find_or_create_contact(inbox, comment)
+        contact = live_contact_for(inbox, contact_inbox)
+        unless contact
+          result = :retry
+          next
+        end
+
+        conversation = find_or_create_conversation(inbox, contact_inbox, comment)
+        unless conversation&.id
+          result = :retry
+          next
+        end
+
+        message = conversation.messages.create!(
+          account_id: inbox.account_id,
+          inbox_id: inbox.id,
+          message_type: :incoming,
+          content: comment[:message],
+          source_id: comment[:comment_id],
+          sender: contact
+        )
+        result = message&.id ? :ok : :retry
+      end
+      return result
+    rescue StandardError => e
+      # An after_commit callback can fail after the message was committed.  In
+      # that case retrying would only duplicate work, so trust the source_id.
+      return :ok if persisted_comment?(comment)
+      raise unless recoverable_ingest_error?(e)
+
+      attempts += 1
+      retry if attempts <= INGEST_RETRIES
+
+      :retry
+    end
+  end
+
+  def persisted_comment?(comment)
     inbox = inbox_for(comment[:page_id])
-    return :no_inbox unless inbox
-    return :own      if own_comment?(comment)
-    return :dup      if already_seen?(inbox, comment[:comment_id])
+    inbox.present? && already_seen?(inbox, comment[:comment_id])
+  rescue StandardError
+    false
+  end
 
-    contact_inbox = find_or_create_contact(inbox, comment)
-    conversation  = find_or_create_conversation(inbox, contact_inbox, comment)
+  # `nil.id` and `nil.destroy!` are the two stale-association failures observed
+  # in production.  Match them narrowly: an unrelated NoMethodError must still
+  # surface as a real bug instead of being silently retried forever.
+  def recoverable_ingest_error?(error)
+    active_record_race_error?(error) || nil_association_error?(error)
+  end
 
-    conversation.messages.create!(
-      account_id: inbox.account_id,
-      inbox_id: inbox.id,
-      message_type: :incoming,
-      content: comment[:message],
-      source_id: comment[:comment_id],
-      sender: contact_inbox.contact
-    )
-    :ok
-  rescue ActiveRecord::RecordNotUnique
-    :dup
+  def active_record_race_error?(error)
+    classes = [ActiveRecord::RecordNotFound, ActiveRecord::RecordNotUnique]
+    classes << ActiveRecord::InvalidForeignKey if defined?(ActiveRecord::InvalidForeignKey)
+    classes.any? { |klass| error.is_a?(klass) }
+  end
+
+  def nil_association_error?(error)
+    return false unless error.is_a?(NoMethodError)
+    return false unless %i[id destroy!].include?(error.name)
+    return false unless error.respond_to?(:receiver)
+
+    error.receiver.nil?
   end
 
   # שליחת הודעה פרטית למי שהגיב (Private Reply).
@@ -191,7 +287,6 @@ module SocialComments
     return [:ok, json['message_id']] if res.is_a?(Net::HTTPSuccess) && json['message_id'].present?
 
     code = json.dig('error', 'code')
-    sub  = json.dig('error', 'error_subcode')
     # 10 / 200 = מחוץ למדיניות ההודעות (בד"כ החלון נסגר או שכבר נשלחה הודעה)
     status = [10, 200].include?(code) ? :not_allowed : :error
     [status, json.dig('error', 'message')]
@@ -256,16 +351,29 @@ class SocialCommentsMiddleware
       return [401, { 'Content-Type' => 'text/plain' }, ['invalid signature']]
     end
 
-    comments.each do |c|
-      result = SocialComments.ingest(c)
+    results = comments.map do |comment|
+      result = SocialComments.ingest(comment)
       # warn ולא info — Chatwoot רץ ב-RAILS_LOG_LEVEL=warn, ו-info נבלע.
-      Rails.logger.warn("[social-comments] #{c[:comment_id]} -> #{result}")
+      Rails.logger.warn("[social-comments] #{comment[:comment_id]} -> #{result}")
+      result
+    rescue StandardError => e
+      # Isolate comments within the same Meta batch.  Returning 503 below asks
+      # Meta to retry, while comments that did commit are deduplicated by
+      # source_id.  Never hand a recognised feed event to Chatwoot's Messenger
+      # endpoint after partially processing it.
+      Rails.logger.error("[social-comments] ingest failed: #{e.class}")
+      :retry
     end
+
+    return [503, { 'Content-Type' => 'text/plain' }, ['retry']] if results.include?(:retry)
 
     [200, { 'Content-Type' => 'text/plain' }, ['ok']]
   rescue StandardError => e
-    Rails.logger.error("[social-comments] #{e.class}: #{e.message}")
-    @app.call(env)
+    # Do not log exception messages here: callback errors may contain request
+    # data.  The class is enough for diagnostics and cannot expose comment text
+    # or credentials.
+    Rails.logger.error("[social-comments] request failed: #{e.class}")
+    [500, { 'Content-Type' => 'text/plain' }, ['internal']]
   end
 
   private

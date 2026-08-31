@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Social Comments now serializes duplicate Meta deliveries per inbox and retries one stale-record race instead of creating duplicate conversations.
+- Deleted conversations and contacts are treated as clean misses; the middleware no longer dereferences stale associations.
+- `nil.id`, `nil.destroy!`, and `ActiveRecord::RecordNotFound` failures from concurrent Chatwoot callbacks are recovered without losing the whole webhook batch.
+- Anonymous Facebook commenters receive stable, non-empty contact source IDs instead of being merged into one empty identity.
+- A partially failed Meta batch returns `503` for safe retry while already stored comments remain deduplicated.
+
 ## [1.1.0] - 2026-03-02
 
 ### Fixed
