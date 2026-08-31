@@ -337,7 +337,8 @@ class SocialCommentsMiddleware
     return handle_pm(env)       if env['PATH_INFO'] == PM_PATH && env['REQUEST_METHOD'] == 'POST'
     return handle_outgoing(env) if env['PATH_INFO'] == OUTGOING_PATH && env['REQUEST_METHOD'] == 'POST'
     return @app.call(env) unless env['REQUEST_METHOD'] == 'POST'
-    return @app.call(env) unless env['PATH_INFO'].to_s.start_with?(INBOUND_PATH)
+    inbound_path = env['PATH_INFO'].to_s
+    return @app.call(env) unless inbound_path == INBOUND_PATH || inbound_path.start_with?("#{INBOUND_PATH}/")
 
     raw = read_body(env)
     return @app.call(env) if raw.blank? || !raw.include?('"feed"')
@@ -434,7 +435,7 @@ class SocialCommentsMiddleware
     )
     json(200, status: 'ok', mid: info)
   rescue StandardError => e
-    Rails.logger.error("[social-comments] pm #{e.class}: #{e.message}")
+    Rails.logger.error("[social-comments] pm failed: #{e.class}")
     json(500, error: 'internal')
   end
 
@@ -477,7 +478,7 @@ class SocialCommentsMiddleware
 
     json(200, status: status, detail: info)
   rescue StandardError => e
-    Rails.logger.error("[social-comments] outgoing #{e.class}: #{e.message}")
+    Rails.logger.error("[social-comments] outgoing failed: #{e.class}")
     json(200, status: 'error')
   end
 

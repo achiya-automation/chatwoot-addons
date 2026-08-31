@@ -348,6 +348,20 @@ class SocialCommentsResilienceTest < Minitest::Test
     assert_same native_error, raised
   end
 
+  def test_similar_but_unmounted_bot_path_is_delegated
+    delegated = 0
+    middleware = SocialCommentsMiddleware.new(lambda do |_env|
+      delegated += 1
+      [204, {}, []]
+    end)
+    env = feed_env.merge('PATH_INFO' => '/bot-impersonator')
+
+    status, = middleware.call(env)
+
+    assert_equal 204, status
+    assert_equal 1, delegated
+  end
+
   private
 
   def configure_ingest(messages)
