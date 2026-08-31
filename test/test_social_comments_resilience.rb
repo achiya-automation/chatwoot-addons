@@ -316,6 +316,38 @@ class SocialCommentsResilienceTest < Minitest::Test
     assert_equal 2, calls
   end
 
+  def test_native_messenger_exception_is_not_swallowed_by_the_addon
+    native_error = ActiveRecord::RecordNotFound.new('native messenger record disappeared')
+    middleware = SocialCommentsMiddleware.new(lambda { |_env| raise native_error })
+    raw = JSON.generate('entry' => [{ 'messaging' => [{ 'message' => { 'text' => 'hello' } }] }])
+    env = {
+      'PATH_INFO' => '/bot',
+      'REQUEST_METHOD' => 'POST',
+      'rack.input' => StringIO.new(raw)
+    }
+
+    raised = assert_raises(ActiveRecord::RecordNotFound) { middleware.call(env) }
+
+    assert_same native_error, raised
+  end
+
+  def test_unhandled_feed_event_exception_is_not_swallowed_by_the_addon
+    native_error = ActiveRecord::RecordNotFound.new('native feed record disappeared')
+    middleware = SocialCommentsMiddleware.new(lambda { |_env| raise native_error })
+    raw = JSON.generate(
+      'entry' => [{ 'changes' => [{ 'field' => 'feed', 'value' => { 'item' => 'like', 'verb' => 'add' } }] }]
+    )
+    env = {
+      'PATH_INFO' => '/bot',
+      'REQUEST_METHOD' => 'POST',
+      'rack.input' => StringIO.new(raw)
+    }
+
+    raised = assert_raises(ActiveRecord::RecordNotFound) { middleware.call(env) }
+
+    assert_same native_error, raised
+  end
+
   private
 
   def configure_ingest(messages)

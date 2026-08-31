@@ -346,6 +346,16 @@ class SocialCommentsMiddleware
     comments = payload ? SocialComments.extract_comments(payload) : []
     return @app.call(env) if comments.empty?
 
+    handle_feed(env, raw, comments)
+  end
+
+  private
+
+  # Only recognised Meta feed callbacks belong to this addon.  Keep the rescue boundary
+  # here, after the pass-through decisions, so an exception raised by Chatwoot's native
+  # Messenger endpoint is handled by Chatwoot instead of being mislabeled and replaced by
+  # a social-comments 500 response.
+  def handle_feed(env, raw, comments)
     unless SocialComments.valid_signature?(raw, env['HTTP_X_HUB_SIGNATURE_256'])
       Rails.logger.warn('[social-comments] rejected: bad signature')
       return [401, { 'Content-Type' => 'text/plain' }, ['invalid signature']]
@@ -375,8 +385,6 @@ class SocialCommentsMiddleware
     Rails.logger.error("[social-comments] request failed: #{e.class}")
     [500, { 'Content-Type' => 'text/plain' }, ['internal']]
   end
-
-  private
 
   # קורא את הגוף ומחזיר אותו למקומו — אחרת Chatwoot יקבל stream ריק.
   def read_body(env)
