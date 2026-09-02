@@ -322,6 +322,8 @@ Contributions are welcome! Feel free to:
 - Submit feature requests
 - Open pull requests
 
+> **Weighing self-hosted against Chatwoot Cloud?** The tier prices, the data-retention caps that usually decide the tier, and a self-hosted install measured in production (348,703 messages in ~1.8 GB of RAM) are broken down in [what Chatwoot actually costs to run](https://achiya-automation.com/en/blog/chatwoot-pricing/).
+
 ## 📄 License
 
 MIT License — see [LICENSE](LICENSE) for details.
