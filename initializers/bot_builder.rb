@@ -13,22 +13,47 @@ module BotFlowStore
       @storage_dir ||= Rails.root.join('storage', 'bot_flows').tap { |d| FileUtils.mkdir_p(d) }
     end
 
+    CACHE = Concurrent::Map.new
+
     def all
-      Dir.glob(storage_dir.join('*.json')).map { |f| JSON.parse(File.read(f)) }
+      Dir.glob(storage_dir.join('*.json')).filter_map { |f| read(f) }
         .sort_by { |b| b['updated_at'] || '' }.reverse
-    rescue StandardError; [] end
+    end
 
     def find(id)
+      # מזהה מגיע גם מ-bot_state של שיחה (שמבקר בווידג'ט יכול לשנות) — רק תווי-מילה, בלי ../
+      return nil unless id.to_s.match?(/\A\w{1,64}\z/)
+
       p = storage_dir.join("#{id}.json")
-      p.exist? ? JSON.parse(File.read(p)) : nil
-    rescue StandardError; nil end
+      p.exist? ? read(p) : nil
+    end
+
+    # ‏כל הודעה נכנסת עוברת על כל הבוטים: מטמון לפי זמן שינוי הקובץ. קובץ פגום אחד מדולג
+    # ‏(עם לוג) — קודם הוא החזיר [] ועצר בשקט את כל הבוטים בשרת.
+    def read(path)
+      key = path.to_s
+      mtime = File.mtime(key)
+      hit = CACHE[key]
+      data = if hit && hit[0] == mtime
+               hit[1]
+             else
+               JSON.parse(File.read(key)).tap { |d| CACHE[key] = [mtime, d] }
+             end
+      data.deep_dup
+    rescue StandardError => e
+      Rails.logger.warn("[BotBuilder] skipped unreadable bot file #{File.basename(key)}: #{e.class}")
+      nil
+    end
 
     def save(d)
       WRITE_MUTEX.synchronize do
         # מזהה חייב להיות תווי-מילה בלבד — מזהה עם ../ או נתיב מוחלט היה כותב קובץ מחוץ לתיקיית האחסון
         d['id'] = SecureRandom.hex(8) unless d['id'].to_s.match?(/\A\w{1,64}\z/)
         d['updated_at'] = Time.now.iso8601
-        d['created_at'] ||= Time.now.iso8601
+        # created_at ו-active מודפסים לדף הרשימה — השרת קובע אותם, לא גוף הבקשה (XSS מאוחסן)
+        prev = find(d['id'])
+        d['created_at'] = prev ? prev['created_at'] : Time.now.iso8601
+        d['active'] = d['active'] == true
         target = storage_dir.join("#{d['id']}.json")
         # Atomic write: write to temp then rename
         tmp = storage_dir.join(".#{d['id']}.tmp")
@@ -245,7 +270,7 @@ class BotBuilderMiddleware
       name_hash = (b['name']||'').bytes.sum % avatar_gradients.length
       avatar_bg = avatar_gradients[name_hash]
       bot_initial = (b['name']||'B')[0].upcase
-      "<div class='bc' data-name='#{e(b['name']||'')}' data-desc='#{e(b['description']||'')}' data-active='#{act}' data-updated='#{b['updated_at']||''}' data-created='#{b['created_at']||''}'>" \
+      "<div class='bc' data-name='#{e(b['name']||'')}' data-desc='#{e(b['description']||'')}' data-active='#{e(act)}' data-updated='#{e(b['updated_at'])}' data-created='#{e(b['created_at'])}'>" \
       "<a href='/bot-builder/#{e(b['id'])}/edit' class='bc-link'>" \
       "<div class='bc-top'>" \
       "<div class='bc-avatar' style='background:#{avatar_bg}'>#{bot_initial}</div>" \
@@ -3693,8 +3718,8 @@ Rails.application.config.after_initialize do
         # שם דומיין (המקרה הרגיל) חייב להיפתר לפני הבדיקה: בלי זה תוקף מפנה דומיין שלו
         # ל-127.0.0.1 או ל-169.254.169.254 (metadata של הענן) והבקשה עוברת. בודקים כל
         # כתובת שה-DNS מחזיר, לא רק host שהוא כתובת IP מפורשת.
-        # ⚠️ DNS rebinding נשאר פתוח: HTTParty/Down פותרים את השם שוב ברגע החיבור ועלולים
-        #    לקבל תשובה אחרת. סגירה מלאה דורשת חיבור לכתובת שנבדקה בלבד (pinned IP).
+        # ⚠️ משמש רק כשאין SafeFetch (גרסאות ישנות): DNS rebinding נשאר פתוח שם, כי HTTParty/Down
+        #    פותרים את השם שוב ברגע החיבור. עם SafeFetch החיבור הוא לכתובת שנבדקה בלבד.
         ips = resolve_ips(host)
         return true if ips.empty?
         ips.any? { |ip| private_ip?(ip) }
@@ -3716,6 +3741,72 @@ Rails.application.config.after_initialize do
       PRIVATE_NETS.any? { |net| net.include?(ip) }
     end
 
+    # ‏כל בקשה יוצאת של הבוט עוברת כאן. ב-Chatwoot שיש בו SafeFetch (כמו ה-webhooks שלו עצמו):
+    # ‏חיבור לכתובת שנבדקה בלבד ובדיקה של כל הפניה — בלי זה הפניה (302) ל-169.254.169.254 או
+    # ‏ל-http://rails:3000 עקפה את ssrf_blocked?. בגרסאות ישנות בלי SafeFetch: הבדיקה הישנה, בלי הפניות.
+    def self.safe_fetch?
+      defined?(::SafeFetch) && ::SafeFetch.respond_to?(:fetch)
+    end
+
+    # ‏מוריד קובץ ומעביר את ה-IO לבלוק (הקובץ הזמני נסגר ביציאה ממנו). מחזיר nil בכשל.
+    def self.download(url, max_bytes)
+      if safe_fetch?
+        ::SafeFetch.fetch(url, max_bytes: max_bytes) { |r| yield r.tempfile, r.content_type }
+      else
+        return Rails.logger.warn('[BotEngine] SSRF blocked download') if ssrf_blocked?(url)
+        f = Down.download(url, max_size: max_bytes, max_redirects: 0)
+        begin; yield f, f.content_type; ensure; f.close!; end
+      end
+    rescue StandardError => e
+      Rails.logger.error("[BotEngine] download failed: #{e.class}")
+      nil
+    end
+
+    # ‏בקשת HTTP (webhook / api_action). מחזיר [ok, גוף התשובה או nil].
+    def self.http_request(method, url, headers:, body: nil, query: nil)
+      method = method.to_s.upcase == 'GET' ? :get : :post
+      if query.present?
+        uri = URI.parse(url)
+        uri.query = [uri.query.presence, query.to_query].compact.join('&')
+        url = uri.to_s
+      end
+      if safe_fetch?
+        text = nil
+        ::SafeFetch.fetch(url, method: method, headers: headers, body: (method == :post ? body : nil),
+                               open_timeout: 5, read_timeout: 15, max_bytes: 1.megabyte, validate_content_type: false) do |r|
+          text = r.tempfile.read
+        end
+        [true, text]
+      else
+        return [false, nil] if ssrf_blocked?(url)
+        res = method == :get ? HTTParty.get(url, headers: headers, timeout: 15, follow_redirects: false)
+                             : HTTParty.post(url, body: body, headers: headers, timeout: 15, follow_redirects: false)
+        [res.success?, res.body]
+      end
+    rescue StandardError => e
+      Rails.logger.error("[BotEngine] #{method.to_s.upcase} failed: #{e.class}")
+      [false, nil]
+    end
+
+    # ‏bot_state נשמר ב-custom_attributes של השיחה — ומבקר בווידג'ט יכול לשנות אותו
+    # ‏(set_custom_attributes). חתימה עם סוד השרת: מצב שלא הבוט כתב לא יריץ שום צומת.
+    def self.state_signature(conv, bot_id, node_id, waiting_for)
+      OpenSSL::HMAC.hexdigest('SHA256', Rails.application.secret_key_base,
+                              "bot_state:#{conv.id}:#{bot_id}:#{node_id}:#{waiting_for}")
+    end
+
+    def self.valid_state?(conv, st)
+      sig = st['sig'].to_s
+      sig.present? && ActiveSupport::SecurityUtils.secure_compare(
+        sig, state_signature(conv, st['bot_id'], st['node_id'], st['waiting_for'])
+      )
+    end
+
+    # ‏בוט רץ רק בחשבון שלו ורק כשהוא דלוק — גם מהמשך מושהה (delay) ומבחירה בתפריט.
+    def self.runnable?(bot, conv)
+      bot.present? && bot['active'] == true && bot['account_id'] == conv.account_id
+    end
+
     class ProcessJob < ApplicationJob
       queue_as :default
 
@@ -3725,6 +3816,9 @@ Rails.application.config.after_initialize do
         st = conv.custom_attributes&.dig('bot_state')
         if st && (st['waiting_for'] == 'menu_choice' || st['waiting_for'] == 'button_choice')
           choice_resp(msg, conv, st); return
+        end
+        if st && st['waiting_for'] == 'reply'
+          reply_resp(msg, conv, st); return
         end
         BotFlowStore.active_for_inbox(conv.inbox_id, conv.account_id).each do |bot|
           fd = bot.dig('flow','drawflow','Home','data'); next unless fd
@@ -3751,6 +3845,8 @@ Rails.application.config.after_initialize do
       end
 
       MAX_EXEC_DEPTH = 100
+      CONTACT_FIELDS = %w[name email phone_number identifier].freeze
+      CONTACT_LOCATION_FIELDS = %w[city country].freeze
 
       def run(node, fd, conv, bot, out='output_1', depth=0)
         if depth >= MAX_EXEC_DEPTH
@@ -3781,12 +3877,15 @@ Rails.application.config.after_initialize do
         when 'delay'
           s=(n['data']['seconds']||5).to_i.clamp(1,3600)
           (n.dig('outputs','output_1','connections')||[]).each{|c|
-            BotEngine::DelayJob.set(wait:s.seconds).perform_later(conv.id,bot['id'],c['node'])
+            BotEngine::DelayJob.set(wait:s.seconds).perform_later(conv.id,bot['id'],c['node'],depth+1)
           }
         when 'assign'
           d=n['data']
-          conv.update!(assignee:User.find_by(id:d['agent_id'])) if d['agent_id'].present?
-          conv.update!(team:Team.find_by(id:d['team_id'])) if d['team_id'].present?
+          # ‏רק נציג/צוות של אותו חשבון — זרימה ערוכה ידנית לא תשייך למשתמש מחשבון אחר
+          ag=conv.account.users.find_by(id:d['agent_id']) if d['agent_id'].present?
+          conv.update!(assignee:ag) if ag
+          tm=conv.account.teams.find_by(id:d['team_id']) if d['team_id'].present?
+          conv.update!(team:tm) if tm
           run(n,fd,conv,bot,'output_1',depth)
         when 'add_label'
           l=n['data']['label_name'].to_s.strip
@@ -3804,18 +3903,13 @@ Rails.application.config.after_initialize do
           conv.update!(status: :resolved)
         when 'webhook'
           u=n['data']['url'].to_s.strip
-          if u.present? && u.match?(/\Ahttps?:\/\//i) && !BotEngine.ssrf_blocked?(u)
+          if u.present? && u.match?(/\Ahttps?:\/\//i)
             pl={conversation_id:conv.id,contact_name:conv.contact&.name,contact_phone:conv.contact&.phone_number,inbox_id:conv.inbox_id,last_message:conv.messages.where(message_type: :incoming).last&.content}
-            begin
-              hdrs={'Content-Type'=>'application/json'}
-              ch=n['data']['headers'].to_s.strip
-              if ch.present?; begin; hdrs.merge!(JSON.parse(ch)); rescue; end; end
-              if (n['data']['method']||'POST').upcase=='GET'
-                HTTParty.get(u,query:pl,headers:hdrs,timeout:15)
-              else
-                HTTParty.post(u,body:pl.to_json,headers:hdrs,timeout:15)
-              end
-            rescue => e; Rails.logger.error("[BotEngine] webhook: #{e.message}"); end
+            hdrs={'Content-Type'=>'application/json'}
+            ch=n['data']['headers'].to_s.strip
+            if ch.present?; begin; hdrs.merge!(JSON.parse(ch)); rescue; end; end
+            get=(n['data']['method']||'POST').upcase=='GET'
+            BotEngine.http_request(get ? 'GET' : 'POST', u, headers:hdrs, body:(get ? nil : pl.to_json), query:(get ? pl : nil))
           end
           run(n,fd,conv,bot,'output_1',depth)
         when 'note'
@@ -3838,6 +3932,22 @@ Rails.application.config.after_initialize do
             conv.update!(inbox_id:ib.id) if ib
           end
           run(n,fd,conv,bot,'output_1',depth)
+        when 'ab_split'
+          pct=n['data']['split_a'].to_i; pct=50 if pct.zero? # כמו העורך: parseInt(split_a)||50
+          pct=pct.clamp(1,100)
+          run(n,fd,conv,bot, rand(100) < pct ? 'output_1':'output_2', depth)
+        when 'goto_step'
+          target=fd[n['data']['target_node'].to_s]
+          if depth >= MAX_EXEC_DEPTH
+            Rails.logger.error("[BotEngine] Max execution depth reached (#{MAX_EXEC_DEPTH}) at goto in bot #{bot['id']}")
+          elsif target
+            exec_node(target,fd,conv,bot,depth+1)
+          end
+        when 'api_action'
+          ok=api_action(conv, n['data'])
+          run(n,fd,conv,bot, ok ? 'output_1':'output_2', depth)
+        when 'wait_reply'
+          wait_reply(conv, n, fd, bot)
         else
           Rails.logger.warn("[BotEngine] Unknown/unimplemented node type: #{n['name']} in bot #{bot['id']}")
           # Follow first output connection to continue flow
@@ -3881,7 +3991,10 @@ Rails.application.config.after_initialize do
             when 'name' then conv.inbox&.name.to_s
             else match
             end
-          else match
+          else
+            # ‏{{משתנה}} ששמרו "המתן לתשובה" / "קריאת API"
+            vars = conv.custom_attributes&.dig('bot_vars')
+            parts.length == 1 && vars.is_a?(Hash) && vars.key?(parts[0]) ? vars[parts[0]].to_s : match
           end
         end
       rescue => e
@@ -3889,32 +4002,19 @@ Rails.application.config.after_initialize do
         t
       end
 
-      def img(conv, url, cap)
-        return if url.to_s.strip.empty?
-        if BotEngine.ssrf_blocked?(url)
-          Rails.logger.warn("[BotEngine] SSRF blocked image download: #{url}")
-          return
-        end
-        m=conv.messages.create!(message_type: :outgoing, content:interp(cap.to_s,conv), account_id:conv.account_id, inbox_id:conv.inbox_id, content_attributes:{'bot_response'=>true})
-        begin
-          f=Down.download(url, max_size:10*1024*1024)
-          m.attachments.new(account_id:conv.account_id, file_type: :image, file:{io:f, filename:File.basename(url), content_type:f.content_type})
-          m.save!
-        rescue => e; Rails.logger.error("[BotEngine] img: #{e.message}"); end
-      end
+      def img(conv, url, cap) = media(conv, url, cap, :image, 10.megabytes)
 
-      def vid(conv, url, cap)
+      def vid(conv, url, cap) = media(conv, url, cap, :video, 40.megabytes)
+
+      # ‏קודם מורידים ורק אז יוצרים את ההודעה עם הקובץ: הודעה שנוצרה לפני ההורדה נשלחה ללקוח
+      # ‏מיד (SendReplyJob) — לפעמים בלי התמונה.
+      def media(conv, url, cap, type, max_bytes)
         return if url.to_s.strip.empty?
-        if BotEngine.ssrf_blocked?(url)
-          Rails.logger.warn("[BotEngine] SSRF blocked video download: #{url}")
-          return
-        end
-        m=conv.messages.create!(message_type: :outgoing, content:interp(cap.to_s,conv), account_id:conv.account_id, inbox_id:conv.inbox_id, content_attributes:{'bot_response'=>true})
-        begin
-          f=Down.download(url, max_size:40*1024*1024)
-          m.attachments.new(account_id:conv.account_id, file_type: :video, file:{io:f, filename:File.basename(url), content_type:f.content_type})
+        BotEngine.download(url, max_bytes) do |io, content_type|
+          m=conv.messages.new(message_type: :outgoing, content:interp(cap.to_s,conv), account_id:conv.account_id, inbox_id:conv.inbox_id, content_attributes:{'bot_response'=>true})
+          m.attachments.new(account_id:conv.account_id, file_type:type, file:{io:io, filename:File.basename(URI.parse(url).path.presence || type.to_s), content_type:content_type})
           m.save!
-        rescue => e; Rails.logger.error("[BotEngine] vid: #{e.message}"); end
+        end
       end
 
       def btns(conv, node, fd, bot)
@@ -3928,7 +4028,7 @@ Rails.application.config.after_initialize do
         txt(conv, t)
         nid=fd.find{|_,v|v.object_id==node.object_id}&.first
         nid||=fd.find{|_,v|v['name']=='buttons'&&v['data']['body']==d['body']}&.first
-        conv.update!(custom_attributes:(conv.custom_attributes||{}).merge('bot_state'=>{'bot_id'=>bot['id'],'node_id'=>nid.to_s,'waiting_for'=>'button_choice','options_count'=>btns_list.length,'button_labels'=>btns_list}))
+        save_state(conv, bot, nid, 'button_choice', 'options_count'=>btns_list.length, 'button_labels'=>btns_list)
       end
 
       def menu(conv, node, fd, bot)
@@ -3940,11 +4040,12 @@ Rails.application.config.after_initialize do
         txt(conv, t)
         nid=fd.find{|_,v|v.object_id==node.object_id}&.first
         nid||=fd.find{|_,v|v['name']=='menu'&&v['data']['title']==d['title']}&.first
-        conv.update!(custom_attributes:(conv.custom_attributes||{}).merge('bot_state'=>{'bot_id'=>bot['id'],'node_id'=>nid.to_s,'waiting_for'=>'menu_choice','options_count'=>opts.length}))
+        save_state(conv, bot, nid, 'menu_choice', 'options_count'=>opts.length)
       end
 
       def choice_resp(msg, conv, st)
-        bot=BotFlowStore.find(st['bot_id']); return clr(conv) unless bot
+        return clr(conv) unless BotEngine.valid_state?(conv, st)
+        bot=BotFlowStore.find(st['bot_id']); return clr(conv) unless BotEngine.runnable?(bot, conv)
         fd=bot.dig('flow','drawflow','Home','data'); return clr(conv) unless fd
         node=fd[st['node_id']]; return clr(conv) unless node
         content=msg.content.to_s.strip
@@ -3961,6 +4062,58 @@ Rails.application.config.after_initialize do
         else
           txt(conv,"Sorry, please choose from the available options.")
         end
+      end
+
+      def node_id_of(fd, node)
+        fd.find { |_, v| v.object_id == node.object_id }&.first.to_s
+      end
+
+      def set_var(conv, name, value)
+        name=name.to_s.strip.delete_prefix('{{').delete_suffix('}}').strip
+        return unless name.match?(/\A\w{1,64}\z/)
+        attrs=conv.custom_attributes||{}
+        conv.update!(custom_attributes:attrs.merge('bot_vars'=>(attrs['bot_vars']||{}).merge(name=>value.to_s[0, 1000])))
+      end
+
+      # ‏"קריאת API": כמו webhook, אבל עם שיטה/כותרות/גוף מהעורך, שמירת התשובה למשתנה,
+      # ‏ויציאה נפרדת להצלחה ולשגיאה.
+      def api_action(conv, d)
+        url=interp(d['url'].to_s.strip, conv)
+        return false unless url.match?(/\Ahttps?:\/\//i)
+        hdrs={'Content-Type'=>'application/json'}
+        # ‏כותרות כמו שהוגדרו, בלי {{משתנים}}: תשובת לקוח לא תזריק כותרות לבקשה
+        if d['headers'].to_s.strip.present?; begin; hdrs.merge!(JSON.parse(d['headers'].to_s)); rescue JSON::ParserError; end; end
+        get=(d['method'].presence || 'GET').upcase=='GET'
+        ok, body=BotEngine.http_request(get ? 'GET' : 'POST', url, headers:hdrs, body:(get ? nil : interp(d['body'].to_s, conv)))
+        set_var(conv, d['save_response'], body) if ok && d['save_response'].present?
+        ok
+      end
+
+      # ‏"המתן לתשובה": ההודעה הבאה של הלקוח נשמרת למשתנה וממשיכה ביציאה 1; אם לא ענה בזמן —
+      # ‏הודעת timeout (אם הוגדרה) ויציאה 2.
+      def wait_reply(conv, node, fd, bot)
+        d=node['data']
+        nid=node_id_of(fd, node)
+        started=Time.now.to_i
+        save_state(conv, bot, nid, 'reply', 'variable'=>d['variable'].to_s, 'started_at'=>started)
+        secs=d['timeout_seconds'].to_i
+        BotEngine::WaitTimeoutJob.set(wait:secs.clamp(10, 7.days.to_i).seconds).perform_later(conv.id, bot['id'], nid, started) if secs.positive?
+      end
+
+      def reply_resp(msg, conv, st)
+        return clr(conv) unless BotEngine.valid_state?(conv, st)
+        bot=BotFlowStore.find(st['bot_id']); return clr(conv) unless BotEngine.runnable?(bot, conv)
+        fd=bot.dig('flow','drawflow','Home','data'); node=fd && fd[st['node_id']]
+        return clr(conv) unless node
+        clr(conv)
+        set_var(conv, st['variable'], msg.content) if st['variable'].present?
+        run(node,fd,conv,bot,'output_1')
+      end
+
+      def save_state(conv, bot, nid, waiting_for, extra = {})
+        st = { 'bot_id' => bot['id'], 'node_id' => nid.to_s, 'waiting_for' => waiting_for }.merge(extra)
+        st['sig'] = BotEngine.state_signature(conv, st['bot_id'], st['node_id'], waiting_for)
+        conv.update!(custom_attributes: (conv.custom_attributes || {}).merge('bot_state' => st))
       end
 
       def clr(conv)
@@ -3989,7 +4142,12 @@ Rails.application.config.after_initialize do
         when 'contact_field'
           fk=d['attr_key'].to_s.strip
           return false unless fk.present? && conv.contact
-          conv.contact.try(fk).to_s.downcase.include?(v.downcase)
+          # ‏רק שדות קריאה — try(fk) הריץ כל מתודה שהזרימה נקבה בשמה (למשל destroy).
+          # ‏עיר/מדינה (מהרשימה בעורך) יושבות ב-additional_attributes — ה-try הישן תמיד החזיר nil.
+          val = if CONTACT_FIELDS.include?(fk) then conv.contact.public_send(fk)
+                elsif CONTACT_LOCATION_FIELDS.include?(fk) then conv.contact.additional_attributes&.dig(fk)
+                end
+          val.to_s.downcase.include?(v.downcase)
         else false end
       rescue; false
       end
@@ -3997,12 +4155,32 @@ Rails.application.config.after_initialize do
 
     class DelayJob < ApplicationJob
       queue_as :default
-      def perform(cid,bid,nid)
+      # ‏depth עובר דרך ההשהיה: לולאת delay→message→delay נעצרת ב-MAX_EXEC_DEPTH, ובוט שכובה
+      # ‏(או שייך לחשבון אחר) לא ממשיך לשלוח אחרי ההשהיה.
+      def perform(cid,bid,nid,depth=0)
         conv=Conversation.find_by(id:cid); return unless conv
-        bot=BotFlowStore.find(bid); return unless bot
+        bot=BotFlowStore.find(bid); return unless BotEngine.runnable?(bot, conv)
         fd=bot.dig('flow','drawflow','Home','data'); return unless fd&&fd[nid]
-        ProcessJob.new.send(:exec_node, fd[nid], fd, conv, bot)
+        return Rails.logger.error("[BotEngine] Max execution depth reached after delay in bot #{bid}") if depth >= ProcessJob::MAX_EXEC_DEPTH
+        ProcessJob.new.send(:exec_node, fd[nid], fd, conv, bot, depth)
       rescue => e; Rails.logger.error("[BotEngine] delay: #{e.message}"); end
+    end
+
+    class WaitTimeoutJob < ApplicationJob
+      queue_as :default
+      # ‏רץ רק אם השיחה עדיין מחכה בדיוק לאותה תשובה (אותו בוט, צומת ורגע התחלה).
+      def perform(cid,bid,nid,started)
+        conv=Conversation.find_by(id:cid); return unless conv
+        st=conv.custom_attributes&.dig('bot_state')
+        return unless st.is_a?(Hash) && st['waiting_for']=='reply' && st['bot_id']==bid && st['node_id']==nid && st['started_at']==started
+        return unless BotEngine.valid_state?(conv, st)
+        bot=BotFlowStore.find(bid); return unless BotEngine.runnable?(bot, conv)
+        fd=bot.dig('flow','drawflow','Home','data'); node=fd && fd[nid]; return unless node
+        job=ProcessJob.new
+        job.send(:clr, conv)
+        job.send(:txt, conv, node['data']['timeout_message'])
+        job.send(:run, node, fd, conv, bot, 'output_2')
+      rescue => e; Rails.logger.error("[BotEngine] wait timeout: #{e.class}"); end
     end
 
     def self.process_async(mid); ProcessJob.perform_later(mid); end

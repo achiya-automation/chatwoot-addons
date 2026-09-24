@@ -60,10 +60,15 @@ class TestMiddlewareStack
 end
 
 class TestApplicationConfig
-  attr_reader :middleware
+  attr_reader :middleware, :after_initialize_blocks
 
   def initialize
     @middleware = TestMiddlewareStack.new
+    @after_initialize_blocks = []
+  end
+
+  def after_initialize(&block)
+    @after_initialize_blocks << block
   end
 end
 
