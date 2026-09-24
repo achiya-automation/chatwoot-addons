@@ -4,6 +4,11 @@
 # Access: /campaign-report (requires Chatwoot login session)
 
 class CampaignReportMiddleware
+  # ‏Chatwoot שומר את content_attributes כ-JSON מקודד פעמיים (store … coder: JSON בעמודת json),
+  # ‏ולכן content_attributes::jsonb הוא מחרוזת ו-campaign_id לא נמצא אף פעם — הדוח הראה 0.
+  # ‏#>> '{}' פותח את שתי הצורות (כמו enterprise/app/models/enterprise/message.rb).
+  CAMPAIGN_KEY = "((messages.content_attributes #>> '{}')::jsonb ->> 'campaign_id')".freeze
+
   def initialize(app)
     @app = app
   end
@@ -39,6 +44,12 @@ class CampaignReportMiddleware
     nil
   end
 
+  # ‏מנהלים בלבד, כמו מסך הקמפיינים של Chatwoot (CampaignPolicy): הדוח כולל שמות וטלפונים
+  # ‏של כל הנמענים וייצוא CSV. קודם גם נציג רגיל בחשבון ראה אותו.
+  def report_account_ids(user)
+    user.account_users.where(role: :administrator).pluck(:account_id)
+  end
+
   # Sanitize locale for safe JS embedding
   def safe_locale(user)
     loc = begin; user&.account_users&.first&.account&.locale; rescue; nil end || 'en'
@@ -49,7 +60,7 @@ class CampaignReportMiddleware
     user = authenticate(request)
     return unauthorized_response unless user
 
-    account_ids = user.account_users.pluck(:account_id)
+    account_ids = report_account_ids(user)
 
     # Server-side filtering
     status_filter = request.params['status']
@@ -80,9 +91,8 @@ class CampaignReportMiddleware
       failed: all_stats.values.sum { |s| s[:failed] }
     }
 
-    # Batch message stats for current page (scoped to account)
-    campaign_ids = campaigns.map(&:id)
-    msg_stats = batch_campaign_stats(campaign_ids, account_ids)
+    # Current page stats are a subset of the totals above — no second query
+    msg_stats = all_stats
 
     rows = campaigns.map do |c|
       stats = msg_stats[c.id] || { total: 0, delivered: 0, read: 0, failed: 0 }
@@ -110,7 +120,7 @@ class CampaignReportMiddleware
     user = authenticate(request)
     return unauthorized_response unless user
 
-    account_ids = user.account_users.pluck(:account_id)
+    account_ids = report_account_ids(user)
     campaign = Campaign.where(account_id: account_ids).find_by(id: campaign_id)
     campaign ||= Campaign.where(account_id: account_ids).find_by(display_id: campaign_id)
 
@@ -130,7 +140,7 @@ class CampaignReportMiddleware
     end
 
     audience_contacts = campaign_audience_contacts(campaign)
-    sent_phones = contact_results.map { |r| r[:phone] }.compact
+    sent_phones = contact_results.map { |r| r[:phone] }.compact.to_set
     not_sent = audience_contacts.reject { |c| sent_phones.include?(c[:phone]) }
 
     locale = safe_locale(user)
@@ -149,24 +159,29 @@ class CampaignReportMiddleware
   def campaign_messages(campaign_id, account_ids = nil)
     scope = Message.joins(:conversation)
     scope = scope.where(conversations: { account_id: account_ids }) if account_ids
-    scope.where("messages.content_attributes::jsonb @> ?::jsonb", { campaign_id: campaign_id.to_i }.to_json)
+    scope.where("#{CAMPAIGN_KEY} = ?", campaign_id.to_i.to_s)
   end
 
-  # Batch query: get stats for all campaigns at once (scoped to account)
+  # Batch query: get stats for all campaigns at once (scoped to account).
+  # ‏שאילתה אחת מקובצת לכל הקמפיינים — קודם רצו 4 שאילתות לכל קמפיין, וכל אחת סרקה את
+  # ‏כל ההודעות של החשבון (אין אינדקס על content_attributes).
   def batch_campaign_stats(campaign_ids, account_ids = nil)
     return {} if campaign_ids.empty?
     stats = {}
     campaign_ids.each { |id| stats[id] = { total: 0, delivered: 0, read: 0, failed: 0 } }
 
-    # Base query scoped to account
     base = Message.joins(:conversation)
     base = base.where(conversations: { account_id: account_ids }) if account_ids
-    campaign_ids.each do |cid|
-      msgs = base.where("messages.content_attributes::jsonb @> ?::jsonb", { campaign_id: cid.to_i }.to_json)
-      stats[cid][:total] = msgs.count
-      stats[cid][:delivered] = msgs.where(status: [:delivered, :read]).count
-      stats[cid][:read] = msgs.where(status: :read).count
-      stats[cid][:failed] = msgs.where(status: :failed).count
+    st = Message.statuses
+    rows = base.where("#{CAMPAIGN_KEY} IN (?)", campaign_ids.map(&:to_s))
+               .unscope(:order) # Message סודר כברירת מחדל לפי created_at — מתנגש עם GROUP BY
+               .group(Arel.sql(CAMPAIGN_KEY))
+               .pluck(Arel.sql(CAMPAIGN_KEY), Arel.sql('COUNT(*)'),
+                      Arel.sql("COUNT(*) FILTER (WHERE messages.status IN (#{st['delivered']}, #{st['read']}))"),
+                      Arel.sql("COUNT(*) FILTER (WHERE messages.status = #{st['read']})"),
+                      Arel.sql("COUNT(*) FILTER (WHERE messages.status = #{st['failed']})"))
+    rows.each do |cid, total, delivered, read, failed|
+      stats[cid.to_i] = { total: total, delivered: delivered, read: read, failed: failed } if stats.key?(cid.to_i)
     end
     stats
   rescue StandardError => e
