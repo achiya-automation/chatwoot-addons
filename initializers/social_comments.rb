@@ -20,11 +20,17 @@
 module SocialComments
   GRAPH = 'https://graph.facebook.com/v23.0'
 
-  # תיבה מזוהה לפי page_id ששמור ב-additional_attributes של ערוץ ה-API.
+  # ‏המיפוי דף ⇒ תיבה והטוקן של הדף נשמרים ב-InstallationConfig (רמת ההתקנה, רק super admin).
+  # ‏קודם הם ישבו ב-additional_attributes של ערוץ ה-API: Chatwoot מחזיר את השדה הזה לכל נציג
+  # ‏בתיבה (inboxes API), וכל מנהל חשבון יכול לערוך אותו — כלומר כל נציג קרא את הטוקן, וחשבון
+  # ‏אחר יכול היה "לתפוס" דף של לקוח על ידי כתיבת ה-page_id שלו.
+  # ‏fb_page_id / fb_page_name נשארים בערוץ לתצוגה בלבד; הם כבר לא קובעים כלום.
   # ponytail: אין טבלה חדשה — source_id של ההודעה מחזיק את comment_id,
   # והוא כבר מאונדקס ב-Chatwoot.
   PAGE_KEY    = 'fb_page_id'
-  TOKEN_KEY   = 'fb_page_token'
+  TOKEN_KEY   = 'fb_page_token' # ‏רק להעברה מהתקנות ישנות
+  REGISTRY_PREFIX = 'SOCIAL_COMMENTS_PAGE_'
+  SIGNATURE_WINDOW = 300 # ‏שניות — חותמת זמן של webhook מ-Chatwoot
 
   # Meta may deliver the same webhook concurrently or while an operator is
   # deleting/merging a conversation.  One retry is enough to refresh stale
@@ -101,14 +107,90 @@ module SocialComments
     end
   end
 
-  def inbox_for(page_id)
-    Channel::Api
-      .where("additional_attributes ->> ? = ?", PAGE_KEY, page_id)
-      .first&.inbox
+  def registry(page_id)
+    return nil if page_id.blank?
+
+    entry = InstallationConfig.find_by(name: "#{REGISTRY_PREFIX}#{page_id}")&.value
+    entry.is_a?(Hash) ? entry : nil
   end
 
+  # ‏חיבור דף לתיבה (bin/social-comments-connect). דף שכבר מחובר לתיבה אחרת לא נדרס בשקט.
+  def register_page!(inbox, page_id, token)
+    config = InstallationConfig.find_or_initialize_by(name: "#{REGISTRY_PREFIX}#{page_id}")
+    current = config.value
+    if current.is_a?(Hash) && current['inbox_id'].present? && current['inbox_id'].to_i != inbox.id
+      raise ArgumentError, "page #{page_id} is already connected to inbox #{current['inbox_id']}"
+    end
+
+    config.value = { 'inbox_id' => inbox.id, 'token' => token }
+    config.locked = true
+    config.save!
+  end
+
+  def inbox_for(page_id)
+    entry = registry(page_id) || migrate_legacy_page(page_id)
+    entry && Inbox.find_by(id: entry['inbox_id'])
+  end
+
+  # ‏טוקן רק לתיבה שהדף באמת מחובר אליה לפי הרישום — לא לפי שדה שמנהל חשבון יכול לערוך.
   def page_token(inbox)
-    inbox.channel.additional_attributes[TOKEN_KEY].presence
+    entry = registry(inbox.channel.additional_attributes.to_h[PAGE_KEY])
+    entry && entry['inbox_id'].to_i == inbox.id ? entry['token'].presence : nil
+  end
+
+  def comments_inbox?(inbox)
+    inbox&.channel.is_a?(Channel::Api) && page_token(inbox).present?
+  end
+
+  # ‏ה-webhook היוצא של Chatwoot חתום בסוד של הערוץ: X-Chatwoot-Signature =
+  # ‏sha256=HMAC(secret, "<timestamp>.<body>") (lib/webhooks/trigger.rb).
+  def valid_chatwoot_signature?(env, raw, inbox)
+    secret = inbox&.channel.try(:secret)
+    signature = env['HTTP_X_CHATWOOT_SIGNATURE'].to_s
+    timestamp = env['HTTP_X_CHATWOOT_TIMESTAMP'].to_s
+    return false if secret.blank? || signature.blank? || timestamp.blank?
+    return false if (Time.now.to_i - timestamp.to_i).abs > SIGNATURE_WINDOW
+
+    expected = "sha256=#{OpenSSL::HMAC.hexdigest('SHA256', secret, "#{timestamp}.#{raw}")}"
+    ActiveSupport::SecurityUtils.secure_compare(signature, expected)
+  rescue StandardError
+    false
+  end
+
+  # ‏העברה חד-פעמית מהתקנות קודמות: טוקן שנמצא ב-additional_attributes עובר לרישום ונמחק
+  # ‏מהערוץ. דף ששתי תיבות מחזיקות לו טוקן — לא מנחשים; מחברים מחדש עם bin/social-comments-connect.
+  def migrate_legacy_tokens!
+    legacy_channels.find_each { |channel| migrate_channel(channel) }
+  end
+
+  def migrate_legacy_page(page_id)
+    channels = legacy_channels.where('additional_attributes ->> ? = ?', PAGE_KEY, page_id.to_s).to_a
+    return nil unless channels.one?
+
+    migrate_channel(channels.first)
+    registry(page_id)
+  end
+
+  def legacy_channels
+    Channel::Api.where("additional_attributes ->> '#{TOKEN_KEY}' IS NOT NULL")
+  end
+
+  def migrate_channel(channel)
+    attrs = channel.additional_attributes.to_h
+    page_id = attrs[PAGE_KEY].to_s
+    return if page_id.blank? || channel.inbox.nil?
+
+    if legacy_channels.where('additional_attributes ->> ? = ?', PAGE_KEY, page_id).count > 1
+      Rails.logger.error("[social-comments] page #{page_id} has tokens in several inboxes — reconnect it with bin/social-comments-connect")
+      return
+    end
+
+    register_page!(channel.inbox, page_id, attrs[TOKEN_KEY]) if registry(page_id).nil? && attrs[TOKEN_KEY].present?
+    channel.regenerate_secret if channel.secret.blank? && channel.respond_to?(:regenerate_secret)
+    channel.update_column(:additional_attributes, attrs.except(TOKEN_KEY)) # rubocop:disable Rails/SkipsModelValidations
+    Rails.logger.warn("[social-comments] moved the page token of #{page_id} out of the inbox attributes")
+  rescue StandardError => e
+    Rails.logger.error("[social-comments] token migration failed for channel #{channel.id}: #{e.class}")
   end
 
   # ⭐ המחסום שמונע לולאה אינסופית.
@@ -135,6 +217,10 @@ module SocialComments
     return ci if live_contact_for(inbox, ci)
 
     contact = inbox.account.contacts.create!(name: comment[:from_name])
+    # ‏איש קשר שנמחק משאיר ContactInbox יתום, ו-create! חדש נופל על האינדקס הייחודי
+    # ‏(inbox_id, source_id) — וכל תגובה של אותו אדם חזרה 503 לנצח. מחברים את הקיים מחדש.
+    return ci.tap { |existing| existing.update!(contact: contact) } if ci
+
     ContactInbox.create!(inbox: inbox, contact: contact, source_id: source_id)
   end
 
@@ -276,13 +362,14 @@ module SocialComments
     return [:no_token, nil] if token.blank? || page_id.blank?
 
     uri = URI("#{GRAPH}/#{page_id}/messages")
-    res = Net::HTTP.post_form(
-      uri,
+    req = Net::HTTP::Post.new(uri)
+    req.set_form_data(
       'recipient' => { comment_id: comment_id }.to_json,
       'message' => { text: body }.to_json,
       'messaging_type' => 'RESPONSE',
       'access_token' => token
     )
+    res = graph_request(uri, req)
     json = JSON.parse(res.body) rescue {}
     return [:ok, json['message_id']] if res.is_a?(Net::HTTPSuccess) && json['message_id'].present?
 
@@ -292,6 +379,11 @@ module SocialComments
     [status, json.dig('error', 'message')]
   rescue StandardError => e
     [:error, e.message]
+  end
+
+  # ‏עם זמני המתנה: ברירת המחדל של Ruby היא 60+60 שניות, שתופסות thread של Puma.
+  def graph_request(uri, req)
+    Net::HTTP.start(uri.hostname, uri.port, use_ssl: true, open_timeout: 5, read_timeout: 15) { |http| http.request(req) }
   end
 
   # פרסום התשובה של הסוכן חזרה כתגובה פומבית.
@@ -304,7 +396,7 @@ module SocialComments
     req = Net::HTTP::Post.new(uri)
     req['Authorization'] = "Bearer #{token}"
     req.set_form_data('message' => body)
-    res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) { |http| http.request(req) }
+    res = graph_request(uri, req)
     json = JSON.parse(res.body) rescue {}
 
     return [:ok, json['id']] if res.is_a?(Net::HTTPSuccess) && json['id'].present?
@@ -412,9 +504,7 @@ class SocialCommentsMiddleware
     return json(404, error: 'conversation not found') unless conversation
 
     inbox = conversation.inbox
-    unless inbox.channel.is_a?(Channel::Api) && inbox.channel.additional_attributes[SocialComments::PAGE_KEY].present?
-      return json(422, error: 'not a comments inbox')
-    end
+    return json(422, error: 'not a comments inbox') unless SocialComments.comments_inbox?(inbox)
 
     attrs = conversation.additional_attributes.to_h
     return json(409, error: 'already sent', detail: attrs['pm_at']) if attrs['pm_sent']
@@ -440,30 +530,30 @@ class SocialCommentsMiddleware
   end
 
   # Chatwoot שולח לכאן כשסוכן עונה בתיבת התגובות.
+  # ‏מאומת בחתימה של Chatwoot (הסוד של ערוץ התיבה). קודם נדרש X-Internal-Token — ש-Chatwoot
+  # ‏לא שולח — ולכן כל תשובה נדחתה ב-401 וסומנה "נכשלה" בשיחה.
   def handle_outgoing(env)
-    return json(401, error: 'unauthorized') unless SocialComments.internal_caller?(env)
-
     raw = read_body(env)
     data = JSON.parse(raw.to_s) rescue {}
 
+    inbox = Inbox.find_by(id: data.dig('inbox', 'id'), account_id: data.dig('account', 'id'))
+    signed = inbox && SocialComments.valid_chatwoot_signature?(env, raw.to_s, inbox)
+    return json(401, error: 'unauthorized') unless signed || SocialComments.internal_caller?(env)
+
     return json(200, ignored: 'not an outgoing message') unless data['event'] == 'message_created' &&
                                                                 data['message_type'] == 'outgoing'
+    # ‏הערה פנימית, ההודעה הפרטית של handle_pm, או הודעה שכבר קיימת בפייסבוק — לעולם לא לפרסם
+    return json(200, ignored: 'not public') if data['private'] || data.dig('content_attributes', 'private_reply') ||
+                                               data['source_id'].present?
 
-    conversation_id = data.dig('conversation', 'id')
     body = data['content'].to_s
-    return json(200, ignored: 'empty') if conversation_id.blank? || body.blank?
+    return json(200, ignored: 'empty') if body.blank?
+    return json(200, ignored: 'not a comments inbox') unless SocialComments.comments_inbox?(inbox)
 
-    # ה-webhook של Chatwoot נושא את החשבון. מצמצמים לפיו כשהוא קיים — אחרת
-    # conversation_id לבדו הוא מפתח גלובלי, ותקלת הגדרה בחשבון אחד הייתה מפרסמת
-    # תגובה בשם עמוד של חשבון אחר.
-    account_id = data.dig('account', 'id') || data['account_id']
-    scope = account_id.present? ? Conversation.where(account_id: account_id) : Conversation
-    conversation = scope.find_by(id: conversation_id)
+    # ‏conversation.id ב-webhook הוא ה-display_id (מספר השיחה בחשבון), לא המזהה בטבלה —
+    # ‏find_by(id:) מצא שיחה אחרת ופרסם את התשובה מתחת לתגובה של לקוח אחר.
+    conversation = inbox.conversations.find_by(display_id: data.dig('conversation', 'id'))
     return json(200, ignored: 'no conversation') unless conversation
-
-    inbox = conversation.inbox
-    return json(200, ignored: 'not a comments inbox') unless inbox.channel.is_a?(Channel::Api) &&
-                                                             inbox.channel.additional_attributes[SocialComments::PAGE_KEY].present?
 
     parent = conversation.messages.where(message_type: :incoming).where.not(source_id: nil).order(:id).last
     return json(200, ignored: 'no parent comment') unless parent
@@ -473,7 +563,7 @@ class SocialCommentsMiddleware
 
     # שומרים את מזהה התגובה שפרסמנו, כדי שהחזרה שלה כ-webhook תזוהה כשלנו
     if status == :ok && info.present?
-      Message.where(id: data.dig('id')).update_all(source_id: info) rescue nil
+      conversation.messages.where(id: data['id']).update_all(source_id: info) rescue nil # rubocop:disable Rails/SkipsModelValidations
     end
 
     json(200, status: status, detail: info)
@@ -488,3 +578,9 @@ class SocialCommentsMiddleware
 end
 
 Rails.application.config.middleware.use SocialCommentsMiddleware
+
+Rails.application.config.after_initialize do
+  SocialComments.migrate_legacy_tokens! if InstallationConfig.table_exists?
+rescue StandardError => e
+  Rails.logger.error("[social-comments] token migration skipped: #{e.class}")
+end

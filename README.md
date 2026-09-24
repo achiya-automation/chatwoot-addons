@@ -77,6 +77,8 @@ Neither file is edited. The addon works around both from the outside:
 - **Replies go back public** — the agent answers in Chatwoot, the reply is published under the original comment
 - **Threading preserved** — replies to a comment join the existing conversation instead of opening a new one
 - **Signature verified** — `X-Hub-Signature-256` is checked against `FB_APP_SECRET` before any processing
+- **Signed replies** — outgoing replies are accepted only with Chatwoot's own `X-Chatwoot-Signature` (the inbox channel secret); private notes are never published
+- **Token kept private** — the Page token and the page → inbox mapping live in `InstallationConfig` (super admin only), not in the inbox attributes that every inbox agent can read and any account admin can edit. Tokens stored the old way are moved automatically on boot
 - **Loop-safe** — comments authored by the Page itself are ignored, so our own replies never bounce back as new conversations
 - **Retry-safe** — concurrent or partially failed Meta deliveries are serialized and deduplicated, including when a Chatwoot conversation is deleted mid-request
 
@@ -90,9 +92,9 @@ The Page Access Token is read from stdin, never from argv — it will not appear
 
 ### Navigation Widget
 
-- **Slide-out sidebar** accessible from all Chatwoot pages (hover left edge)
+- **Slide-out sidebar** accessible from the agent dashboard (hover left edge)
 - Links to Bot Builder, Campaign Report, and Chatwoot dashboard
-- Auto-injected into every Chatwoot HTML page
+- Auto-injected into dashboard pages (`/app`) only — never into the website widget, help center or survey pages your customers see
 
 ## 🚀 Quick Start
 
@@ -313,6 +315,15 @@ docker compose restart
 - Docker-based Chatwoot deployment
 - Ruby on Rails (bundled with Chatwoot)
 - No additional gems or dependencies
+
+Two protections use Chatwoot internals that older releases do not have:
+- **Outbound bot requests** use Chatwoot's `SafeFetch` when it exists. Without it the addon falls back to its own address check and does not follow redirects.
+- **Social Comments replies** are verified with Chatwoot's `X-Chatwoot-Signature` webhook header. A Chatwoot that does not sign API-inbox webhooks needs a reverse proxy that adds `X-Internal-Token: $SOCIAL_COMMENTS_TOKEN` to that one request.
+
+## 🧪 Testing
+
+- `ruby test/test_social_comments.rb` and `ruby test/test_social_comments_resilience.rb` — plain Ruby, no Rails.
+- `test/addons_spec.rb` — 22 integration checks inside a Chatwoot checkout: copy `initializers/*.rb` into its `config/initializers/`, then `bundle exec rspec /path/to/chatwoot-addons/test/addons_spec.rb`.
 
 ## 🤝 Contributing
 

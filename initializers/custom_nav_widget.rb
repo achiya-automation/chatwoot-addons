@@ -20,8 +20,9 @@ class CustomNavWidgetMiddleware
     return [status, headers, response] unless content_type.include?('text/html')
 
     path = env['PATH_INFO'] || ''
-    # Skip injection for bot-builder and campaign-report (they render their own nav)
-    return [status, headers, response] if path.start_with?('/bot-builder') || path.start_with?('/campaign-report')
+    # ‏רק בדשבורד של הצוות (/app). קודם הוזרק לכל דף HTML — כולל צ'אט האתר (/widget), מרכז העזרה
+    # ‏(/hc) וסקרי שביעות רצון, כלומר ללקוחות. bot-builder / campaign-report מציגים ניווט משלהם.
+    return [status, headers, response] unless path == '/app' || path.start_with?('/app/')
 
     parts = []
     response.each { |part| parts << part }

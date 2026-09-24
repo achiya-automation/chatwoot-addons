@@ -4,11 +4,12 @@
 # ============================================================
 # חיבור דף פייסבוק לתיבת תגובות ב-Chatwoot
 #
-# עושה שלושה דברים:
+# עושה ארבעה דברים:
 #   1. מוסיף את ה-field `feed` ל-subscribed_apps של הדף  <- העקיפה של
 #      channel/facebook_page.rb:53, בלי לגעת בקובץ
 #   2. יוצר תיבת API בשם "תגובות — <שם הדף>"
-#   3. מפנה את ה-webhook היוצא שלה ל-/social-comments/outgoing
+#   3. רושם דף⇒תיבה + הטוקן ב-InstallationConfig (לא בערוץ, שכל נציג רואה)
+#   4. מפנה את ה-webhook היוצא שלה ל-/social-comments/outgoing (חתום בסוד הערוץ)
 #
 # הרצה:
 #   rails runner /app/bin/social-comments-connect <account_id> <page_id>
@@ -86,14 +87,23 @@ else
   puts "\n✅ נוצרה תיבה: #{inbox_name} (id #{inbox.id})"
 end
 
-attrs = channel.additional_attributes || {}
-attrs['fb_page_id']    = page_id
-attrs['fb_page_token'] = page_token
+# ‏הטוקן והמיפוי דף⇒תיבה נשמרים ברישום של ההתקנה (InstallationConfig), לא בערוץ:
+# ‏additional_attributes של הערוץ מוחזר לכל נציג בתיבה, וכל מנהל חשבון יכול לערוך אותו.
+begin
+  SocialComments.register_page!(inbox, page_id, page_token)
+rescue ArgumentError => e
+  die("#{e.message} — נתקו אותו שם קודם (מחיקת InstallationConfig בשם SOCIAL_COMMENTS_PAGE_#{page_id})")
+end
+
+attrs = (channel.additional_attributes || {}).except('fb_page_token')
+attrs['fb_page_id']    = page_id # תצוגה בלבד
 attrs['fb_page_name']  = page_name
 channel.update!(
   additional_attributes: attrs,
   webhook_url: "#{ENV.fetch('FRONTEND_URL', '')}/social-comments/outgoing"
 )
+# ‏Chatwoot חותם את ה-webhook היוצא בסוד של הערוץ, והתוסף מאמת אותו
+channel.regenerate_secret if channel.respond_to?(:regenerate_secret) && channel.secret.blank?
 
 puts "✅ ה-webhook היוצא מכוון ל-#{channel.webhook_url}"
 
